@@ -1,0 +1,2 @@
+ALTER TABLE login_users
+ADD COLUMN complete BOOLEAN NOT NULL DEFAULT 0;

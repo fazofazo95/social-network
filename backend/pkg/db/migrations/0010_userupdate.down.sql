@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN level;
+ALTER TABLE users DROP COLUMN about_me;
+ALTER TABLE users DROP COLUMN nickname;

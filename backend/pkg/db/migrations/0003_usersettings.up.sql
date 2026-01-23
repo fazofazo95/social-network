@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS user_settings (
+	id INTEGER PRIMARY KEY,
+	posts_vis BOOLEAN NOT NULL DEFAULT 1,
+	email_vis BOOLEAN NOT NULL DEFAULT 0,
+	created_date_vis BOOLEAN NOT NULL DEFAULT 0,
+	birthday_date_vis BOOLEAN NOT NULL DEFAULT 1,
+	relationship_status_vis BOOLEAN NOT NULL DEFAULT 1,
+	employed_at_vis BOOLEAN NOT NULL DEFAULT 1,
+	phone_number_vis BOOLEAN NOT NULL DEFAULT 0,
+	photos_vis BOOLEAN NOT NULL DEFAULT 1,
+
+	FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+);

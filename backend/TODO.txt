@@ -1,0 +1,42 @@
+// handlers:
+
+1. Signup
+2. Feed (recommended friends)
+3. Create Post
+4. Visit Profile
+5. Create Comment
+6. Reaction
+
+-- relationshipsHandler.go --
+
+1. Friend Request
+2. React to Friend Request
+3. Block
+4. Unfriend
+
+
+
+
+
+-- groupHandlers.go --
+
+1.Create Group
+2.Create Group Event
+3.Request Group Acceptance
+4.React to Group Invite
+5.Invite to Group 
+6.Leave Group
+
+15. Search (People, Groups, Posts)
+
+16. Upload Photo
+17. Change Personal Settings
+18. Change Personal Data
+19. Edit Post
+20. Edit Photo
+21. Edit Comment
+
+22. Signout
+23. Log In
+24. Get Notifications
+25. Get Pending Requests
