@@ -2,13 +2,51 @@
 
 
 import FormContainer from "../../../components/ui/FormContainer";
-
 import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import Image from "next/image";
+import { useState } from "react";
 
 const RegisterPage = () => {
+const [user_data, setUserData] = useState(null);
+
+const handleRegister = async () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const firstname = document.getElementById("firstname").value;
+
+  const userData = {
+    email: email,
+    username: firstname,
+    password: password,
+  };
+  
+  try {
+    const response = await fetch("http://localhost:8080/api/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log("Registration successful:", data);
+      setUserData({ email: email, username: firstname });
+    
+      window.location.href = "/login";
+    } else {
+      console.error("Registration failed:", data);
+      alert(data.error || "Registration failed");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Failed to connect to server");
+  }
+}
   return (
     <FormContainer encType="multipart/form-data">
       <Logo
@@ -128,7 +166,7 @@ const RegisterPage = () => {
         />
       </div>
 
-      <Button type="button">Create Account</Button>
+      <Button type="button" onClick={() => handleRegister()} >Create Account</Button>
     </FormContainer>
   );
 };
