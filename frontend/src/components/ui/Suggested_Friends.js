@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Follow_Bottom from "../Follow_Button";
 
 const SuggestedFriends = () => {
   return (
@@ -13,9 +14,7 @@ const SuggestedFriends = () => {
             height={20}
           />
           <span>Friend 1</span>
-          <button type="button" className="text-pink-500 ml-auto">
-            Follow
-          </button>
+          <Follow_Bottom />
         </li>
 
         <li className="flex  gap-1">
@@ -26,7 +25,7 @@ const SuggestedFriends = () => {
             height={20}
           />
           <span>Friend 2</span>
-          <button type="button" className="text-pink-500 ml-auto">Follow</button>
+          <Follow_Bottom />
         </li>
 
         <li className="flex  gap-1">
@@ -37,7 +36,7 @@ const SuggestedFriends = () => {
             height={20}
           />
           <span>Friend 3</span>
-          <button type="button" className="text-pink-500 ml-auto">Follow</button>
+          <Follow_Bottom />
         </li>
         <li className="flex gap-1">
           <Image
@@ -47,7 +46,7 @@ const SuggestedFriends = () => {
             height={20}
           />
           <span>Friend 4</span>
-          <button type="button" className="text-pink-500 ml-auto">Follow</button>
+          <Follow_Bottom />
         </li>
       </ul>
     </section>

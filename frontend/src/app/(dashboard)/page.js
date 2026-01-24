@@ -5,6 +5,7 @@ import SideBar from "../../components/ui/SideBar";
 import SuggestedFriends from "../../components/ui/Suggested_Friends";
 import Input from "../../components/ui/Input";
 import Image from "next/image";
+import Ripple_Button from "src/components/ui/Ripple_Button";
 
 //import LoginForm from "@/components/LoginForm";
 
@@ -89,8 +90,41 @@ export default function App() {
       </form>
       
       <article className="border border-gray-200 rounded-lg bg-white text-black  w-full p-5">
-        <h1>User 1</h1>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/profil_icon.svg"
+            alt="Profile Icon"
+            width={30}
+            height={30}
+          />
+        <h1 className="font-bold text-lg">User 1</h1>
+        </div>
+        <span className="text-sm text-gray-500 ml-4 mb-2">Just now</span>
         <p>This is a sample post content.</p>
+        <div className="flex justify-end gap-4 mt-2 border-b border-gray-200 pb-1">
+          <span className="text-gray-500 text-sm mr-auto">10 Ripples</span>
+          <span className="text-gray-500 text-sm">2 Echoes</span>
+          <span className="text-gray-500 text-sm">1 Spreads</span>
+        </div>
+        <div className="flex justify-between gap-8 mt-2 mx-8">
+ <Ripple_Button />
+          <button className="flex cursor-pointer gap-1">
+           <Image
+              src="/echo_icon.svg"
+              alt="Echo Icon"
+              width={20}
+              height={20}
+            />
+            Echo</button>
+          <button className="flex cursor-pointer gap-1">
+            <Image
+              src="/spread_icon.svg"
+              alt="Spread Icon"
+              width={20}
+              height={20}
+            />
+            Spread</button>
+        </div>
       </article>
     </main>
   );
