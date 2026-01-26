@@ -7,24 +7,6 @@ const Ripple_Button = () => {
     
     
 
-    // useEffect(() => {
-    //     if (status === "rippled") {
-    //         let frameIndex = 0;
-    //         const intervalId = setInterval(() => {
-    //             frameIndex++;
-    //             if (frameIndex >= imageFrames.length) {
-    //                 clearInterval(intervalId);
-    //                 setCurrentFrameIndex(frameIndex - 1);
-    //             } else {
-    //                 setCurrentFrameIndex(frameIndex);
-    //             }
-    //         }, 50);
-     
-    //         return () => clearInterval(intervalId);
-    //     } else {
-    //         setCurrentFrameIndex(0);
-    //     }
-    // }, [status]);
     const handleRipple = () => {
           if (status === "rippled") {
             setStatus("not_rippled");

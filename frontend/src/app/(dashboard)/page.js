@@ -1,15 +1,11 @@
 "use client";
 
-import FormContainer from "../../components/ui/FormContainer";
-import SideBar from "../../components/ui/SideBar";
-import SuggestedFriends from "../../components/ui/Suggested_Friends";
-import Input from "../../components/ui/Input";
+
 import Image from "next/image";
+import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 
-//import LoginForm from "@/components/LoginForm";
 
-// import { useState, useEffect } from "react";
 
 export default function App() {
   // const [session, setSession] = useState(null);
@@ -21,16 +17,7 @@ export default function App() {
   // }, []);
 
   // return session ? ( <p></p> ) : ( <LoginForm /> );
-  const handleEchoBtn = () => {
-    const echoSection = document.getElementById("echo-section");
-    if (echoSection.classList.contains("hidden")) {
-      echoSection.classList.remove("hidden");
-      echoSection.classList.add("flex");
-    } else {
-      echoSection.classList.add("hidden");
-      echoSection.classList.remove("flex");
-    }
-  };
+
 
   return (
     <main className="w-full max-w-2xl flex flex-col gap-20">
@@ -117,15 +104,7 @@ export default function App() {
         </div>
         <div className="flex justify-between gap-8 mt-2 mx-8">
           <Ripple_Button />
-          <button onClick={handleEchoBtn} className="flex cursor-pointer gap-1">
-            <Image
-              src="/echo_icon.svg"
-              alt="Echo Icon"
-              width={20}
-              height={20}
-            />
-            Echo
-          </button>
+          <Echo_Button />
           <button className="flex cursor-pointer gap-1">
             <Image
               src="/spread_icon.svg"
