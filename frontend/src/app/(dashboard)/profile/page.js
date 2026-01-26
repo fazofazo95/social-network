@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import {useState} from "react";
-
+import Echo_Button from "src/components/ui/Echo_Button";
+import Ripple_Button from "src/components/ui/Ripple_Button";
+ let currentImage = "/example_cover.png";
 const Profile = () => {
     const Profile = {
         firstname: "John",
@@ -18,6 +20,21 @@ const Profile = () => {
 
     const [status, setStatus] = useState(Profile.status);
 
+   
+    const [coverImage, setCoverImage] = useState(currentImage);
+    const handleChangeCover = (event) => {
+        const file = event.target.files[0];
+        console.log(file);
+        if (file) {
+            const reader = new FileReader();
+            console.log(reader);
+            reader.onload = () => {
+                setCoverImage(reader.result);
+            };
+            currentImage = reader.result;
+            reader.readAsDataURL(file);
+        }
+    };
     const handleStatusChange = () => {
         if (status === "Public") {
             console.log("Changing status to Private");
@@ -26,10 +43,49 @@ const Profile = () => {
             setStatus("Public");
         }
     };
+
+    const Toggle = (event) => {
+        const
+         btnId = event.target.id;
+          const userPostsSection = document.getElementById("userPosts");
+          const aboutSection = document.getElementById("aboutSection");
+          const followersSection = document.getElementById("followersSection");
+          const followingSection = document.getElementById("followingSection");
+        if (btnId === "userPostsBtn") {
+            userPostsSection.classList.remove("hidden");
+            aboutSection.classList.add("hidden");
+            followersSection.classList.add("hidden");
+            followingSection.classList.add("hidden");
+        } else if (btnId === "aboutBtn") {
+            aboutSection.classList.remove("hidden");
+            userPostsSection.classList.add("hidden");
+            followersSection.classList.add("hidden");
+            followingSection.classList.add("hidden");
+        } else if (btnId === "followersBtn") {
+            followersSection.classList.remove("hidden");
+            userPostsSection.classList.add("hidden");
+            aboutSection.classList.add("hidden");
+            userPostsSection.classList.add("hidden");
+        } else if (btnId === "followingBtn") {
+            followingSection.classList.remove("hidden");
+            aboutSection.classList.add("hidden");
+            userPostsSection.classList.add("hidden");
+            followersSection.classList.add("hidden");
+        }
+    };
+
+      
+
   return (
-    <>
-      <main className="flex flex-col w-full min-w-xl max-w-2xl bg-white rounded-lg overflow-hidden gap-1">
-        <div className="bg-[url('/example_cover.png')] w-full bg-size-[100%_100%] h-36 relative">
+<div className="flex flex-col gap-10">
+      <main className="flex flex-col w-full min-w-xl max-w-2xl bg-white rounded-lg overflow-hidden gap-2">
+        <div 
+          className="w-full h-36 relative"
+          style={{
+            backgroundImage: `url('${coverImage}')`,
+            backgroundSize: '100% 100%'
+          }}
+        >
           <label
             htmlFor="cover-upload"
             className="flex items-center gap-1 cursor-pointer absolute bottom-2 right-2 bg-gray-200 bg-opacity-70 p-1 rounded"
@@ -44,6 +100,8 @@ const Profile = () => {
             <input
               id="cover-upload"
               type="file"
+              accept="image/*"
+              onChange={handleChangeCover}
               className="font-medium cursor-pointer text-black hidden"
             />
           </label>
@@ -97,8 +155,103 @@ const Profile = () => {
             <span className="text-gray-400">Following</span>  
             </div>
         </section>
+        <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
+            <button id="userPostsBtn" onClick={Toggle} className="text-gray-400">Posts({UserPosts.length})</button>
+            <button id="aboutBtn" onClick={Toggle} className="text-gray-400">About</button>
+            <button id="followersBtn" onClick={Toggle} className="text-gray-400">Followers({Followers.length})</button>
+            <button id="followingBtn" onClick={Toggle} className="text-gray-400">Following({Following.length})</button>
+        </section>
+
       </main>
-    </>
+      
+        <article id="userPosts" className="hidden border border-gray-200 rounded-lg bg-white text-black  w-full p-5">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/profil_icon.svg"
+            alt="Profile Icon"
+            width={30}
+            height={30}
+          />
+          <h1 className="font-bold text-lg">User 1</h1>
+        </div>
+        <span className="text-sm text-gray-500 ml-4 mb-2">Just now</span>
+        <p>This is a sample post content.</p>
+        <div className="flex justify-end gap-4 mt-2 border-b border-gray-200 pb-1">
+          <span className="text-gray-500 text-sm mr-auto">10 Ripples</span>
+          <span className="text-gray-500 text-sm">2 Echoes</span>
+          <span className="text-gray-500 text-sm">1 Spreads</span>
+        </div>
+        <div className="flex justify-between gap-8 mt-2 mx-8">
+          <Ripple_Button />
+         <Echo_Button />
+          <button className="flex cursor-pointer gap-1">
+            <Image
+              src="/spread_icon.svg"
+              alt="Spread Icon"
+              width={20}
+              height={20}
+            />
+            Spread
+          </button>
+        </div>
+        <div
+          id="echo-section"
+          className="border-t border-gray-200 rounded mt-2 pt-2 gap-1 hidden"
+        >
+          <Image
+            src="/profil_icon.svg"
+            alt="Profile Icon"
+            width={25}
+            height={25}
+          />
+          <div className=" flex justify-between bg-gray-100 text-black w-full rounded-lg  resize-none h-10">
+            <input
+              type="text"
+              placeholder="Write a comment..."
+              className="focus:outline-none w-full pl-1"
+            />
+
+            <label
+              htmlFor="photo-upload"
+              className="flex items-center gap-1 cursor-pointer"
+            >
+              <Image
+                src="/photo_icon.svg"
+                alt="Share Icon"
+                width={20}
+                height={20}
+              />
+              <input
+                id="photo-upload"
+                type="file"
+                className="font-medium cursor-pointer text-black hidden"
+              />
+            </label>
+          </div>
+        </div>
+      </article>
+        <article id="aboutSection" className="hidden border border-gray-200 rounded-lg bg-white text-black  w-full p-5">
+        <h1 className="font-bold text-lg mb-2">About {Profile.firstname}</h1>
+        <p>This is the about section.</p>
+        </article>
+        <article id="followersSection" className="hidden border border-gray-200 rounded-lg bg-white text-black  w-full p-5">
+        <h1 className="font-bold text-lg mb-2">Followers</h1>
+        <ul>
+            {Followers.map((follower, index) => (
+                <li key={index} className="mb-1">Follower {follower}</li>
+            ))}
+        </ul>
+        </article>
+        <article id="followingSection" className="hidden border border-gray-200 rounded-lg bg-white text-black  w-full p-5">
+        <h1 className="font-bold text-lg mb-2">Following</h1>
+        <ul>
+            {Following.map((followed, index) => (
+                <li key={index} className="mb-1">Following {followed}</li>
+            ))}
+        </ul>
+        </article>
+    </div>
+
   );
 };
 
