@@ -29,7 +29,7 @@ export default function RootLayout({ children }) {
             <SuggestedFriends />
           </div>
           
-          <div className="flex justify-center mt-5">
+          <div className="flex justify-center mt-10">
             {children}
           </div>
           
