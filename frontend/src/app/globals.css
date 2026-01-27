@@ -34,9 +34,16 @@
   --rounded-full: 9999px;
   --color-customPurple: rgb(30, 10, 60);
   --color-customPink: #EF76D9;
+  --text-xsm: 0.5rem;
+  --text-xsm--line-height: calc(0.5 / 0.5); /* ≈ 1.428571 */
 }
 
 .custom-pink-text {
   color: var(--color-customPink);
+}
+
+.text-xsm {
+    font-size: var(--text-xsm) /* 0.2rem = 2px */;
+    line-height: var(--tw-leading, var(--text-xsm--line-height) /* calc(0.5 / 0.2) ≈ 1.428571 */);
 }
 
