@@ -1,25 +1,47 @@
 "use client";
 
-
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 
 
-
 export default function App() {
-  // const [session, setSession] = useState(null);
+  const router = useRouter();
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // useEffect(() => {
-  //   // Η απο το session storage ή local storage
-  //  const userSession = localStorage.getItem("session");
-  //  setSession(userSession ? JSON.parse(userSession) : null);
-  // }, []);
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/verify-session", {
+          method: "GET",
+          credentials: "include",
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setSession(data.user);
+        } else {
+          router.push("/login");
+        }
+      } catch (error) {
+        console.error("Session check failed:", error);
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSession();
+  }, [router]);
 
-  // return session ? ( <p></p> ) : ( <LoginForm /> );
+  if (loading) {
+    return <div className="text-center mt-10">Loading...</div>;
+  }
 
-
-  return (
+  return session ? ( 
     <main className="w-full max-w-2xl flex flex-col gap-20">
       <form
         encType="multipart/form-data"
@@ -152,5 +174,5 @@ export default function App() {
         </div>
       </article>
     </main>
-  );
+  ) : ( router.push('/login') );
 }

@@ -9,12 +9,25 @@ import (
 	"net/http"
 )
 
-func LogInHandler(w http.ResponseWriter, r *http.Request){
+func LogInHandler(w http.ResponseWriter, r *http.Request) {
+	// Allow CORS for local frontend testing. For production, tighten this.
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		responses.SendError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
 
 	type LogInRequest struct {
-		Username string
-		Email    string
-		Password string
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	var req LogInRequest
@@ -23,17 +36,16 @@ func LogInHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	if req.Email == "" && req.Username == "" {
-		responses.SendError(w, http.StatusBadRequest, "email or username is required")
+	if req.Email == "" {
+		responses.SendError(w, http.StatusBadRequest, "email is required")
 		return
 	}
 
 	input := queries.LogInInput{
-		Email:    req.Email,
-		Username: req.Username,
+		Email: req.Email,
+
 		Password: req.Password,
 	}
-
 
 	userID, err := queries.LogIn(context.Background(), database.DB, input)
 	if err != nil {

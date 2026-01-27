@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrInvalidUsernameOrEmail = errors.New("invalid username or email")
-	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidPassword        = errors.New("invalid password")
 )
 
 type LogInInput struct {
@@ -30,8 +30,7 @@ func LogIn(ctx context.Context, db *sql.DB, input LogInInput) (int, error) {
 	var userID int
 	err = tx.QueryRowContext(ctx, `
 		SELECT id, password_hash FROM login_users 
-		WHERE username = ? OR email = ?
-	`, input.Username, input.Email).Scan(&userID, &storedHash)
+		WHERE email = ?`, input.Email).Scan(&userID, &storedHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, ErrInvalidUsernameOrEmail
@@ -47,7 +46,7 @@ func LogIn(ctx context.Context, db *sql.DB, input LogInInput) (int, error) {
 	return userID, tx.Commit()
 }
 
-func LogOut(ctx context.Context, db *sql.DB, sessionCookie string, userID int) error{
+func LogOut(ctx context.Context, db *sql.DB, sessionCookie string, userID int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -55,6 +54,6 @@ func LogOut(ctx context.Context, db *sql.DB, sessionCookie string, userID int) e
 	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, `
 		DELETE FROM sessions WHERE session_id = ? AND id = ?;
-	`, sessionCookie,userID)
+	`, sessionCookie, userID)
 	return tx.Commit()
 }

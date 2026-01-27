@@ -6,8 +6,44 @@ import Link from "next/link";
 import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
+import { useRouter } from "next/navigation";
 
 const LoginPage = () => {
+  const router = useRouter();
+  
+  const handleLogin = async () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const userData = {
+    email: email,
+    password: password,
+  };
+  
+  try {
+    const response = await fetch("http://localhost:8080/api/login", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    });
+    const data = await response.json();
+    
+    if (response.ok) {
+     
+      alert("Login successful!");
+      router.push("/");
+    } else {
+      console.error("Login failed:", data);
+      alert(data.error || "Login failed");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Failed to connect to server");
+  }
+}
   return (
 
       <FormContainer>
@@ -19,7 +55,7 @@ const LoginPage = () => {
         <Input
           label="Email Address"
           icon="/email_icon.svg"
-          id="username"
+          id="email"
           type="email"
           placeholder="your.email@example.com"
           className="mb-4"
@@ -48,7 +84,7 @@ const LoginPage = () => {
           </Link>
         </div>
 
-        <Button type="button">Sign In</Button>
+        <Button type="button" onClick={handleLogin}>Sign In</Button>
 
         <div className="flex items-center justify-center mt-4 gap-6">
           <p className="border-t border-gray-400 w-1/2"></p>
