@@ -59,8 +59,8 @@ func (s *AuthService) SignUp(ctx context.Context, req models.SignUpRequest) erro
 // Login authenticates a user and creates a session
 func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
 	// Validate input
-	if req.Email == "" && req.Username == "" {
-		return nil, errors.New("email or username is required")
+	if req.Email == ""  {
+		return nil, errors.New("email is required")
 	}
 	if req.Password == "" {
 		return nil, errors.New("password is required")
@@ -69,7 +69,6 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	// Query user credentials
 	input := models.LoginInput{
 		Email:    req.Email,
-		Username: req.Username,
 		Password: req.Password,
 	}
 
