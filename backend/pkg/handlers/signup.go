@@ -1,21 +1,14 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
-	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
+	"backend/pkg/models"
 	"backend/pkg/responses"
+	"backend/pkg/services"
 )
-
-// SignupRequest represents the expected JSON payload
-type SignupRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
 
 // SignupHandler handles POST /signup requests for creating a new user.
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,24 +27,23 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req SignupRequest
+	var req models.SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	input := queries.SignUpInput{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: req.Password,
-	}
+	// Initialize auth service
+	authService := services.NewAuthService(database.DB)
 
-	if err := queries.SignUp(context.Background(), database.DB, input); err != nil {
+	// Call service layer to handle signup business logic
+	if err := authService.SignUp(r.Context(), req); err != nil {
+		// Map service errors to HTTP responses
 		switch err {
-		case queries.ErrEmailTaken:
+		case services.ErrEmailTaken:
 			responses.SendError(w, http.StatusConflict, "email already in use")
 			return
-		case queries.ErrUsernameTaken:
+		case services.ErrUsernameTaken:
 			responses.SendError(w, http.StatusConflict, "username already in use")
 			return
 		default:

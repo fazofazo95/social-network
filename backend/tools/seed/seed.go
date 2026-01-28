@@ -8,6 +8,7 @@ import (
 
 	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
+	"backend/pkg/models"
 )
 
 type SeedUser struct {
@@ -36,7 +37,7 @@ func SeedFromJSON(path string) (int, error) {
 
 	created := 0
 	for _, u := range users {
-		input := queries.SignUpInput{Email: u.Email, Username: u.Username, Password: u.Password}
+		input := models.SignUpInput{Email: u.Email, Username: u.Username, Password: u.Password}
 		if err := queries.SignUp(context.Background(), database.DB, input); err != nil {
 			switch err {
 			case queries.ErrEmailTaken, queries.ErrUsernameTaken:
