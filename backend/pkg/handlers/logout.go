@@ -1,15 +1,14 @@
 package handlers
 
 import (
-	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/responses"
-	"context"
+	"backend/pkg/services"
 	"net/http"
 )
 
-func LogOutHandler(w http.ResponseWriter, r *http.Request){
+func LogOutHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
@@ -17,17 +16,22 @@ func LogOutHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	c, err := r.Cookie("session_id") 
+	c, err := r.Cookie("session_id")
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	if err := queries.LogOut(context.Background(), database.DB, c.Value, userID); err != nil {
+	// Initialize auth service
+	authService := services.NewAuthService(database.DB)
+
+	// Call service layer to handle logout business logic
+	if err := authService.Logout(r.Context(), c.Value, userID); err != nil {
 		responses.SendError(w, http.StatusInternalServerError, "failed to logout")
 		return
 	}
 
+	// Clear session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    "",

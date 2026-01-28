@@ -1,20 +1,18 @@
 package handlers
 
 import (
-	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/responses"
-	"context"
+	"backend/pkg/services"
 	"encoding/json"
 	"net/http"
 )
 
-func LogInHandler(w http.ResponseWriter, r *http.Request){
-
+func LogInHandler(w http.ResponseWriter, r *http.Request) {
 	type LogInRequest struct {
-		Username string
-		Email    string
-		Password string
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	var req LogInRequest
@@ -23,26 +21,25 @@ func LogInHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	if req.Email == "" && req.Username == "" {
-		responses.SendError(w, http.StatusBadRequest, "email or username is required")
-		return
-	}
+	// Initialize auth service
+	authService := services.NewAuthService(database.DB)
 
-	input := queries.LogInInput{
-		Email:    req.Email,
+	// Call service layer to handle login business logic
+	loginReq := services.LoginRequest{
 		Username: req.Username,
+		Email:    req.Email,
 		Password: req.Password,
 	}
 
-
-	userID, err := queries.LogIn(context.Background(), database.DB, input)
+	loginResp, err := authService.Login(r.Context(), loginReq)
 	if err != nil {
+		// Map service errors to HTTP responses
 		switch err {
-		case queries.ErrInvalidUsernameOrEmail:
-			responses.SendError(w, http.StatusUnauthorized, "wrong username or email")
+		case services.ErrInvalidCredentials:
+			responses.SendError(w, http.StatusUnauthorized, "invalid username, email, or password")
 			return
-		case queries.ErrInvalidPassword:
-			responses.SendError(w, http.StatusUnauthorized, "invalid password")
+		case services.ErrSessionFailed:
+			responses.SendError(w, http.StatusInternalServerError, "failed to create session")
 			return
 		default:
 			responses.SendError(w, http.StatusInternalServerError, "internal server error")
@@ -50,17 +47,10 @@ func LogInHandler(w http.ResponseWriter, r *http.Request){
 		}
 	}
 
-	// Generate session
-	sessionID, err := queries.GenerateSession(context.Background(), database.DB, userID)
-	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, "failed to create session")
-		return
-	}
-
 	// Set session cookie
 	cookie := &http.Cookie{
 		Name:     "session_id",
-		Value:    sessionID,
+		Value:    loginResp.SessionID,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   false, // Set to true in production with HTTPS
