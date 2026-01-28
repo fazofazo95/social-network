@@ -35,7 +35,7 @@ const handleRegister = async (e) => {
 
   const userData = {
     email: email,
-    first_name: firstname,
+    username: firstname,
     password: password,
     last_name: lastname,
     date_of_birth: dateofbirth,
