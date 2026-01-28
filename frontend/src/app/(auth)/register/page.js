@@ -6,20 +6,42 @@ import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import Image from "next/image";
-import { useState } from "react";
+
 
 const RegisterPage = () => {
-const [user_data, setUserData] = useState(null);
 
-const handleRegister = async () => {
+const handleRegister = async (e) => {
+  e.preventDefault();
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirm-password").value;
   const firstname = document.getElementById("firstname").value;
+  const lastname = document.getElementById("lastname").value;
+  const dateofbirth = document.getElementById("dateofbirth").value;
+  const nickname = document.getElementById("nickname").value;
+  const aboutme = document.getElementById("aboutme").value;
+  const avatarInput = document.getElementById("avatar");
+  const avatarFile = avatarInput.files[0];
+  
+    if (!email || !password || !confirmPassword || !firstname || !lastname || !dateofbirth) {
+    alert("Please fill in all required fields");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert("Passwords do not match!");
+    return;
+  }
 
   const userData = {
     email: email,
-    username: firstname,
+    first_name: firstname,
     password: password,
+    last_name: lastname,
+    date_of_birth: dateofbirth,
+    nickname: nickname,
+    about_me: aboutme,
+    avatar: avatarFile ? avatarFile.name : null,
   };
   
   try {
@@ -35,7 +57,6 @@ const handleRegister = async () => {
     
     if (response.ok) {
       console.log("Registration successful:", data);
-      setUserData({ email: email, username: firstname });
     
       window.location.href = "/login";
     } else {
@@ -48,7 +69,7 @@ const handleRegister = async () => {
   }
 }
   return (
-    <FormContainer encType="multipart/form-data">
+    <FormContainer onSubmit={handleRegister} encType="multipart/form-data">
       <Logo
         title="Create your account"
         subtitle="Join our community today!"
@@ -166,7 +187,7 @@ const handleRegister = async () => {
         />
       </div>
 
-      <Button type="button" onClick={() => handleRegister()} >Create Account</Button>
+      <Button type="submit">Create Account</Button>
     </FormContainer>
   );
 };
