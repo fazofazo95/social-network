@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	queries "backend/pkg/db/queries"
+	"backend/pkg/models"
 )
 
 var (
@@ -26,35 +27,15 @@ func NewAuthService(db *sql.DB) *AuthService {
 	return &AuthService{db: db}
 }
 
-// SignUpRequest represents the input for user signup
-type SignUpRequest struct {
-	Username string
-	Email    string
-	Password string
-}
-
-// LoginRequest represents the input for user login
-type LoginRequest struct {
-	Username string
-	Email    string
-	Password string
-}
-
-// LoginResponse represents the output of a successful login
-type LoginResponse struct {
-	UserID    int
-	SessionID string
-}
-
 // SignUp registers a new user with email, username, and password
-func (s *AuthService) SignUp(ctx context.Context, req SignUpRequest) error {
+func (s *AuthService) SignUp(ctx context.Context, req models.SignUpRequest) error {
 	// Validate input
 	if req.Email == "" || req.Username == "" || req.Password == "" {
 		return errors.New("email, username, and password are required")
 	}
 
 	// Create signup input for database query
-	input := queries.SignUpInput{
+	input := models.SignUpInput{
 		Email:    req.Email,
 		Username: req.Username,
 		Password: req.Password,
@@ -76,7 +57,7 @@ func (s *AuthService) SignUp(ctx context.Context, req SignUpRequest) error {
 }
 
 // Login authenticates a user and creates a session
-func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
+func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
 	// Validate input
 	if req.Email == "" && req.Username == "" {
 		return nil, errors.New("email or username is required")
@@ -86,7 +67,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	}
 
 	// Query user credentials
-	input := queries.LogInInput{
+	input := models.LoginInput{
 		Email:    req.Email,
 		Username: req.Username,
 		Password: req.Password,
@@ -107,7 +88,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 		return nil, ErrSessionFailed
 	}
 
-	return &LoginResponse{
+	return &models.LoginResponse{
 		UserID:    userID,
 		SessionID: sessionID,
 	}, nil

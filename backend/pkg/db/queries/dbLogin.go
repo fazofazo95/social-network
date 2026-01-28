@@ -5,21 +5,17 @@ import (
 	"database/sql"
 	"errors"
 
+	"backend/pkg/models"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	ErrInvalidUsernameOrEmail = errors.New("invalid username or email")
-	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidPassword        = errors.New("invalid password")
 )
 
-type LogInInput struct {
-	Email    string
-	Username string
-	Password string
-}
-
-func LogIn(ctx context.Context, db *sql.DB, input LogInInput) (int, error) {
+func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err

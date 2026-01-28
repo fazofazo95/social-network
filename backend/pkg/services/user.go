@@ -7,6 +7,7 @@ import (
 	"time"
 
 	queries "backend/pkg/db/queries"
+	"backend/pkg/models"
 )
 
 var (
@@ -26,42 +27,15 @@ func NewUserService(db *sql.DB) *UserService {
 	return &UserService{db: db}
 }
 
-// UserProfileRequest represents user profile data for creation or update
-type UserProfileRequest struct {
-	FirstName          string
-	LastName           string
-	Birthday           *time.Time
-	RelationshipStatus *string
-	EmployedAt         *string
-	PhoneNumber        *string
-	ProfilePicture     *string
-	Pictures           *string
-	Level              string
-}
-
-// UserProfileResponse represents user profile data returned to clients
-type UserProfileResponse struct {
-	ID                 int
-	FirstName          string
-	LastName           string
-	Birthday           *time.Time
-	RelationshipStatus *string
-	EmployedAt         *string
-	PhoneNumber        *string
-	ProfilePicture     *string
-	Pictures           *string
-	Level              string
-}
-
 // CreateProfile creates a new user profile
-func (s *UserService) CreateProfile(ctx context.Context, userID int, req UserProfileRequest) error {
+func (s *UserService) CreateProfile(ctx context.Context, userID int, req models.UserProfileRequest) error {
 	// Validate required fields
 	if req.FirstName == "" || req.LastName == "" || req.Level == "" {
 		return errors.New("first name, last name, and level are required")
 	}
 
 	// Create profile input for database query
-	input := queries.UserProfileInput{
+	input := models.UserProfileInput{
 		ID:                 userID,
 		FirstName:          req.FirstName,
 		LastName:           req.LastName,
@@ -83,7 +57,7 @@ func (s *UserService) CreateProfile(ctx context.Context, userID int, req UserPro
 }
 
 // UpdateProfile updates an existing user profile
-func (s *UserService) UpdateProfile(ctx context.Context, userID int, req UserProfileRequest) error {
+func (s *UserService) UpdateProfile(ctx context.Context, userID int, req models.UserProfileRequest) error {
 	// Verify user profile exists first
 	_, err := queries.GetUserByID(ctx, s.db, userID)
 	if err == sql.ErrNoRows {
@@ -99,7 +73,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, req UserPro
 	}
 
 	// Create profile input for database query
-	input := queries.UserProfileInput{
+	input := models.UserProfileInput{
 		ID:                 userID,
 		FirstName:          req.FirstName,
 		LastName:           req.LastName,
@@ -121,7 +95,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int, req UserPro
 }
 
 // GetProfile retrieves a user profile by ID
-func (s *UserService) GetProfile(ctx context.Context, userID int) (*UserProfileResponse, error) {
+func (s *UserService) GetProfile(ctx context.Context, userID int) (*models.UserProfileResponse, error) {
 	profile, err := queries.GetUserByID(ctx, s.db, userID)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserProfileNotFound
@@ -131,7 +105,7 @@ func (s *UserService) GetProfile(ctx context.Context, userID int) (*UserProfileR
 	}
 
 	// Convert database profile to response
-	response := &UserProfileResponse{
+	response := &models.UserProfileResponse{
 		ID:        profile.ID,
 		FirstName: profile.FirstName,
 		LastName:  profile.LastName,

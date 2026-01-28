@@ -2,6 +2,7 @@ package handlers
 
 import (
 	database "backend/pkg/db/sqlite"
+	"backend/pkg/models"
 	"backend/pkg/responses"
 	"backend/pkg/services"
 	"encoding/json"
@@ -9,13 +10,7 @@ import (
 )
 
 func LogInHandler(w http.ResponseWriter, r *http.Request) {
-	type LogInRequest struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	var req LogInRequest
+	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -25,13 +20,7 @@ func LogInHandler(w http.ResponseWriter, r *http.Request) {
 	authService := services.NewAuthService(database.DB)
 
 	// Call service layer to handle login business logic
-	loginReq := services.LoginRequest{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: req.Password,
-	}
-
-	loginResp, err := authService.Login(r.Context(), loginReq)
+	loginResp, err := authService.Login(r.Context(), req)
 	if err != nil {
 		// Map service errors to HTTP responses
 		switch err {

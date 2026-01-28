@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 
+	"backend/pkg/models"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,13 +16,7 @@ var (
 	ErrUsernameTaken = errors.New("username already in use")
 )
 
-type SignUpInput struct {
-	Email    string
-	Username string
-	Password string
-}
-
-func SignUp(ctx context.Context, db *sql.DB, input SignUpInput) error {
+func SignUp(ctx context.Context, db *sql.DB, input models.SignUpInput) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err

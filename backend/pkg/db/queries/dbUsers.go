@@ -4,40 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"backend/pkg/models"
 )
-
-// UserProfile represents a row from the `users` table.
-type UserProfile struct {
-	ID                 int
-	FirstName          string
-	LastName           string
-	Birthday           sql.NullTime
-	RelationshipStatus sql.NullString
-	EmployedAt         sql.NullString
-	PhoneNumber        sql.NullString
-	ProfilePicture     sql.NullString
-	Pictures           sql.NullString
-	Level              string
-}
-
-// UserProfileInput is used to create or update a user's profile. Required fields: ID, FirstName, LastName, Level.
-// Other fields are optional and may be nil to leave NULL in the DB.
-type UserProfileInput struct {
-	ID                 int
-	FirstName          string
-	LastName           string
-	Birthday           *time.Time
-	RelationshipStatus *string
-	EmployedAt         *string
-	PhoneNumber        *string
-	ProfilePicture     *string
-	Pictures           *string
-	Level              string
-}
 
 // CreateUserProfile inserts a new row into users. The caller must ensure a corresponding login_users row exists
 // (users.id is a FK to login_users.id). Required fields: ID, FirstName, LastName, Level.
-func CreateUserProfile(ctx context.Context, db *sql.DB, in UserProfileInput) error {
+func CreateUserProfile(ctx context.Context, db *sql.DB, in models.UserProfileInput) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -65,7 +38,7 @@ func CreateUserProfile(ctx context.Context, db *sql.DB, in UserProfileInput) err
 }
 
 // UpdateUserProfile updates all profile columns for the given ID. Pass nil for optional fields to set them to NULL.
-func UpdateUserProfile(ctx context.Context, db *sql.DB, in UserProfileInput) error {
+func UpdateUserProfile(ctx context.Context, db *sql.DB, in models.UserProfileInput) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -100,8 +73,8 @@ func UpdateUserProfile(ctx context.Context, db *sql.DB, in UserProfileInput) err
 }
 
 // GetUserByID loads a user profile by id. If no row exists, sql.ErrNoRows is returned.
-func GetUserByID(ctx context.Context, db *sql.DB, id int) (UserProfile, error) {
-	var u UserProfile
+func GetUserByID(ctx context.Context, db *sql.DB, id int) (models.UserProfile, error) {
+	var u models.UserProfile
 	row := db.QueryRowContext(ctx, `
         SELECT id, first_name, last_name, birthday_date, relationship_status,
                employed_at, phone_number, profile_picture, pictures, level
@@ -111,21 +84,21 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int) (UserProfile, error) {
 	var birthday sql.NullTime
 	err := row.Scan(&u.ID, &u.FirstName, &u.LastName, &birthday, &u.RelationshipStatus, &u.EmployedAt, &u.PhoneNumber, &u.ProfilePicture, &u.Pictures, &u.Level)
 	if err != nil {
-		return UserProfile{}, err
+		return models.UserProfile{}, err
 	}
 	u.Birthday = birthday
 	return u, nil
 }
 
 // Helper to create a mock UserProfileInput filled with example data for manual checks.
-func MockUserProfileInput(id int) UserProfileInput {
+func MockUserProfileInput(id int) models.UserProfileInput {
 	now := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
 	rel := "single"
 	employed := "Acme Corp"
 	phone := "+1234567890"
 	profilePic := "profile.jpg"
 	pics := "[\"pic1.jpg\",\"pic2.jpg\"]"
-	return UserProfileInput{
+	return models.UserProfileInput{
 		ID:                 id,
 		FirstName:          "Test",
 		LastName:           "User",

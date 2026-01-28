@@ -5,16 +5,10 @@ import (
 	"net/http"
 
 	database "backend/pkg/db/sqlite"
+	"backend/pkg/models"
 	"backend/pkg/responses"
 	"backend/pkg/services"
 )
-
-// SignupRequest represents the expected JSON payload
-type SignupRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
 
 // SignupHandler handles POST /signup requests for creating a new user.
 func SignupHandler(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +27,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req SignupRequest
+	var req models.SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -43,13 +37,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	authService := services.NewAuthService(database.DB)
 
 	// Call service layer to handle signup business logic
-	signupReq := services.SignUpRequest{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: req.Password,
-	}
-
-	if err := authService.SignUp(r.Context(), signupReq); err != nil {
+	if err := authService.SignUp(r.Context(), req); err != nil {
 		// Map service errors to HTTP responses
 		switch err {
 		case services.ErrEmailTaken:
