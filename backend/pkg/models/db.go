@@ -4,7 +4,6 @@ import "time"
 
 // LoginInput represents login credentials for database queries
 type LoginInput struct {
-	Username string
 	Email    string
 	Password string
 }
