@@ -1,29 +1,28 @@
 "use client";
 
-
 import FormContainer from "../../../components/ui/FormContainer";
 import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import Image from "next/image";
 
-
 const RegisterPage = () => {
+  const handleRegister = async (e) => {
+    e.preventDefault();
 
-const handleRegister = async (e) => {
-  e.preventDefault();
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const confirmPassword = document.getElementById("confirm-password").value;
-  const firstname = document.getElementById("firstname").value;
-  const lastname = document.getElementById("lastname").value;
-  const dateofbirth = document.getElementById("dateofbirth").value;
-  const nickname = document.getElementById("nickname").value;
-  const aboutme = document.getElementById("aboutme").value;
-  const avatarInput = document.getElementById("avatar");
-  const avatarFile = avatarInput.files[0];
-  
-    if (!email || !password || !confirmPassword || !firstname || !lastname || !dateofbirth) {
+    const formData = new FormData(e.target);
+  const password = formData.get("password");
+  const confirmPassword = formData.get("confirm-password");
+
+
+  if (
+    !formData.get("email") ||
+    !password ||
+    !confirmPassword ||
+    !formData.get("firstname") ||
+    !formData.get("lastname") ||
+    !formData.get("date_of_birth")
+  ) {
     alert("Please fill in all required fields");
     return;
   }
@@ -33,41 +32,33 @@ const handleRegister = async (e) => {
     return;
   }
 
-  const userData = {
-    email: email,
-    username: firstname,
-    password: password,
-    last_name: lastname,
-    date_of_birth: dateofbirth,
-    nickname: nickname,
-    about_me: aboutme,
-    avatar: avatarFile ? avatarFile.name : null,
-  };
-  
-  try {
-    const response = await fetch("http://localhost:8080/api/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    });
 
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log("Registration successful:", data);
-    
-      window.location.href = "/login";
-    } else {
-      console.error("Registration failed:", data);
-      alert(data.error || "Registration failed");
+  formData.delete("confirm-password");
+ 
+  formData.append("username", formData.get("firstname") + " " + formData.get("lastname"));
+
+    try {
+      const response = await fetch("http://localhost:8080/api/signup", {
+        method: "POST",
+
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log("Registration successful:", data);
+
+        window.location.href = "/login";
+      } else {
+        console.error("Registration failed:", data);
+        alert(data.error || "Registration failed");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Failed to connect to server");
     }
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Failed to connect to server");
-  }
-}
+  };
   return (
     <FormContainer onSubmit={handleRegister} encType="multipart/form-data">
       <Logo
@@ -80,6 +71,7 @@ const handleRegister = async (e) => {
         label="Email"
         icon="/email_icon.svg"
         id="email"
+        name="email"
         type="email"
         placeholder="your.email@example.com"
         required
@@ -91,6 +83,7 @@ const handleRegister = async (e) => {
           label="Password"
           icon="/lock_icon.svg"
           id="password"
+          name="password"
           type="password"
           placeholder="******************"
           required
@@ -99,6 +92,7 @@ const handleRegister = async (e) => {
           label="Confirm Password"
           icon="/lock_icon.svg"
           id="confirm-password"
+          name="confirm-password"
           type="password"
           placeholder="******************"
           required
@@ -110,6 +104,7 @@ const handleRegister = async (e) => {
           label="First Name"
           icon="/name_icon.svg"
           id="firstname"
+          name="firstname"
           type="text"
           placeholder="Your First Name"
           required
@@ -118,6 +113,7 @@ const handleRegister = async (e) => {
           label="Last Name"
           icon="/name_icon.svg"
           id="lastname"
+          name="lastname"
           type="text"
           placeholder="Your Last Name"
           required
@@ -127,7 +123,8 @@ const handleRegister = async (e) => {
       <Input
         label="Date of Birth"
         icon="/calendar_icon.svg"
-        id="dateofbirth"
+        id="date_of_birth"
+        name="date_of_birth"
         type="date"
         required
         className="mb-14"
@@ -153,6 +150,7 @@ const handleRegister = async (e) => {
         <input
           className="absolute top-2 left-16 bg-gray-200 w-3/4 rounded-xl text-sm pl-1.5 text-black"
           id="avatar"
+          name="avatar"
           type="file"
         />
       </div>
@@ -161,6 +159,7 @@ const handleRegister = async (e) => {
         label="Nickname"
         icon="/nickname_icon.svg"
         id="nickname"
+        name="nickname"
         type="text"
         placeholder="Your Nickname"
         optional
@@ -181,7 +180,8 @@ const handleRegister = async (e) => {
         />
         <input
           className="border rounded-md w-full py-2 pb-12 pl-8 pr-2 bg-white text-gray-600"
-          id="aboutme"
+          id="about_me"
+          name="about_me"
           type="text"
           placeholder="Tell us about yourself..."
         />
