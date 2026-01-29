@@ -22,7 +22,8 @@ export default function App() {
         
         if (response.ok) {
           const data = await response.json();
-          setSession(data.user);
+          console.log("Session data:", data.message);
+          setSession(data.data);
         } else {
           router.push("/login");
         }
@@ -174,5 +175,6 @@ export default function App() {
         </div>
       </article>
     </main>
-  ) : ( router.push('/login') );
+  ) : ( <p>Redirecting to login... </p> );
+  // ) : ( router.push('/login') );
 }
