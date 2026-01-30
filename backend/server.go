@@ -36,8 +36,9 @@ func runServer() {
 	http.HandleFunc("/api/login", handlers.LogInHandler)
 	http.HandleFunc("/api/verify-session", handlers.VerifySession)
 	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
+	http.HandleFunc("/api/follow", middleware.WithAuth(handlers.FollowRequestHandler))
 	http.Handle("/uploads/", handlers.UploadsFileServer())
-	
+
 	// Convenience: make /signup (browser) show the frontend signup page.
 	http.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/index.html")
