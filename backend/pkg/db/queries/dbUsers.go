@@ -128,3 +128,14 @@ func DeleteStaleIncompleteUsers(ctx context.Context, db *sql.DB, olderThan time.
 	}
 	return res.RowsAffected()
 }
+
+func UserPrivacy(ctx context.Context, db *sql.DB, userID int, isPublic *bool) error {
+	query := `
+		SELECT profile_type FROM users 
+		WHERE id = ?`
+	err := db.QueryRowContext(ctx, query, userID).Scan(isPublic)
+	if err != nil {
+		return err
+	}
+	return nil
+}

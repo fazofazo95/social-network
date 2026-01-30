@@ -11,22 +11,20 @@ import (
 )
 
 var (
-	ErrInvalidEmail = errors.New("invalid email")
+	ErrInvalidEmail    = errors.New("invalid email")
 	ErrInvalidPassword = errors.New("invalid password")
 )
 
 func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-	
+
 	var storedHash string
 	var userID int
-	err = tx.QueryRowContext(ctx, `
+
+	query := `
 		SELECT id, password_hash FROM login_users 
-		WHERE email = ?`, input.Email).Scan(&userID, &storedHash)
+		WHERE email = ?`
+
+	err := db.QueryRowContext(ctx, query, input.Email).Scan(&userID, &storedHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, ErrInvalidEmail
@@ -39,17 +37,14 @@ func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error
 		return 0, ErrInvalidPassword
 	}
 
-	return userID, tx.Commit()
+	return userID, nil
 }
 
 func LogOut(ctx context.Context, db *sql.DB, sessionCookie string, userID int) error {
-	tx, err := db.BeginTx(ctx, nil)
+	query := `DELETE FROM sessions WHERE session_id = ? AND id = ?;`
+	_, err := db.ExecContext(ctx, query, sessionCookie, userID)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	_, err = tx.ExecContext(ctx, `
-		DELETE FROM sessions WHERE session_id = ? AND id = ?;
-	`, sessionCookie, userID)
-	return tx.Commit()
+	return nil
 }
