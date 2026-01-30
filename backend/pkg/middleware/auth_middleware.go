@@ -34,7 +34,7 @@ func WithAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userID, err := queries.SessionExists(context.Background(), database.DB, c.Value)
+		userID, err := queries.AuthenticateSession(r.Context(), database.DB, c.Value)
 		if err != nil {
 			responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 			return

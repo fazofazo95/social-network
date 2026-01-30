@@ -45,3 +45,15 @@ type UserProfileResponse struct {
 	Pictures           *string    `json:"pictures,omitempty"`
 	Level              string     `json:"level"`
 }
+
+type Signup_fields struct {
+	Email 		string
+	Password 	string
+	FirstName 	string
+	LastName 	string
+	Username 	string
+	Birthday	string
+	Avatar		string
+	Nickname	string
+	AboutMe		string
+}

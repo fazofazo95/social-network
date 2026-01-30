@@ -20,7 +20,7 @@ func VerifySession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := queries.SessionExists(r.Context(), database.DB, c.Value)
+	userID, err := queries.AuthenticateSession(r.Context(), database.DB, c.Value)
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return

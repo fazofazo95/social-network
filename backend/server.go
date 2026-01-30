@@ -32,10 +32,11 @@ func runServer() {
 	http.Handle("/", fs)
 
 	// API route(s)
-	http.HandleFunc("/api/signup", handlers.SignupHandler)
+	http.HandleFunc("/api/signup", handlers.SignUpHandler)
 	http.HandleFunc("/api/login", handlers.LogInHandler)
 	http.HandleFunc("/api/verify-session", handlers.VerifySession)
 	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
+	http.Handle("/uploads/", handlers.UploadsFileServer())
 	
 	// Convenience: make /signup (browser) show the frontend signup page.
 	http.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {

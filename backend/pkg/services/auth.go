@@ -28,21 +28,14 @@ func NewAuthService(db *sql.DB) *AuthService {
 }
 
 // SignUp registers a new user with email, username, and password
-func (s *AuthService) SignUp(ctx context.Context, req models.SignUpRequest) error {
+func (s *AuthService) SignUp(ctx context.Context, req models.Signup_fields) error {
 	// Validate input
 	if req.Email == "" || req.Username == "" || req.Password == "" {
 		return errors.New("email, username, and password are required")
 	}
 
-	// Create signup input for database query
-	input := models.SignUpInput{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: req.Password,
-	}
-
 	// Execute signup query
-	if err := queries.SignUp(ctx, s.db, input); err != nil {
+	if err := queries.SignUp(ctx, s.db, req); err != nil {
 		// Map database errors to service errors
 		if err == queries.ErrEmailTaken {
 			return ErrEmailTaken
@@ -75,14 +68,14 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	userID, err := queries.LogIn(ctx, s.db, input)
 	if err != nil {
 		// Map database errors to service errors
-		if err == queries.ErrInvalidUsernameOrEmail || err == queries.ErrInvalidPassword {
+		if err == queries.ErrInvalidEmail || err == queries.ErrInvalidPassword {
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
 	}
 
 	// Create session
-	sessionID, err := queries.GenerateSession(ctx, s.db, userID)
+	sessionID, err := queries.CreateSession(ctx, s.db, userID)
 	if err != nil {
 		return nil, ErrSessionFailed
 	}

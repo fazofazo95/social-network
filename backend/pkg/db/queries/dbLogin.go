@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrInvalidUsernameOrEmail = errors.New("invalid username or email")
-	ErrInvalidPassword        = errors.New("invalid password")
+	ErrInvalidEmail = errors.New("invalid email")
+	ErrInvalidPassword = errors.New("invalid password")
 )
 
 func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error) {
@@ -21,7 +21,7 @@ func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error
 		return 0, err
 	}
 	defer tx.Rollback()
-
+	
 	var storedHash string
 	var userID int
 	err = tx.QueryRowContext(ctx, `
@@ -29,7 +29,7 @@ func LogIn(ctx context.Context, db *sql.DB, input models.LoginInput) (int, error
 		WHERE email = ?`, input.Email).Scan(&userID, &storedHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return 0, ErrInvalidUsernameOrEmail
+			return 0, ErrInvalidEmail
 		}
 		return 0, err
 	}

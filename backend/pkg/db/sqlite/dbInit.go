@@ -21,5 +21,17 @@ func Init(dbPath string) error {
 		return err
 	}
 
+	_, err = DB.Exec("PRAGMA busy_timeout=5000;")
+    if err != nil {
+        return err
+    }
+
+	_, err = DB.Exec("PRAGMA journal_mode=WAL;")
+    if err != nil {
+        return  err
+    }
+
+	DB.SetMaxOpenConns(1)
+
 	return runMigrations(DB)
 }
