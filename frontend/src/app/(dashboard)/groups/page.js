@@ -48,22 +48,23 @@ const GroupsPage = () => {
 
     return (
         <main className="flex flex-col items-left w-full max-w-2xl gap-6 p-4">
+        <header className="flex flex-row justify-between items-center w-full mb-4">  
         <h1 className="text-5xl font-bold p-4">Groups</h1>
-        <ul className="flex flex-row justify-start gap-4 border-b border-purple-500 pb-4 w-full">
-            <li className="font-bold  hover:border border-purple-500 rounded-lg px-2">
-                <button id="createGroupBtn" onClick={Toggle} className="cursor-pointer">Create Group</button>
-            </li>
+        <button id="createGroupBtn" className="bg-blue-500 rounded-lg  p-0.5 w-1/5 hover:bg-blue-600 text-white pl-4 relative cursor-pointer">
+        <Image src="/group_plus.svg" alt="Create Group Icon" width={20} height={20} className="inline-block -mt-1 mr-2 absolute top-2 left-2.5"/>Create Group</button>
+        </header>
+        <ul className="flex flex-row justify-end gap-4 border-b border-purple-500 pb-4 w-full">
             <li className="font-bold  hover:border border-purple-500 rounded-lg px-2">
                 <button id="myGroupsBtn" onClick={Toggle} className="cursor-pointer">My Groups ({user.Groups.length})</button>
             </li>
             <li className="font-bold hover:border border-purple-500 rounded-lg px-2">
                 <button id="invitationsBtn" onClick={Toggle} className="cursor-pointer relative">Invitations<span id="invitations-notification" className="rounded-full bg-red-600 text-xsm absolute  top-0 -right-2 p-0.5">{user.invitations?.filter(invitation => invitation.status === "pending").length || 0}</span></button>
             </li>
-            <li className="font-bold hover:border border-purple-500 rounded-lg  px-2">
+            <li className="font-bold hover:border border-purple-500 rounded-lg  px-2 mr-auto">
                 <button id="discoverBtn" onClick={Toggle} className="cursor-pointer">Discover</button>
             </li>
             <li>
-                  <SearchBar className="w-full" />
+                  <SearchBar />
             </li>
         </ul>
         
@@ -114,9 +115,6 @@ const GroupsPage = () => {
         </footer>
         </article>
         ))}
-        </section>
-        <section id="create-group-section" className="hidden flex-col border border-purple-500 rounded-lg p-4">
-            <p>Create Group</p>
         </section>
         <section id="discover-section" className="hidden flex-col border border-purple-500 rounded-lg p-4">
             <p>Discover</p>
