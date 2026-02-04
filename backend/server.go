@@ -15,7 +15,7 @@ func runServer() {
 	// 1️⃣ Initialize the database
 	dbPath := "pkg/db/social_network.db"
 
-	if err := os.MkdirAll("pkg/db", 0755); err != nil {
+	if err := os.MkdirAll("pkg/db", 0o755); err != nil {
 		log.Fatalf("Failed to create db directory: %v", err)
 	}
 
@@ -27,10 +27,6 @@ func runServer() {
 	fmt.Println("Database initialized successfully!")
 	defer database.DB.Close()
 
-	// Serve the frontend static files from ../frontend at the root path.
-	fs := http.FileServer(http.Dir("../frontend"))
-	http.Handle("/", fs)
-
 	// API route(s)
 	http.HandleFunc("/api/signup", handlers.SignUpHandler)
 	http.HandleFunc("/api/login", handlers.LogInHandler)
@@ -38,14 +34,6 @@ func runServer() {
 	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
 	http.HandleFunc("/api/follow", middleware.WithAuth(handlers.FollowRequestHandler))
 	http.Handle("/uploads/", handlers.UploadsFileServer())
-
-	// Convenience: make /signup (browser) show the frontend signup page.
-	http.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../frontend/index.html")
-	})
-	// http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-	// 	http.ServeFile(w, r, "../frontend/index.html")
-	// })
 
 	port := 8080
 	fmt.Printf("Server running on http://localhost:%d\n", port)
