@@ -9,7 +9,6 @@ import (
 )
 
 func CreateSession(ctx context.Context, db *sql.DB, userID int) (string, error) {
-
 	sessionIDBytes := make([]byte, 32)
 	if _, err := rand.Read(sessionIDBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
@@ -18,7 +17,7 @@ func CreateSession(ctx context.Context, db *sql.DB, userID int) (string, error) 
 
 	query := `INSERT INTO sessions (id, session_id)
         VALUES (?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
+        ON CONFLICT(id) DO UPDATE SET
             session_id = excluded.session_id;`
 	_, err := db.ExecContext(ctx, query, userID, sessionID)
 	if err != nil {
