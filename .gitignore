@@ -1,0 +1,9 @@
+# Ignore sqlite temporary files
+pkg/db/*.db-shm
+pkg/db/*.db-wal
+
+# Ignore DB file (if you keep a local DB copy)
+pkg/db/*.db
+
+# Node modules
+frontend/node_modules/

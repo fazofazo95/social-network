@@ -1,0 +1,1 @@
+ALTER TABLE posts ADD COLUMN privacy TEXT CHECK(privacy in ('public', 'followers', 'custom'));

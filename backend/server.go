@@ -27,11 +27,15 @@ func runServer() {
 	fmt.Println("Database initialized successfully!")
 	defer database.DB.Close()
 
+	mux := http.NewServeMux()
+
 	// API route(s)
-	http.HandleFunc("/api/signup", handlers.SignUpHandler)
+	mux.HandleFunc("/api/signup", handlers.SignUpHandler)
 	http.HandleFunc("/api/login", handlers.LogInHandler)
-	http.HandleFunc("/api/verify-session", handlers.VerifySession)
+
 	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
+
+	http.HandleFunc("/api/verify-session", handlers.VerifySession)
 	http.HandleFunc("/api/follow", middleware.WithAuth(handlers.FollowRequestHandler))
 	http.HandleFunc("/api/feed", middleware.WithAuth(handlers.FeedHandler))
 	http.Handle("/uploads/", handlers.UploadsFileServer())
