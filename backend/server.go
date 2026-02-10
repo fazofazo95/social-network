@@ -33,6 +33,7 @@ func runServer() {
 	http.HandleFunc("/api/verify-session", handlers.VerifySession)
 	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
 	http.HandleFunc("/api/follow", middleware.WithAuth(handlers.FollowRequestHandler))
+	http.HandleFunc("/api/feed", middleware.WithAuth(handlers.FeedHandler))
 	http.Handle("/uploads/", handlers.UploadsFileServer())
 
 	port := 8080

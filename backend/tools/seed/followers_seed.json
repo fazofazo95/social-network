@@ -1,0 +1,8 @@
+[
+  { "follower": "alice", "followed": "bob", "status": "accepted" },
+  { "follower": "bob", "followed": "alice", "status": "accepted" },
+  { "follower": "alice", "followed": "carol", "status": "pending" },
+  { "follower": "dave", "followed": "alice", "status": "accepted" },
+  { "follower": "eve", "followed": "mallory", "status": "pending" },
+  { "follower": "mallory", "followed": "dave", "status": "accepted" }
+]

@@ -1,0 +1,5 @@
+# backend/pkg/db/queries
+pkg/db/queries/dbPosts.go:39:2: undefined: log
+pkg/db/queries/dbPosts.go:69:2: undefined: log
+pkg/db/queries/dbfollow.go:83:2: undefined: log
+pkg/db/queries/dbfollow.go:112:2: undefined: log

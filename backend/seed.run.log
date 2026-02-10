@@ -1,0 +1,7 @@
+Seeding database with test users...
+seed: starting signup seeding
+seed: SeedFromJSON start path=tools/seed/signup_seed.json
+2026/02/10 15:37:06 Migrations applied successfully
+seed: SeedFromJSON database initialized
+2026/02/10 15:37:06 seed: hashing password for alice@example.com
+2026/02/10 15:37:06 seed: bcrypt hash generated for alice@example.com (len=60)

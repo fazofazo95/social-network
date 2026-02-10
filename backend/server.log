@@ -1,0 +1,44 @@
+nohup: ignoring input
+2026/02/10 14:34:47 Migrations applied successfully
+Database initialized successfully!
+Server running on http://localhost:8080
+2026/02/10 14:34:56 WithAuth: found session cookie, validating
+2026/02/10 14:34:56 WithAuth: session valid for user 3
+2026/02/10 14:34:56 FeedHandler: fetching posts for user 3
+2026/02/10 14:34:56 GetFollowedUsersPosts: executing query for user 3 limit 5
+2026/02/10 14:34:56 GetFollowedUsersPosts: fetched 0 posts for user 3
+2026/02/10 14:34:56 FeedHandler: fetching discovered users for user 3
+2026/02/10 14:34:56 DiscoverUsers: executing discover query for user 3 limit 5 (SQL computed status)
+2026/02/10 14:34:56 DiscoverUsers: found 5 users for user 3
+2026/02/10 14:51:11 WithAuth: found session cookie, validating
+2026/02/10 14:51:11 WithAuth: session valid for user 3
+2026/02/10 14:51:11 FeedHandler: fetching posts for user 3
+2026/02/10 14:51:11 GetFollowedUsersPosts: executing query for user 3 limit 5
+2026/02/10 14:51:11 GetFollowedUsersPosts: fetched 0 posts for user 3
+2026/02/10 14:51:11 FeedHandler: fetching discovered users for user 3
+2026/02/10 14:51:11 DiscoverUsers: executing discover query for user 3 limit 5 (SQL computed status)
+2026/02/10 14:51:11 DiscoverUsers: found 5 users for user 3
+2026/02/10 14:52:38 WithAuth: found session cookie, validating
+2026/02/10 14:52:38 WithAuth: session valid for user 3
+2026/02/10 14:52:38 FeedHandler: fetching posts for user 3
+2026/02/10 14:52:38 GetFollowedUsersPosts: executing query for user 3 limit 5
+2026/02/10 14:52:38 GetFollowedUsersPosts: fetched 0 posts for user 3
+2026/02/10 14:52:38 FeedHandler: fetching discovered users for user 3
+2026/02/10 14:52:38 DiscoverUsers: executing discover query for user 3 limit 5 (SQL computed status)
+2026/02/10 14:52:38 DiscoverUsers: found 5 users for user 3
+2026/02/10 14:52:39 WithAuth: found session cookie, validating
+2026/02/10 14:52:39 WithAuth: session valid for user 3
+2026/02/10 14:52:39 FeedHandler: fetching posts for user 3
+2026/02/10 14:52:39 GetFollowedUsersPosts: executing query for user 3 limit 5
+2026/02/10 14:52:39 GetFollowedUsersPosts: fetched 0 posts for user 3
+2026/02/10 14:52:39 FeedHandler: fetching discovered users for user 3
+2026/02/10 14:52:39 DiscoverUsers: executing discover query for user 3 limit 5 (SQL computed status)
+2026/02/10 14:52:39 DiscoverUsers: found 5 users for user 3
+2026/02/10 14:52:39 WithAuth: found session cookie, validating
+2026/02/10 14:52:39 WithAuth: session valid for user 3
+2026/02/10 14:52:39 FeedHandler: fetching posts for user 3
+2026/02/10 14:52:39 GetFollowedUsersPosts: executing query for user 3 limit 5
+2026/02/10 14:52:39 GetFollowedUsersPosts: fetched 0 posts for user 3
+2026/02/10 14:52:39 FeedHandler: fetching discovered users for user 3
+2026/02/10 14:52:39 DiscoverUsers: executing discover query for user 3 limit 5 (SQL computed status)
+2026/02/10 14:52:39 DiscoverUsers: found 5 users for user 3

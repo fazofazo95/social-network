@@ -1,0 +1,56 @@
+[
+  {
+    "username": "alice",
+    "first_name": "Alice",
+    "last_name": "Anderson",
+    "birthday": "1992-03-14",
+    "profile_picture": "alice.jpg",
+    "nickname": "ally",
+    "about_me": "Loves hiking and coffee"
+  },
+  {
+    "username": "bob",
+    "first_name": "Bob",
+    "last_name": "Baker",
+    "birthday": "1988-07-02",
+    "profile_picture": "bob.jpg",
+    "nickname": "bobby",
+    "about_me": "Engineer and amateur chef"
+  },
+  {
+    "username": "carol",
+    "first_name": "Carol",
+    "last_name": "Clark",
+    "birthday": "1995-11-30",
+    "profile_picture": "carol.jpg",
+    "nickname": "caro",
+    "about_me": "Photographer"
+  },
+  {
+    "username": "dave",
+    "first_name": "Dave",
+    "last_name": "Dawson",
+    "birthday": "1991-01-20",
+    "profile_picture": "dave.jpg",
+    "nickname": "d",
+    "about_me": "Gamer and developer"
+  },
+  {
+    "username": "eve",
+    "first_name": "Eve",
+    "last_name": "Edwards",
+    "birthday": "1993-09-09",
+    "profile_picture": "eve.jpg",
+    "nickname": "eve",
+    "about_me": "Music fan"
+  },
+  {
+    "username": "mallory",
+    "first_name": "Mallory",
+    "last_name": "Mills",
+    "birthday": "1990-05-15",
+    "profile_picture": "mallory.jpg",
+    "nickname": "mal",
+    "about_me": "Security researcher"
+  }
+]

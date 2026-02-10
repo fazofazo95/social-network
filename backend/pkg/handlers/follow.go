@@ -40,3 +40,5 @@ func FollowRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	responses.SendCreated(w, "follow request created successfully", nil)
 }
+
+
