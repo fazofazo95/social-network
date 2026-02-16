@@ -30,19 +30,20 @@ func runServer() {
 	mux := http.NewServeMux()
 
 	// API route(s)
-	mux.HandleFunc("/api/signup", handlers.SignUpHandler)
-	http.HandleFunc("/api/login", handlers.LogInHandler)
+	handlers.UserRoutes(mux)
+	handlers.AuthRoutes(mux)
+	handlers.PostRoutes(mux)
+	handlers.CommentRoutes(mux)
+	handlers.FeedRoutes(mux)
 
-	http.HandleFunc("/api/logout", middleware.WithAuth(handlers.LogOutHandler))
+	fs := http.FileServer(http.Dir("./uploads"))
+	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))
 
-	http.HandleFunc("/api/verify-session", handlers.VerifySession)
-	http.HandleFunc("/api/follow", middleware.WithAuth(handlers.FollowRequestHandler))
-	http.HandleFunc("/api/feed", middleware.WithAuth(handlers.FeedHandler))
-	http.Handle("/uploads/", handlers.UploadsFileServer())
+	handlerWithCORS := middleware.CorsMiddleware(mux)
 
 	port := 8080
 	fmt.Printf("Server running on http://localhost:%d\n", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), handlerWithCORS); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

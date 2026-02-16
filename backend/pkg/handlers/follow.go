@@ -9,20 +9,7 @@ import (
 	"net/http"
 )
 
-func FollowRequestHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func FollowUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	followService := services.NewFollowService(database.DB)
 
@@ -41,4 +28,4 @@ func FollowRequestHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "follow request created successfully", nil)
 }
 
-
+func UnfollowUserHandler(w http.ResponseWriter, r *http.Request) {}

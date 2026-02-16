@@ -11,20 +11,6 @@ import (
 
 func LogInHandler(w http.ResponseWriter, r *http.Request) {
 
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
-    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-    w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-
-	if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusNoContent)
-        return
-    }
-    if r.Method != http.MethodPost {
-        responses.SendError(w, http.StatusMethodNotAllowed, "method not allowed")
-        return
-    }
-
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid request body")
