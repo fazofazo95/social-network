@@ -16,15 +16,15 @@ func NewFollowService(db *sql.DB) *FollowService {
 	return &FollowService{db: db}
 }
 
-func (s *FollowService) FollowUser(ctx context.Context, req models.FollowRequest) error {
+func (s *FollowService) FollowUser(ctx context.Context, req models.FollowRequest) (string, error) {
 	if req.FollowedID == 0 || req.FollowerID == 0 {
-		return errors.New("follower_id and followed_id are required")
+		return "", errors.New("follower_id and followed_id are required")
 	}
 
 	var isUserPrivate bool
 	err := queries.UserPrivacy(ctx, s.db, req.FollowedID, &isUserPrivate)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	status := "pending"
@@ -34,8 +34,8 @@ func (s *FollowService) FollowUser(ctx context.Context, req models.FollowRequest
 
 	err = queries.CreateFollow(ctx, s.db, req, status)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return status, nil
 }

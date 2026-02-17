@@ -17,6 +17,50 @@ func CreateFollow(ctx context.Context, db *sql.DB, req models.FollowRequest, sta
 	return nil
 }
 
+// DeleteFollow removes any follow relationship where follower_id and followed_id match.
+// It returns the number of rows deleted.
+func DeleteFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (int64, error) {
+	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ?;`
+	res, err := db.ExecContext(ctx, query, followerID, followedID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// AcceptFollow sets a pending follow to accepted. It returns number of rows updated.
+func AcceptFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (int64, error) {
+	query := `UPDATE followers SET status = 'accepted' WHERE follower_id = ? AND followed_id = ? AND status = 'pending';`
+	res, err := db.ExecContext(ctx, query, followerID, followedID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// BlockFollow sets the relationship to 'blocked'. It will update an existing row
+// or create one if none exists. Returns rows affected (update counts as 1, insert may be 1).
+func BlockFollow(ctx context.Context, db *sql.DB, blockerID, targetID int) (int64, error) {
+	// Use SQLite upsert to set status = 'blocked'
+	query := `INSERT INTO followers (follower_id, followed_id, status) VALUES (?, ?, 'blocked')
+		ON CONFLICT(follower_id, followed_id) DO UPDATE SET status = excluded.status;`
+	res, err := db.ExecContext(ctx, query, blockerID, targetID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// UnblockFollow deletes a blocked relationship (only if status = 'blocked').
+func UnblockFollow(ctx context.Context, db *sql.DB, blockerID, targetID int) (int64, error) {
+	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'blocked';`
+	res, err := db.ExecContext(ctx, query, blockerID, targetID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // GetRelationshipStatus checks the relationship between current user and target user
 // Returns: "Following", "Pending", "Follow Back", or "Follow"
 func GetRelationshipStatus(ctx context.Context, db *sql.DB, currentUserID, targetUserID int) (string, error) {
@@ -62,34 +106,26 @@ func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int
 	if limit <= 0 {
 		limit = 5
 	}
-
+	// Fetch a larger candidate pool and filter out users who have blocked the current user
+	// so we can replace them until we reach the requested limit.
+	fetchSize := limit * 5
+	if fetchSize > 100 {
+		fetchSize = 100
+	}
 
 	query := `
-		SELECT
-			u.id,
-			u.first_name,
-			u.last_name,
-			COALESCE(u.profile_picture, '') as profile_picture,
-			CASE
-				WHEN EXISTS(SELECT 1 FROM followers f WHERE f.follower_id = ? AND f.followed_id = u.id AND f.status = 'accepted') THEN 'Following'
-				WHEN EXISTS(SELECT 1 FROM followers f WHERE f.follower_id = ? AND f.followed_id = u.id AND f.status = 'pending') THEN 'Pending'
-				WHEN EXISTS(SELECT 1 FROM followers f WHERE f.follower_id = u.id AND f.followed_id = ? AND f.status = 'accepted') THEN 'Follow Back'
-				ELSE 'Follow'
-			END as status
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '') as profile_picture
 		FROM users u
 		WHERE u.id != ?
 		AND u.id NOT IN (
 			SELECT followed_id FROM followers WHERE follower_id = ?
 		)
-		AND u.id NOT IN (
-			SELECT follower_id FROM followers WHERE followed_id = ? AND status = 'blocked'
-		)
 		ORDER BY RANDOM()
 		LIMIT ?
 	`
 
-	log.Printf("DiscoverUsers: executing discover query for user %d limit %d (SQL computed status)", currentUserID, limit)
-	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID, currentUserID, currentUserID, currentUserID, limit)
+	log.Printf("DiscoverUsers: executing discover query for user %d fetchSize %d (will filter blocked)", currentUserID, fetchSize)
+	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, fetchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -97,19 +133,161 @@ func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int
 
 	var users []models.DiscoveredUser
 	for rows.Next() {
-		var user models.DiscoveredUser
-		err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.ProfilePicture, &user.Status)
+		if len(users) >= limit {
+			break
+		}
+
+		var id int
+		var first, last, pic string
+		if err := rows.Scan(&id, &first, &last, &pic); err != nil {
+			return nil, err
+		}
+
+		// Check if this candidate has blocked the current user
+		var tmp int
+		err := db.QueryRowContext(ctx, `SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'blocked' LIMIT 1;`, id, currentUserID).Scan(&tmp)
+		if err == nil {
+			// candidate has blocked current user -> skip
+			continue
+		} else if err != sql.ErrNoRows {
+			return nil, err
+		}
+
+		// Compute relationship status for this candidate
+		status, err := GetRelationshipStatus(ctx, db, currentUserID, id)
 		if err != nil {
 			return nil, err
 		}
-		users = append(users, user)
+
+		users = append(users, models.DiscoveredUser{
+			ID:             id,
+			FirstName:      first,
+			LastName:       last,
+			ProfilePicture: pic,
+			Status:         status,
+		})
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	log.Printf("DiscoverUsers: found %d users for user %d", len(users), currentUserID)
-
+	log.Printf("DiscoverUsers: returning %d users for user %d (requested %d)", len(users), currentUserID, limit)
 	return users, nil
+}
+
+// GetFollowingUsers returns users that the current user is following with status 'accepted'
+func GetFollowingUsers(ctx context.Context, db *sql.DB, currentUserID int) ([]models.FollowListUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
+		FROM users u
+		JOIN followers f ON u.id = f.followed_id
+		WHERE f.follower_id = ? AND f.status = 'accepted'
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetFollowers returns users that follow the current user with status 'accepted'
+func GetFollowers(ctx context.Context, db *sql.DB, currentUserID int) ([]models.FollowListUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
+		FROM users u
+		JOIN followers f ON u.id = f.follower_id
+		WHERE f.followed_id = ? AND f.status = 'accepted'
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetBlockedUsers returns users that the current user has blocked (follower_id = currentUserID, status = 'blocked')
+func GetBlockedUsers(ctx context.Context, db *sql.DB, currentUserID int) ([]models.FollowListUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
+		FROM users u
+		JOIN followers f ON u.id = f.followed_id
+		WHERE f.follower_id = ? AND f.status = 'blocked'
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetPendingIncomingRequests returns users who sent a pending follow request to the current user
+func GetPendingIncomingRequests(ctx context.Context, db *sql.DB, currentUserID int) ([]models.FollowListUser, error) {
+	query := `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
+		FROM users u
+		JOIN followers f ON u.id = f.follower_id
+		WHERE f.followed_id = ? AND f.status = 'pending'
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
 }

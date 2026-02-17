@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"time"
 	"log"
+	"time"
 
 	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/models"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -130,8 +131,8 @@ func SeedFromJSON(path string) (int, error) {
 			userID = int64(uid)
 		}
 
-		// insert into users
-		_, uerr := database.DB.ExecContext(context.Background(), `INSERT INTO users (id, first_name, last_name, birthday_date, profile_picture, nickname, about_me) VALUES (?, ?, ?, ?, ?, ?, ?);`, userID, input.FirstName, input.LastName, input.Birthday, input.Avatar, input.Nickname, input.AboutMe)
+		// insert into users (match current migrations schema)
+		_, uerr := database.DB.ExecContext(context.Background(), `INSERT INTO users (id, first_name, last_name, birthday_date, relationship_status, employed_at, phone_number, profile_picture, pictures, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil, "basic")
 		if uerr != nil {
 			log.Printf("seed: users insert error for id=%d: %v", userID, uerr)
 			continue
@@ -268,6 +269,10 @@ func SeedFollowersFromJSON(path string) (int, error) {
 	fmt.Println("seed: SeedFollowersFromJSON database initialized")
 
 	applied := 0
+	skippedMissingUser := 0
+	skippedExisting := 0
+	skippedError := 0
+
 	for _, it := range items {
 		// Only allow accepted or pending for now
 		if it.Status != "accepted" && it.Status != "pending" {
@@ -277,13 +282,16 @@ func SeedFollowersFromJSON(path string) (int, error) {
 
 		var fid, tid int
 		if err := database.DB.QueryRowContext(context.Background(), "SELECT id FROM login_users WHERE username = ?;", it.Follower).Scan(&fid); err != nil {
-			fmt.Printf("seed: follower username not found: %s\n", it.Follower)
+			log.Printf("seed: follower username not found: %s (err=%v)", it.Follower, err)
+			skippedMissingUser++
 			continue
 		}
 		if err := database.DB.QueryRowContext(context.Background(), "SELECT id FROM login_users WHERE username = ?;", it.Followed).Scan(&tid); err != nil {
-			fmt.Printf("seed: followed username not found: %s\n", it.Followed)
+			log.Printf("seed: followed username not found: %s (err=%v)", it.Followed, err)
+			skippedMissingUser++
 			continue
 		}
+		log.Printf("seed: mapping usernames %s->%s to ids %d->%d", it.Follower, it.Followed, fid, tid)
 		if fid == tid {
 			fmt.Printf("seed: skipping self-follow for username=%s\n", it.Follower)
 			continue
@@ -293,22 +301,82 @@ func SeedFollowersFromJSON(path string) (int, error) {
 		var one int
 		err := database.DB.QueryRowContext(context.Background(), "SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ?;", fid, tid).Scan(&one)
 		if err == nil {
-			fmt.Printf("seed: relationship already exists %d -> %d\n", fid, tid)
+			log.Printf("seed: relationship already exists %d -> %d", fid, tid)
+			skippedExisting++
 			continue
 		}
 		if err != sql.ErrNoRows {
-			fmt.Printf("seed: checking existing relationship failed: %v\n", err)
+			log.Printf("seed: checking existing relationship failed: %v", err)
+			skippedError++
 			continue
 		}
 
 		req := models.FollowRequest{FollowerID: fid, FollowedID: tid, Status: it.Status}
 		if err := queries.CreateFollow(context.Background(), database.DB, req, it.Status); err != nil {
-			fmt.Printf("seed: failed to create follow %d->%d: %v\n", fid, tid, err)
+			log.Printf("seed: failed to create follow %d->%d: %v", fid, tid, err)
+			skippedError++
 			continue
 		}
 		applied++
-		fmt.Printf("seed: created follow %d->%d status=%s\n", fid, tid, it.Status)
+		log.Printf("seed: created follow %d->%d status=%s", fid, tid, it.Status)
 	}
 
+	log.Printf("seed: followers applied=%d skippedMissingUser=%d skippedExisting=%d skippedError=%d", applied, skippedMissingUser, skippedExisting, skippedError)
 	return applied, nil
+}
+
+// SeedAll runs all available seeders in the correct order: signup, profiles, then followers.
+// It accepts paths to the three JSON files and returns the number of users, profiles
+// and follower relationships applied (in that order) or an error.
+func SeedAll(signupPath, profilesPath, followersPath string) (int, int, int, error) {
+	fmt.Printf("seed: SeedAll start signup=%s profiles=%s followers=%s\n", signupPath, profilesPath, followersPath)
+
+	usersCreated, err := SeedFromJSON(signupPath)
+	if err != nil {
+		return usersCreated, 0, 0, fmt.Errorf("seed users failed: %w", err)
+	}
+
+	profilesCreated, err := SeedProfilesFromJSON(profilesPath)
+	if err != nil {
+		return usersCreated, profilesCreated, 0, fmt.Errorf("seed profiles failed: %w", err)
+	}
+
+	followersCreated, err := SeedFollowersFromJSON(followersPath)
+	if err != nil {
+		return usersCreated, profilesCreated, followersCreated, fmt.Errorf("seed followers failed: %w", err)
+	}
+
+	fmt.Printf("seed: SeedAll finished users=%d profiles=%d followers=%d\n", usersCreated, profilesCreated, followersCreated)
+	return usersCreated, profilesCreated, followersCreated, nil
+}
+
+// DebugDiscover runs DiscoverUsers for the given user id multiple times and
+// prints the JSON results. This is a helper for manual checks and testing.
+// It intentionally lives in the seed package so we can re-use existing DB init
+// logic and keep tooling centralized.
+func DebugDiscover(userID, iterations, limit int) error {
+	if iterations <= 0 {
+		iterations = 1
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+
+	dbPath := "pkg/db/social_network.db"
+	if err := database.Init(dbPath); err != nil {
+		return fmt.Errorf("init db: %w", err)
+	}
+	defer database.DB.Close()
+
+	for i := 0; i < iterations; i++ {
+		users, err := queries.DiscoverUsers(context.Background(), database.DB, userID, limit)
+		if err != nil {
+			fmt.Printf("DiscoverUsers error on run %d: %v\n", i+1, err)
+			continue
+		}
+		b, _ := json.MarshalIndent(users, "", "  ")
+		fmt.Printf("Discover run %d:\n%s\n", i+1, string(b))
+	}
+
+	return nil
 }

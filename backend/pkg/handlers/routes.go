@@ -17,6 +17,13 @@ func UserRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/users/{id}", middleware.WithAuth(UpdateUserHandler))
 	mux.HandleFunc("POST /api/users/{id}/follow", middleware.WithAuth(FollowUserHandler))
 	mux.HandleFunc("DELETE /api/users/{id}/unfollow", middleware.WithAuth(UnfollowUserHandler))
+	mux.HandleFunc("POST /api/users/{id}/block", middleware.WithAuth(BlockUserHandler))
+	mux.HandleFunc("DELETE /api/users/{id}/unblock", middleware.WithAuth(UnblockUserHandler))
+	// follow list endpoints for the authenticated user
+	mux.HandleFunc("GET /api/users/following", middleware.WithAuth(FollowingHandler))
+	mux.HandleFunc("GET /api/users/followers", middleware.WithAuth(FollowersHandler))
+	mux.HandleFunc("GET /api/users/blocked", middleware.WithAuth(BlockedHandler))
+	mux.HandleFunc("GET /api/users/pending", middleware.WithAuth(PendingRequestsHandler))
 }
 
 func AuthRoutes(mux *http.ServeMux) {
@@ -27,6 +34,13 @@ func AuthRoutes(mux *http.ServeMux) {
 
 func FeedRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/feed", middleware.WithAuth(FeedHandler))
+	mux.HandleFunc("GET /api/discover", middleware.WithAuth(DiscoverHandler))
+}
+
+func FollowRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/users/{id}/follow", middleware.WithAuth(FollowUserHandler))
+	mux.HandleFunc("DELETE /api/users/{id}/unfollow", middleware.WithAuth(UnfollowUserHandler))
+	mux.HandleFunc("POST /api/users/{id}/follow/accept", middleware.WithAuth(AcceptFollowHandler))
 }
 
 func PostRoutes(mux *http.ServeMux) {

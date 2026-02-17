@@ -13,3 +13,12 @@ type DiscoveredUser struct {
 	ProfilePicture string `json:"profile_picture"`
 	Status         string `json:"status"` // Follow, Follow Back, Following, Pending
 }
+
+// FollowListUser is a lightweight representation used when listing follow
+// relationships (followers, following, blocked, pending requests).
+type FollowListUser struct {
+	ID             int    `json:"id"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ProfilePicture string `json:"profile_picture"`
+}

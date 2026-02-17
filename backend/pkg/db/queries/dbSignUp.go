@@ -54,11 +54,14 @@ func SignUp(ctx context.Context, db *sql.DB, input models.Signup_fields) error {
 	}
 
 	userQuery := `
-        INSERT INTO users (id, first_name, last_name, birthday_date, profile_picture, nickname, about_me)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
-    `
+		INSERT INTO users (
+			id, first_name, last_name, birthday_date, relationship_status,
+			employed_at, phone_number, profile_picture, pictures, level
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	`
 	log.Printf("SignUp: inserting into users id=%d", userID)
-	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, input.Avatar, input.Nickname, input.AboutMe)
+	// Provide sensible defaults for optional columns; level is required by the schema
+	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil, "basic")
 	if err != nil {
 		log.Printf("SignUp: insert users error: %v", err)
 		return err
