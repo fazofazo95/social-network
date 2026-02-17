@@ -161,3 +161,16 @@ func (s *UserService) CleanupStaleProfiles(ctx context.Context, olderThan time.D
 	}
 	return int(deleted), nil
 }
+
+func (s *UserService) DiscoveredUser(ctx context.Context, currentUserID int, limit int) ([]models.DiscoveredUser, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	users, err := queries.DiscoverUsers(ctx, s.db, currentUserID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

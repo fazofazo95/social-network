@@ -108,24 +108,23 @@ func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int
 	}
 	// Fetch a larger candidate pool and filter out users who have blocked the current user
 	// so we can replace them until we reach the requested limit.
-	fetchSize := limit * 5
-	if fetchSize > 100 {
-		fetchSize = 100
-	}
+	fetchSize := min(limit*5, 100)
 
 	query := `
-		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '') as profile_picture
-		FROM users u
-		WHERE u.id != ?
-		AND u.id NOT IN (
-			SELECT followed_id FROM followers WHERE follower_id = ?
-		)
-		ORDER BY RANDOM()
-		LIMIT ?
-	`
+        SELECT id, first_name, last_name, COALESCE(profile_picture, '')
+        FROM users
+        WHERE id != ? 
+        AND id NOT IN (
+            SELECT followed_id FROM followers WHERE follower_id = ?
+            UNION
+            SELECT follower_id FROM followers WHERE followed_id = ?
+        )
+        ORDER BY RANDOM()
+        LIMIT ?;
+    `
 
 	log.Printf("DiscoverUsers: executing discover query for user %d fetchSize %d (will filter blocked)", currentUserID, fetchSize)
-	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, fetchSize)
+	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID, fetchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -133,39 +132,11 @@ func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int
 
 	var users []models.DiscoveredUser
 	for rows.Next() {
-		if len(users) >= limit {
-			break
-		}
-
-		var id int
-		var first, last, pic string
-		if err := rows.Scan(&id, &first, &last, &pic); err != nil {
+		var u models.DiscoveredUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture, &u.Status); err != nil {
 			return nil, err
 		}
-
-		// Check if this candidate has blocked the current user
-		var tmp int
-		err := db.QueryRowContext(ctx, `SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'blocked' LIMIT 1;`, id, currentUserID).Scan(&tmp)
-		if err == nil {
-			// candidate has blocked current user -> skip
-			continue
-		} else if err != sql.ErrNoRows {
-			return nil, err
-		}
-
-		// Compute relationship status for this candidate
-		status, err := GetRelationshipStatus(ctx, db, currentUserID, id)
-		if err != nil {
-			return nil, err
-		}
-
-		users = append(users, models.DiscoveredUser{
-			ID:             id,
-			FirstName:      first,
-			LastName:       last,
-			ProfilePicture: pic,
-			Status:         status,
-		})
+		users = append(users, u)
 	}
 
 	if err = rows.Err(); err != nil {

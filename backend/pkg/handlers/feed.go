@@ -1,44 +1,50 @@
 package handlers
 
 import (
-	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
-	"log"
+	"backend/pkg/services"
 	"net/http"
+	"strconv"
 )
 
-func FeedHandler(w http.ResponseWriter, r *http.Request) {
+func GetFeedHandler(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	// Get user ID from context (set by auth middleware)
-	userID, err := middleware.UserIDFromContext(r.Context())
+	pageStr := r.URL.Query().Get("page")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+
+	limit := 10
+	offset := (page - 1) * limit
+
+	postService := services.NewPostService(database.DB)
+	userService := services.NewUserService(database.DB)
+
+	posts, err := postService.GetFeedPosts(r.Context(), userID, limit, offset)
 	if err != nil {
-		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		responses.SendError(w, http.StatusInternalServerError, "Failed to load feed")
 		return
 	}
 
-	log.Printf("FeedHandler: fetching posts for user %d", userID)
-	// Get posts from followed users
-	posts, err := queries.GetFollowedUsersPosts(r.Context(), database.DB, userID, 5)
-	if err != nil {
-		http.Error(w, "Failed to fetch posts: "+err.Error(), http.StatusInternalServerError)
-		return
+	var suggestions []models.DiscoveredUser
+	if page == 1 {
+		suggestions, err = userService.DiscoveredUser(r.Context(), userID, 5)
+		if err != nil {
+			suggestions = []models.DiscoveredUser{}
+		}
+	} else {
+		suggestions = nil
 	}
 
-	log.Printf("FeedHandler: fetching discovered users for user %d", userID)
-	// Get discovered users
-	discoveredUsers, err := queries.DiscoverUsers(r.Context(), database.DB, userID, 5)
-	if err != nil {
-		http.Error(w, "Failed to discover users: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	feedResponse := models.FeedResponse{
-		Posts:           posts,
-		DiscoveredUsers: discoveredUsers,
-	}
-
-	responses.SendSuccess(w, "Feed retrieved successfully", feedResponse)
+	// 4. Response
+	responses.SendSuccess(w, "Feed loaded", map[string]interface{}{
+		"posts":       posts,
+		"suggestions": suggestions,
+		"page":        page,
+	})
 }

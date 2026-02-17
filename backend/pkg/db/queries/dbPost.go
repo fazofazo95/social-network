@@ -157,7 +157,7 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
     AND (
         p.privacy = 'public'
         OR (p.privacy = 'followers' AND EXISTS (
-            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ?
+            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'accepted'
         ))
         OR (p.privacy = 'custom' AND EXISTS (
             SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
@@ -186,7 +186,7 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
 	return posts, nil
 }
 
-func GetFeedPosts(ctx context.Context, db *sql.DB, userID int) ([]models.Post, error) {
+func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset int) ([]models.Post, error) {
 	query := `
     SELECT 
         p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
@@ -196,15 +196,16 @@ func GetFeedPosts(ctx context.Context, db *sql.DB, userID int) ([]models.Post, e
     WHERE 
         p.user_id = ? 
         OR p.privacy = 'public'
-        OR (p.privacy = 'followers' AND p.user_id IN (
-            SELECT followed_id FROM followers WHERE follower_id = ?
+        OR (p.privacy = 'followers' AND EXISTS (
+            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id AND status = 'accepted'
         ))
-        OR (p.privacy = 'custom' AND p.id IN (
-            SELECT post_id FROM post_permissions WHERE user_id = ?
+        OR (p.privacy = 'custom' AND EXISTS (
+            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
         ))
-    ORDER BY p.created_at DESC;`
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, userID, userID, userID)
+	rows, err := db.QueryContext(ctx, query, userID, userID, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,7 @@ func AuthRoutes(mux *http.ServeMux) {
 }
 
 func FeedRoutes(mux *http.ServeMux) {
-	mux.Handle("GET /api/feed", middleware.Chain(FeedHandler, auth))
+	mux.Handle("GET /api/feed", middleware.Chain(GetFeedHandler, auth))
 	mux.Handle("GET /api/discover", middleware.Chain(DiscoverHandler, auth))
 }
 

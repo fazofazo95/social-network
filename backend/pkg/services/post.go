@@ -65,3 +65,7 @@ func (s *PostService) GetUserPosts(ctx context.Context, targetUserID int, viewer
 
 	return posts, nil
 }
+
+func (s *PostService) GetFeedPosts(ctx context.Context, userID int, limit int, offset int) ([]models.Post, error) {
+	return queries.GetFeedPosts(ctx, s.db, userID, limit, offset)
+}
