@@ -26,9 +26,8 @@ func UserIDFromContext(ctx context.Context) (int, error) {
 	return userID, nil
 }
 
-func WithAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
+func WithAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie("session_id")
 		if err != nil {
 			responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -47,5 +46,5 @@ func WithAuth(next http.HandlerFunc) http.HandlerFunc {
 		ctx := ContextWithUserID(r.Context(), userID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
-	}
+	})
 }

@@ -39,8 +39,8 @@ func main() {
 	mux := http.NewServeMux()
 	handlers.UserRoutes(mux)
 	handlers.AuthRoutes(mux)
-	handlers.PostRoutes(mux)
-	handlers.CommentRoutes(mux)
+	handlers.PostRoutes(mux, database.DB)
+	handlers.CommentRoutes(mux, database.DB)
 	handlers.FeedRoutes(mux)
 	// Note: routes are registered by UserRoutes (includes follow endpoints).
 

@@ -32,36 +32,36 @@ func (s *PostService) CreatePost(ctx context.Context, req models.Post) error {
 	return nil
 }
 
-func (s *PostService) UpdatePost(ctx context.Context, userID int, req models.UpdateData) error {
-	if req.Content == "" {
-		return errors.New("content are required")
+func (s *PostService) UpdatePost(ctx context.Context, postID int, content string) error {
+	if content == "" {
+		return errors.New("content is required")
 	}
 
-	ownerID, err := queries.GetPostOwnerID(ctx, s.db, req.ParentID)
-	if err != nil {
-		return err
-	}
-
-	req.UserID = ownerID
-
-	if userID != req.UserID {
-		return errors.New("user does not own this post")
-	}
-
-	err = queries.UpdatePost(ctx, s.db, req)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return queries.UpdatePost(ctx, s.db, postID, content)
 }
 
-func (s *PostService) IsOwner(ctx context.Context, userID int, resourceID int) (bool, error) {
-	post := "posts"
-	ownerID, err := queries.GetResourceOwnerID(ctx, s.db, post, resourceID)
+func (s *PostService) DeletePost(ctx context.Context, postID int) error {
+	return queries.DeletePost(ctx, s.db, postID)
+}
+
+func (s *PostService) RestorePost(ctx context.Context, postID int) error {
+	return queries.RestorePost(ctx, s.db, postID)
+}
+
+func (s *PostService) GetPostByID(ctx context.Context, userID int, postID int) (*models.Post, error) {
+	post, err := queries.GetPostByID(ctx, s.db, postID, userID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return ownerID == userID, nil
+	return post, nil
+}
+
+func (s *PostService) GetUserPosts(ctx context.Context, targetUserID int, viewerID int) ([]models.Post, error) {
+	posts, err := queries.GetUserPosts(ctx, s.db, targetUserID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }

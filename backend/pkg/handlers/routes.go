@@ -8,53 +8,65 @@ package handlers
 
 import (
 	"backend/pkg/middleware"
+	"database/sql"
 	"net/http"
 )
 
+var auth = middleware.WithAuth
+
 func UserRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/signup", CreateUserHandler)
-	mux.HandleFunc("GET /api/users/{id}", middleware.WithAuth(GetUserHandler))
-	mux.HandleFunc("PUT /api/users/{id}", middleware.WithAuth(UpdateUserHandler))
-	mux.HandleFunc("POST /api/users/{id}/follow", middleware.WithAuth(FollowUserHandler))
-	mux.HandleFunc("DELETE /api/users/{id}/unfollow", middleware.WithAuth(UnfollowUserHandler))
-	mux.HandleFunc("POST /api/users/{id}/block", middleware.WithAuth(BlockUserHandler))
-	mux.HandleFunc("DELETE /api/users/{id}/unblock", middleware.WithAuth(UnblockUserHandler))
+	mux.Handle("GET /api/users/{id}", middleware.Chain(GetUserHandler, auth))
+	mux.Handle("PUT /api/users/{id}", middleware.Chain(UpdateUserHandler, auth))
+	mux.Handle("GET /api/users/{id}/posts", middleware.Chain(GetUserPostsHandler, auth))
+	mux.Handle("POST /api/users/{id}/follow", middleware.Chain(FollowUserHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/unfollow", middleware.Chain(UnfollowUserHandler, auth))
+	mux.Handle("POST /api/users/{id}/block", middleware.Chain(BlockUserHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/unblock", middleware.Chain(UnblockUserHandler, auth))
 	// follow list endpoints for the authenticated user
-	mux.HandleFunc("GET /api/users/following", middleware.WithAuth(FollowingHandler))
-	mux.HandleFunc("GET /api/users/followers", middleware.WithAuth(FollowersHandler))
-	mux.HandleFunc("GET /api/users/blocked", middleware.WithAuth(BlockedHandler))
-	mux.HandleFunc("GET /api/users/pending", middleware.WithAuth(PendingRequestsHandler))
+	mux.Handle("GET /api/users/following", middleware.Chain(FollowingHandler, auth))
+	mux.Handle("GET /api/users/followers", middleware.Chain(FollowersHandler, auth))
+	mux.Handle("GET /api/users/blocked", middleware.Chain(BlockedHandler, auth))
+	mux.Handle("GET /api/users/pending", middleware.Chain(PendingRequestsHandler, auth))
 }
 
 func AuthRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/login", LogInHandler)
-	mux.HandleFunc("DELETE /api/logout", middleware.WithAuth(LogOutHandler))
+	mux.Handle("DELETE /api/logout", middleware.Chain(LogOutHandler, auth))
 	mux.HandleFunc("GET /api/verify-session", VerifySession)
 }
 
 func FeedRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/feed", middleware.WithAuth(FeedHandler))
-	mux.HandleFunc("GET /api/discover", middleware.WithAuth(DiscoverHandler))
+	mux.Handle("GET /api/feed", middleware.Chain(FeedHandler, auth))
+	mux.Handle("GET /api/discover", middleware.Chain(DiscoverHandler, auth))
 }
 
 func FollowRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/users/{id}/follow", middleware.WithAuth(FollowUserHandler))
-	mux.HandleFunc("DELETE /api/users/{id}/unfollow", middleware.WithAuth(UnfollowUserHandler))
-	mux.HandleFunc("POST /api/users/{id}/follow/accept", middleware.WithAuth(AcceptFollowHandler))
+	mux.Handle("POST /api/users/{id}/follow", middleware.Chain(FollowUserHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/unfollow", middleware.Chain(UnfollowUserHandler, auth))
+	mux.Handle("POST /api/users/{id}/follow/accept", middleware.Chain(AcceptFollowHandler, auth))
 }
 
-func PostRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/posts", middleware.WithAuth(CreatePostHandler))
-	mux.HandleFunc("PUT /api/posts/{id}", middleware.WithAuth(UpdatePostHandler))
-	mux.HandleFunc("DELETE /api/posts/{id}", middleware.WithAuth(DeletePostHandler))
-	mux.HandleFunc("PUT /api/posts/{id}/restore", middleware.WithAuth(RestorePostHandler))
-	mux.HandleFunc("GET /api/posts/{id}", middleware.WithAuth(GetPostHandler))
+func PostRoutes(mux *http.ServeMux, db *sql.DB) {
+	checkOwner := middleware.OwnershipMiddleware(db, "posts")
+
+	mux.Handle("POST /api/posts", middleware.Chain(CreatePostHandler, auth))
+
+	mux.Handle("PUT /api/posts/{id}", middleware.Chain(UpdatePostHandler, auth, checkOwner))
+	mux.Handle("PUT /api/posts/{id}/delete", middleware.Chain(DeletePostHandler, auth, checkOwner))
+	mux.Handle("PUT /api/posts/{id}/restore", middleware.Chain(RestorePostHandler, auth, checkOwner))
+
+	mux.Handle("GET /api/posts/{id}", middleware.Chain(GetPostHandler, auth))
 }
 
-func CommentRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/comments", middleware.WithAuth(CreateCommentHandler))
-	mux.HandleFunc("PUT /api/comments/{id}", middleware.WithAuth(UpdateCommentHandler))
-	mux.HandleFunc("DELETE /api/comments/{id}", middleware.WithAuth(DeleteCommentHandler))
-	mux.HandleFunc("PUT /api/comments/{id}/restore", middleware.WithAuth(RestoreCommentHandler))
-	mux.HandleFunc("GET /api/posts/{id}/comments", middleware.WithAuth(GetPostCommentsHandler))
+func CommentRoutes(mux *http.ServeMux, db *sql.DB) {
+	auth := middleware.WithAuth
+	checkOwner := middleware.OwnershipMiddleware(db, "comments")
+
+	mux.Handle("GET /api/posts/{id}/comments", middleware.Chain(GetPostCommentsHandler, auth))
+	mux.Handle("POST /api/comments", middleware.Chain(CreateCommentHandler, auth))
+	mux.Handle("PUT /api/comments/{id}", middleware.Chain(UpdateCommentHandler, auth, checkOwner))
+	mux.Handle("DELETE /api/comments/{id}", middleware.Chain(DeleteCommentHandler, auth, checkOwner))
+
+	mux.Handle("PUT /api/comments/{id}/restore", middleware.Chain(RestoreCommentHandler, auth, checkOwner))
 }

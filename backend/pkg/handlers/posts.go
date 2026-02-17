@@ -19,11 +19,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := strconv.Atoi(r.FormValue("user_id"))
-	if err != nil {
-		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
-		return
-	}
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
 	privacy := r.FormValue("privacy")
 
@@ -70,6 +66,63 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
+	postID, _ := strconv.Atoi(r.PathValue("id"))
+
+	var data struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	postService := services.NewPostService(database.DB)
+	if err := postService.UpdatePost(r.Context(), postID, data.Content); err != nil {
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	responses.SendSuccess(w, "post updated successfully", nil)
+}
+
+func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
+	postID := r.PathValue("id")
+	postIDInt, err := strconv.Atoi(postID)
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+
+	postService := services.NewPostService(database.DB)
+
+	err = postService.DeletePost(r.Context(), postIDInt)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "post deleted successfully", nil)
+}
+
+func RestorePostHandler(w http.ResponseWriter, r *http.Request) {
+	postID := r.PathValue("id")
+	postIDInt, err := strconv.Atoi(postID)
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+
+	postService := services.NewPostService(database.DB)
+
+	err = postService.RestorePost(r.Context(), postIDInt)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "post restored successfully", nil)
+}
+
+func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postID)
 	if err != nil {
@@ -79,42 +132,13 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	var updateData models.UpdateData
-	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
-		responses.SendError(w, http.StatusBadRequest, "Invalid JSON body")
-		return
-	}
-
-	updateData.ParentID = postIDInt
-
 	postService := services.NewPostService(database.DB)
-	owner, err := postService.IsOwner(r.Context(), userID, postIDInt)
+
+	post, err := postService.GetPostByID(r.Context(), userID, postIDInt)
 	if err != nil {
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	if !owner {
-		responses.SendError(w, http.StatusForbidden, "You do not have permission to update this post")
-		return
-	}
-
-	err = postService.UpdatePost(r.Context(), userID, updateData)
-	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	responses.SendSuccess(w, "post updated successfully", nil)
-}
-
-func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func RestorePostHandler(w http.ResponseWriter, r *http.Request) {
-}
-
-func GetPostHandler(w http.ResponseWriter, r *http.Request) {
-
+	responses.SendSuccess(w, "post retrieved successfully", post)
 }

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	database "backend/pkg/db/sqlite"
+	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
 	"backend/pkg/services"
@@ -60,3 +62,23 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {}
 
 func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {}
+
+func GetUserPostsHandler(w http.ResponseWriter, r *http.Request) {
+	targetUserID := r.PathValue("id")
+	targetUserIDint, err := strconv.Atoi(targetUserID)
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, "Invalid post ID")
+		return
+	}
+
+	viewerID, _ := middleware.UserIDFromContext(r.Context())
+
+	postService := services.NewPostService(database.DB)
+	posts, err := postService.GetUserPosts(r.Context(), targetUserIDint, viewerID)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "user posts retrieved successfully", posts)
+}

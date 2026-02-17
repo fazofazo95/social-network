@@ -3,7 +3,6 @@ package queries
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"backend/pkg/models"
 )
@@ -15,76 +14,54 @@ func CreatePost(ctx context.Context, db *sql.DB, post models.Post) error {
 	}
 	defer tx.Rollback()
 
-	query := "INSERT INTO posts (user_id, content, extra_content) VALUES (?,?,?)"
-	res, err := tx.ExecContext(ctx, query, post.UserID, post.Content, post.Image)
+	query := "INSERT INTO posts (user_id, content, extra_content, privacy) VALUES (?,?,?,?)"
+	res, err := tx.ExecContext(ctx, query, post.UserID, post.Content, post.Image, post.Privacy)
 	if err != nil {
 		return err
 	}
 
-	if post.Privacy == "custom" && len(post.WhitelistedUsers) >= 1 {
-
-		postID, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-
+	if post.Privacy == "custom" && len(post.WhitelistedUsers) > 0 {
+		postID, _ := res.LastInsertId()
 		addPermissionQuery := `INSERT INTO post_permissions (post_id, user_id) VALUES (?,?)`
-		stmt, err := tx.PrepareContext(ctx, addPermissionQuery)
-		if err != nil {
-			return nil
-		}
-		defer stmt.Close()
 
 		for _, userID := range post.WhitelistedUsers {
-			if _, err := stmt.ExecContext(ctx, postID, userID); err != nil {
+			if _, err := tx.ExecContext(ctx, addPermissionQuery, postID, userID); err != nil {
 				return err
 			}
 		}
 	}
-
 	return tx.Commit()
 }
 
-func GetPostByPostID(ctx context.Context, db *sql.DB, postID int) (models.Post, error) {
+func GetPostByID(ctx context.Context, db *sql.DB, postID int, viewerID int) (*models.Post, error) {
 	var post models.Post
 	query := `
-        SELECT 
-            p.id,
-            p.user_id,
-            p.content,
-            COALESCE(p.extra_content, ''),
-            p.created_at,
-            u.first_name,
-            u.last_name,
-            COALESCE(u.profile_picture, ''),
-			p.privacy
-        FROM posts p
-        INNER JOIN users u ON p.user_id = u.id
-        WHERE p.id = ?;
-    `
+    SELECT 
+        p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
+        u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
+    FROM active_posts p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.id = ? 
+    AND (
+        p.user_id = ? -- Ιδιοκτήτης
+        OR p.privacy = 'public'
+        OR (p.privacy = 'followers' AND EXISTS (
+            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id
+        ))
+        OR (p.privacy = 'custom' AND EXISTS (
+            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+        ))
+    );`
 
-	row := db.QueryRowContext(ctx, query, postID)
-
-	err := row.Scan(
-		&post.ID,
-		&post.UserID,
-		&post.Content,
-		&post.ExtraContent,
-		&post.CreatedAt,
-		&post.AuthorFirstName,
-		&post.AuthorLastName,
-		&post.AuthorProfilePicture,
-		&post.Privacy,
+	err := db.QueryRowContext(ctx, query, postID, viewerID, viewerID, viewerID).Scan(
+		&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
+		&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return models.Post{}, nil
-		}
-		return models.Post{}, err
+		return nil, err // Θα επιστρέψει sql.ErrNoRows αν δεν επιτρέπεται η πρόσβαση
 	}
-
-	return post, nil
+	return &post, nil
 }
 
 func GetPostsByUserID(ctx context.Context, db *sql.DB, userID int) ([]models.Post, error) {
@@ -151,18 +128,99 @@ func GetPostOwnerID(ctx context.Context, db *sql.DB, postID int) (int, error) {
 	return ownerID, nil
 }
 
-func UpdatePost(ctx context.Context, db *sql.DB, req models.UpdateData) error {
-	query := "UPDATE posts SET content = ? WHERE id = ?"
-	_, err := db.ExecContext(ctx, query, req.Content, req.ParentID)
+func UpdatePost(ctx context.Context, db *sql.DB, postID int, content string) error {
+	query := "UPDATE posts SET content = ? WHERE id = ? AND deleted_at IS NULL"
+	_, err := db.ExecContext(ctx, query, content, postID)
 	return err
 }
 
-func GetResourceOwnerID(ctx context.Context, db *sql.DB, resourceType string, resourceID int) (int, error) {
-	var ownerID int
-	query := fmt.Sprintf("SELECT user_id FROM %s WHERE id = ?", resourceType)
-	err := db.QueryRowContext(ctx, query, resourceID).Scan(&ownerID)
+func DeletePost(ctx context.Context, db *sql.DB, postID int) error {
+	query := "UPDATE posts SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?"
+	_, err := db.ExecContext(ctx, query, postID)
+	return err
+}
+
+func RestorePost(ctx context.Context, db *sql.DB, postID int) error {
+	query := "UPDATE posts SET deleted_at = NULL WHERE id = ?"
+	_, err := db.ExecContext(ctx, query, postID)
+	return err
+}
+
+func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID int) ([]models.Post, error) {
+	query := `
+    SELECT 
+        p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
+        u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
+    FROM active_posts p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.user_id = ? 
+    AND (
+        p.privacy = 'public'
+        OR (p.privacy = 'followers' AND EXISTS (
+            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ?
+        ))
+        OR (p.privacy = 'custom' AND EXISTS (
+            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+        ))
+        OR ? = ?
+    )
+    ORDER BY p.created_at DESC;`
+
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, targetUserID, viewerID, viewerID, targetUserID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return ownerID, nil
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		if err := rows.Scan(
+			&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
+			&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
+		); err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+	return posts, nil
+}
+
+func GetFeedPosts(ctx context.Context, db *sql.DB, userID int) ([]models.Post, error) {
+	query := `
+    SELECT 
+        p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
+        u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
+    FROM active_posts p
+    JOIN users u ON p.user_id = u.id
+    WHERE 
+        p.user_id = ? 
+        OR p.privacy = 'public'
+        OR (p.privacy = 'followers' AND p.user_id IN (
+            SELECT followed_id FROM followers WHERE follower_id = ?
+        ))
+        OR (p.privacy = 'custom' AND p.id IN (
+            SELECT post_id FROM post_permissions WHERE user_id = ?
+        ))
+    ORDER BY p.created_at DESC;`
+
+	rows, err := db.QueryContext(ctx, query, userID, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.Post
+	for rows.Next() {
+		var post models.Post
+		err := rows.Scan(
+			&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
+			&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+	return posts, nil
 }
