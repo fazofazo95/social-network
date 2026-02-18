@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 
-const Follow_Bottom = () => {
-      const [status, setStatus] = useState("not_following");
+const Follow_Bottom = ({status : initialStatus}) => {
+      const [status, setStatus] = useState(initialStatus);
     
       const handleFollow = () => {
         const isPrivate = true; // Simulate checking if the profile is private
