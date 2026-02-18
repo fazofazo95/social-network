@@ -19,10 +19,6 @@ func UserRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /api/users/{id}", middleware.Chain(GetUserHandler, auth))
 	mux.Handle("PUT /api/users/{id}", middleware.Chain(UpdateUserHandler, auth))
 	mux.Handle("GET /api/users/{id}/posts", middleware.Chain(GetUserPostsHandler, auth))
-	mux.Handle("POST /api/users/{id}/follow", middleware.Chain(FollowUserHandler, auth))
-	mux.Handle("DELETE /api/users/{id}/unfollow", middleware.Chain(UnfollowUserHandler, auth))
-	mux.Handle("POST /api/users/{id}/block", middleware.Chain(BlockUserHandler, auth))
-	mux.Handle("DELETE /api/users/{id}/unblock", middleware.Chain(UnblockUserHandler, auth))
 	// follow list endpoints for the authenticated user
 	mux.Handle("GET /api/users/following", middleware.Chain(FollowingHandler, auth))
 	mux.Handle("GET /api/users/followers", middleware.Chain(FollowersHandler, auth))
@@ -45,6 +41,8 @@ func FollowRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/users/{id}/follow", middleware.Chain(FollowUserHandler, auth))
 	mux.Handle("DELETE /api/users/{id}/unfollow", middleware.Chain(UnfollowUserHandler, auth))
 	mux.Handle("POST /api/users/{id}/follow/accept", middleware.Chain(AcceptFollowHandler, auth))
+	mux.Handle("POST /api/users/{id}/block", middleware.Chain(BlockUserHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/unblock", middleware.Chain(UnblockUserHandler, auth))
 }
 
 func PostRoutes(mux *http.ServeMux, db *sql.DB) {
@@ -60,13 +58,12 @@ func PostRoutes(mux *http.ServeMux, db *sql.DB) {
 }
 
 func CommentRoutes(mux *http.ServeMux, db *sql.DB) {
-	auth := middleware.WithAuth
 	checkOwner := middleware.OwnershipMiddleware(db, "comments")
 
 	mux.Handle("GET /api/posts/{id}/comments", middleware.Chain(GetPostCommentsHandler, auth))
+
 	mux.Handle("POST /api/comments", middleware.Chain(CreateCommentHandler, auth))
 	mux.Handle("PUT /api/comments/{id}", middleware.Chain(UpdateCommentHandler, auth, checkOwner))
-	mux.Handle("DELETE /api/comments/{id}", middleware.Chain(DeleteCommentHandler, auth, checkOwner))
-
+	mux.Handle("PUT /api/comments/{id}/delete", middleware.Chain(DeleteCommentHandler, auth, checkOwner))
 	mux.Handle("PUT /api/comments/{id}/restore", middleware.Chain(RestoreCommentHandler, auth, checkOwner))
 }

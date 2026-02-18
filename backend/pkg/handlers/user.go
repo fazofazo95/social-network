@@ -51,7 +51,7 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 			responses.SendError(w, http.StatusConflict, "username already in use")
 			return
 		default:
-			responses.SendError(w, http.StatusInternalServerError, "internal server error")
+			responses.SendError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}

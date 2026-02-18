@@ -111,20 +111,29 @@ func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int
 	fetchSize := min(limit*5, 100)
 
 	query := `
-        SELECT id, first_name, last_name, COALESCE(profile_picture, '')
-        FROM users
-        WHERE id != ? 
-        AND id NOT IN (
-            SELECT followed_id FROM followers WHERE follower_id = ?
-            UNION
-            SELECT follower_id FROM followers WHERE followed_id = ?
-        )
-        ORDER BY RANDOM()
-        LIMIT ?;
-    `
+    SELECT 
+        u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, ''),
+        CASE 
+            WHEN f.status = 'pending' THEN 'Pending'
+            WHEN f.status = 'accepted' THEN 'Following'
+            WHEN f_back.status = 'accepted' THEN 'Follow Back'
+            ELSE 'Follow'
+        END as relationship_status
+    FROM users u
+    LEFT JOIN followers f ON f.follower_id = ? AND f.followed_id = u.id
+    LEFT JOIN followers f_back ON f_back.follower_id = u.id AND f_back.followed_id = ?
+    WHERE u.id != ? 
+    AND u.id NOT IN (
+        SELECT followed_id FROM followers WHERE follower_id = ? AND status IN ('accepted', 'pending', 'blocked')
+        UNION
+        SELECT follower_id FROM followers WHERE followed_id = ? AND status = 'blocked'
+    )
+    ORDER BY RANDOM()
+    LIMIT ?;
+`
 
 	log.Printf("DiscoverUsers: executing discover query for user %d fetchSize %d (will filter blocked)", currentUserID, fetchSize)
-	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID, fetchSize)
+	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID, currentUserID, currentUserID, fetchSize)
 	if err != nil {
 		return nil, err
 	}
