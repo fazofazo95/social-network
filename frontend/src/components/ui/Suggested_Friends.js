@@ -70,7 +70,7 @@ const SuggestedFriends = () => {
                   unoptimized
                 />
                 <span>{friend.first_name} {friend.last_name}</span>
-                <Follow_Bottom status={friend.status} />
+                <Follow_Bottom status={friend.status} targetUserId={friend.id} />
               </li>
             ))
           )}

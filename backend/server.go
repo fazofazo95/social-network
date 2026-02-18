@@ -32,6 +32,7 @@ func runServer() {
 	// API route(s)
 	handlers.UserRoutes(mux)
 	handlers.AuthRoutes(mux)
+	handlers.FollowRoutes(mux)
 	handlers.PostRoutes(mux, database.DB)
 	handlers.CommentRoutes(mux, database.DB)
 	handlers.FeedRoutes(mux)
