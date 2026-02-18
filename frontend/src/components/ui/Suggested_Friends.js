@@ -2,32 +2,8 @@
 import Image from "next/image";
 import Follow_Bottom from "./Follow_Button";
 import { useEffect, useState } from "react";
-import { getApiBaseUrl } from "src/lib/apiClient";
 import { getDiscoveredUsers } from "src/lib/services/discover";
-
-const FALLBACK_PROFILE_IMAGE = "/profil2_icon.svg";
-const BACKEND_BASE_URL = getApiBaseUrl();
-
-function parseProfileImage(profilePicture) {
-  if (!profilePicture || typeof profilePicture !== "string") {
-    return FALLBACK_PROFILE_IMAGE;
-  }
-
-  const trimmed = profilePicture.trim();
-  if (!trimmed) {
-    return FALLBACK_PROFILE_IMAGE;
-  }
-
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
-    return trimmed;
-  }
-
-  if (trimmed.startsWith("/uploads/")) {
-    return `${BACKEND_BASE_URL}${trimmed}`;
-  }
-
-  return FALLBACK_PROFILE_IMAGE;
-}
+import { parseProfileImage } from "src/lib/utils/profileImage";
 
 const SuggestedFriends = () => {
   const [suggestedFriends, setSuggestedFriends] = useState([]);
