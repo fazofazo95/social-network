@@ -7,6 +7,7 @@ import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import { useRouter } from "next/navigation";
+import { loginUser } from "src/lib/services/auth";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -21,27 +22,12 @@ const LoginPage = () => {
   };
   
   try {
-    const response = await fetch("http://localhost:8080/api/login", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    });
-    const data = await response.json();
-    
-    if (response.ok) {
-     
-      alert("Login successful!");
-      router.push("/");
-    } else {
-      console.error("Login failed:", data);
-      alert(data.error || "Login failed");
-    }
+    await loginUser(userData);
+    alert("Login successful!");
+    router.push("/");
   } catch (error) {
-    console.error("Error:", error);
-    alert("Failed to connect to server");
+    console.error("Login failed:", error);
+    alert(error?.message || "Login failed");
   }
 }
   return (

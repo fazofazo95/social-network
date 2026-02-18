@@ -5,6 +5,7 @@ import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import Image from "next/image";
+import { signupUser } from "src/lib/services/auth";
 
 const RegisterPage = () => {
   const handleRegister = async (e) => {
@@ -38,25 +39,12 @@ const RegisterPage = () => {
   formData.append("username", formData.get("firstname") + " " + formData.get("lastname"));
 
     try {
-      const response = await fetch("http://localhost:8080/api/signup", {
-        method: "POST",
-
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log("Registration successful:", data);
-
-        window.location.href = "/login";
-      } else {
-        console.error("Registration failed:", data);
-        alert(data.error || "Registration failed");
-      }
+      const data = await signupUser(formData);
+      console.log("Registration successful:", data);
+      window.location.href = "/login";
     } catch (error) {
-      console.error("Error:", error);
-      alert("Failed to connect to server");
+      console.error("Registration failed:", error);
+      alert(error?.message || "Registration failed");
     }
   };
   return (

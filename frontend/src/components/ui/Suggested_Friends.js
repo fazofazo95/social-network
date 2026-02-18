@@ -1,12 +1,12 @@
 "use client";
 import Image from "next/image";
-import Follow_Bottom from "../Follow_Button";
+import Follow_Bottom from "./Follow_Button";
 import { useEffect, useState } from "react";
-//fetch('/api/discover', { method: 'GET', credentials: 'include' })
-//{ "id": number, "first_name": string, "last_name": string, "profile_picture": string, "status": string }
+import { getApiBaseUrl } from "src/lib/apiClient";
+import { getDiscoveredUsers } from "src/lib/services/discover";
 
 const FALLBACK_PROFILE_IMAGE = "/profil2_icon.svg";
-const BACKEND_BASE_URL = "http://localhost:8080";
+const BACKEND_BASE_URL = getApiBaseUrl();
 
 function parseProfileImage(profilePicture) {
   if (!profilePicture || typeof profilePicture !== "string") {
@@ -35,12 +35,8 @@ const SuggestedFriends = () => {
 
   async function getSuggestedFriends() {
     try {
-      const response = await fetch('http://localhost:8080/api/discover', { method: 'GET', credentials: 'include' });
-      if (!response.ok) {
-        console.error('Failed to fetch suggested friends:', response.statusText);
-      }
-      const resp = await response.json();
-      setSuggestedFriends(Array.isArray(resp?.data) ? resp.data : []);
+      const users = await getDiscoveredUsers();
+      setSuggestedFriends(users);
     } catch (error) {
       console.error('Error fetching suggested friends:', error);
       setSuggestedFriends([]);

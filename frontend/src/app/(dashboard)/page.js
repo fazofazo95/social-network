@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
+import { verifySession } from "src/lib/services/auth";
 
 
 export default function App() {
@@ -15,18 +16,9 @@ export default function App() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/verify-session", {
-          method: "GET",
-          credentials: "include",
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Session data:", data.message);
-          setSession(data.data);
-        } else {
-          router.push("/login");
-        }
+        const data = await verifySession();
+        console.log("Session data:", data.message);
+        setSession(data.data);
       } catch (error) {
         console.error("Session check failed:", error);
         router.push("/login");

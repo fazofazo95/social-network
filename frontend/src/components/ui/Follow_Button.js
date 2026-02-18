@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const API_BASE_URL = "http://localhost:8080";
+import { followUser, unfollowUser } from "src/lib/services/follow";
 
 function toUiStatus(status) {
   const value = String(status || "").trim().toLowerCase();
@@ -38,34 +37,20 @@ const Follow_Bottom = ({ status: initialStatus, targetUserId }) => {
     }
 
     const shouldFollow = status === "Follow" || status === "Follow Back";
-    const url = shouldFollow
-      ? `${API_BASE_URL}/api/users/${targetUserId}/follow`
-      : `${API_BASE_URL}/api/users/${targetUserId}/unfollow`;
-    const method = shouldFollow ? "POST" : "DELETE";
 
     try {
       setIsSubmitting(true);
 
-      const response = await fetch(url, {
-        method,
-        credentials: "include",
-      });
-
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        console.error("Follow request failed:", payload?.message || response.statusText);
-        return;
-      }
-
       if (shouldFollow) {
-        const nextStatus = payload?.data?.status;
+        const data = await followUser(targetUserId);
+        const nextStatus = data?.status;
         setStatus(toUiStatus(nextStatus));
       } else {
+        await unfollowUser(targetUserId);
         setStatus("Follow");
       }
     } catch (error) {
-      console.error("Error during follow action:", error);
+      console.error("Follow request failed:", error?.message || error);
     } finally {
       setIsSubmitting(false);
     }
