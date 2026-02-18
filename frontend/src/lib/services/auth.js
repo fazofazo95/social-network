@@ -22,3 +22,9 @@ export async function verifySession() {
     method: "GET",
   });
 }
+
+export async function logoutUser() {
+  return apiRequest("/api/logout", {
+    method: "DELETE",
+  });
+}

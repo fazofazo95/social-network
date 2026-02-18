@@ -1,5 +1,6 @@
 import { EB_Garamond } from "next/font/google";
 import "../globals.css";
+import AuthGate from "../../components/auth/AuthGate";
 
 
 
@@ -19,7 +20,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${ebGaramond.className} bg-(--color-customPurple) font-medium text-white`}>
-        {children}
+        <AuthGate requireAuth={false}>{children}</AuthGate>
       </body>
     </html>
   );

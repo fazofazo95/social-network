@@ -1,40 +1,10 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
-import { verifySession } from "src/lib/services/auth";
 
 
 export default function App() {
-  const router = useRouter();
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const data = await verifySession();
-        console.log("Session data:", data.message);
-        setSession(data.data);
-      } catch (error) {
-        console.error("Session check failed:", error);
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkSession();
-  }, [router]);
-
-  if (loading) {
-    return <div className="text-center mt-10">Loading...</div>;
-  }
-
-  return session ? ( 
+  return ( 
     <main className="w-full max-w-2xl flex flex-col gap-20">
       <form
         encType="multipart/form-data"
@@ -167,6 +137,5 @@ export default function App() {
         </div>
       </article>
     </main>
-  ) : ( <p>Redirecting to login... </p> );
-  // ) : ( router.push('/login') );
+  );
 }
