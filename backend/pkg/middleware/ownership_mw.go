@@ -1,52 +1,56 @@
 package middleware
 
 import (
+	"backend/pkg/responses"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 )
 
-// OwnershipMiddleware ελέγχει αν ο συνδεδεμένος χρήστης είναι ο ιδιοκτήτης του πόρου (post/comment)
 func OwnershipMiddleware(db *sql.DB, tableName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// 1. Παίρνουμε το ID από το URL (π.χ. /api/posts/{id})
+			log.Printf("[INFO] OwnershipMiddleware: Checking ownership for table: %s", tableName)
+
 			idParam := r.PathValue("id")
 			resourceID, err := strconv.Atoi(idParam)
 			if err != nil {
-				http.Error(w, "Invalid ID parameter", http.StatusBadRequest)
+				log.Printf("[ERROR] OwnershipMiddleware: Invalid ID parameter '%s': %v", idParam, err)
+				responses.SendError(w, http.StatusBadRequest, "Invalid ID parameter")
 				return
 			}
 
-			// 2. Παίρνουμε το UserID από το Context (που έβαλε το WithAuth middleware)
 			userID, ok := r.Context().Value("userID").(int)
 			if !ok {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				log.Println("[WARN] OwnershipMiddleware: UserID missing from context")
+				responses.SendError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
 
-			// 3. Ελέγχουμε στη βάση αν το resource ανήκει στον χρήστη
 			var ownerID int
 			query := fmt.Sprintf("SELECT user_id FROM %s WHERE id = ?", tableName)
 			err = db.QueryRowContext(r.Context(), query, resourceID).Scan(&ownerID)
 
 			if err != nil {
 				if err == sql.ErrNoRows {
-					http.Error(w, "Resource not found", http.StatusNotFound)
+					log.Printf("[WARN] OwnershipMiddleware: Resource %d not found in %s", resourceID, tableName)
+					responses.SendError(w, http.StatusNotFound, "Resource not found")
 				} else {
-					http.Error(w, "Database error", http.StatusInternalServerError)
+					log.Printf("[ERROR] OwnershipMiddleware: Database error for %s ID %d: %v", tableName, resourceID, err)
+					responses.SendError(w, http.StatusInternalServerError, "Database error")
 				}
 				return
 			}
 
-			// 4. Σύγκριση IDs
 			if ownerID != userID {
-				http.Error(w, "Forbidden: You are not the owner of this "+tableName, http.StatusForbidden)
+				log.Printf("[WARN] OwnershipMiddleware: Forbidden - User %d does not own %s %d (Owner: %d)", userID, tableName, resourceID, ownerID)
+				responses.SendError(w, http.StatusForbidden, "Forbidden: You are not the owner of this "+tableName)
 				return
 			}
 
-			// Αν όλα είναι OK, προχωράμε στον επόμενο handler
+			log.Printf("[SUCCESS] OwnershipMiddleware: Ownership verified for User %d on %s %d", userID, tableName, resourceID)
 			next.ServeHTTP(w, r)
 		})
 	}

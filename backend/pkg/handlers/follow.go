@@ -1,43 +1,44 @@
 package handlers
 
 import (
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
 	"backend/pkg/services"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
-// FollowUserHandler handles POST /api/users/{id}/follow
-// The authenticated user (from context) is the follower. The {id} in the URL
-// is the target user to follow. The handler decides whether the follow is
-// 'accepted' or 'pending' based on the target user's `profile_type`.
 func FollowUserHandler(w http.ResponseWriter, r *http.Request) {
-	// get authenticated user id from context
+	log.Println("[INFO] FollowUserHandler: Received follow request")
+
 	followerID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] FollowUserHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// extract target id from URL path: /api/users/{id}/follow
 	parts := strings.Split(r.URL.Path, "/")
-	// parts: ["", "api", "users", "{id}", "follow"]
 	if len(parts) < 4 {
+		log.Printf("[ERROR] FollowUserHandler: Invalid path: %s", r.URL.Path)
 		responses.SendError(w, http.StatusBadRequest, "invalid path")
 		return
 	}
 	targetStr := parts[3]
 	targetID, err := strconv.Atoi(targetStr)
 	if err != nil || targetID <= 0 {
+		log.Printf("[ERROR] FollowUserHandler: Invalid target ID: %s", targetStr)
 		responses.SendError(w, http.StatusBadRequest, "invalid target id")
 		return
 	}
 
+	log.Printf("[INFO] FollowUserHandler: User %d attempting to follow User %d", followerID, targetID)
 	followService := services.NewFollowService(database.DB)
 
 	req := models.FollowRequest{
@@ -47,11 +48,12 @@ func FollowUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	status, err := followService.FollowUser(r.Context(), req)
 	if err != nil {
+		log.Printf("[ERROR] FollowUserHandler: Service error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "Failed to process follow request: "+err.Error())
 		return
 	}
 
-	// return the created follow object so frontend can update UI immediately
+	log.Printf("[SUCCESS] FollowUserHandler: Relationship created with status: %s", status)
 	resp := map[string]interface{}{
 		"follower_id": req.FollowerID,
 		"followed_id": req.FollowedID,
@@ -61,16 +63,16 @@ func FollowUserHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "follow request created successfully", resp)
 }
 
-// UnfollowUserHandler handles DELETE /api/users/{id}/unfollow
-// The authenticated user is the follower; the {id} in the path is the target to unfollow.
 func UnfollowUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] UnfollowUserHandler: Received unfollow request")
+
 	followerID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] UnfollowUserHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	// parse target id from path
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 4 {
 		responses.SendError(w, http.StatusBadRequest, "invalid path")
@@ -83,27 +85,30 @@ func UnfollowUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// perform delete
+	log.Printf("[INFO] UnfollowUserHandler: User %d unfollowing User %d", followerID, targetID)
 	deleted, err := queries.DeleteFollow(r.Context(), database.DB, followerID, targetID)
 	if err != nil {
+		log.Printf("[ERROR] UnfollowUserHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to unfollow: "+err.Error())
 		return
 	}
 
 	if deleted == 0 {
+		log.Printf("[WARN] UnfollowUserHandler: No relationship found to delete")
 		responses.SendError(w, http.StatusNotFound, "no follow relationship found")
 		return
 	}
 
+	log.Printf("[SUCCESS] UnfollowUserHandler: Relationship deleted")
 	responses.SendSuccess(w, "unfollowed successfully", map[string]interface{}{"follower_id": followerID, "followed_id": targetID})
 }
 
-// AcceptFollowHandler handles POST /api/users/{id}/follow/accept
-// Authenticated user is the followed user (the one who received the follow request).
-// The {id} in the path is the follower id whose pending request should be accepted.
 func AcceptFollowHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] AcceptFollowHandler: Received accept request")
+
 	followedID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] AcceptFollowHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -113,7 +118,6 @@ func AcceptFollowHandler(w http.ResponseWriter, r *http.Request) {
 		responses.SendError(w, http.StatusBadRequest, "invalid path")
 		return
 	}
-	// expected: ["", "api", "users", "{id}", "follow", "accept"] or similar
 	followerStr := parts[3]
 	followerID, err := strconv.Atoi(followerStr)
 	if err != nil || followerID <= 0 {
@@ -121,26 +125,30 @@ func AcceptFollowHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// perform accept (pending -> accepted)
+	log.Printf("[INFO] AcceptFollowHandler: User %d accepting request from User %d", followedID, followerID)
 	updated, err := queries.AcceptFollow(r.Context(), database.DB, followerID, followedID)
 	if err != nil {
+		log.Printf("[ERROR] AcceptFollowHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to accept follow: "+err.Error())
 		return
 	}
 
 	if updated == 0 {
+		log.Printf("[WARN] AcceptFollowHandler: No pending request found")
 		responses.SendError(w, http.StatusNotFound, "no pending follow request found")
 		return
 	}
 
+	log.Printf("[SUCCESS] AcceptFollowHandler: Request accepted")
 	responses.SendSuccess(w, "follow request accepted", map[string]interface{}{"follower_id": followerID, "followed_id": followedID})
 }
 
-// BlockUserHandler handles POST /api/users/{id}/block
-// Authenticated user is the blocker; {id} is the user to block.
 func BlockUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] BlockUserHandler: Received block request")
+
 	blockerID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] BlockUserHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -157,21 +165,24 @@ func BlockUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[INFO] BlockUserHandler: User %d blocking User %d", blockerID, targetID)
 	updated, err := queries.BlockFollow(r.Context(), database.DB, blockerID, targetID)
 	if err != nil {
+		log.Printf("[ERROR] BlockUserHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to block user: "+err.Error())
 		return
 	}
 
-	// Return the blocked pair and whether an existing row was updated/inserted
+	log.Printf("[SUCCESS] BlockUserHandler: User blocked. Rows affected: %d", updated)
 	responses.SendSuccess(w, "user blocked", map[string]interface{}{"blocker_id": blockerID, "blocked_id": targetID, "rows": updated})
 }
 
-// UnblockUserHandler handles DELETE /api/users/{id}/unblock
-// Authenticated user is the blocker; removes the blocked row if present.
 func UnblockUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] UnblockUserHandler: Received unblock request")
+
 	blockerID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] UnblockUserHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -188,84 +199,103 @@ func UnblockUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[INFO] UnblockUserHandler: User %d unblocking User %d", blockerID, targetID)
 	deleted, err := queries.UnblockFollow(r.Context(), database.DB, blockerID, targetID)
 	if err != nil {
+		log.Printf("[ERROR] UnblockUserHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to unblock user: "+err.Error())
 		return
 	}
 	if deleted == 0 {
+		log.Printf("[WARN] UnblockUserHandler: No blocked relationship found")
 		responses.SendError(w, http.StatusNotFound, "no blocked relationship found")
 		return
 	}
 
+	log.Printf("[SUCCESS] UnblockUserHandler: User unblocked")
 	responses.SendSuccess(w, "user unblocked", map[string]interface{}{"blocker_id": blockerID, "unblocked_id": targetID})
 }
 
-// FollowingHandler returns list of users the authenticated user is following (status = 'accepted')
 func FollowingHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] FollowingHandler: Fetching following list")
+
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] FollowingHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	users, err := queries.GetFollowingUsers(r.Context(), database.DB, userID)
 	if err != nil {
+		log.Printf("[ERROR] FollowingHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to get following list: "+err.Error())
 		return
 	}
 
-	// Return the list (may be empty)
+	log.Printf("[SUCCESS] FollowingHandler: Found %d users", len(users))
 	responses.SendSuccess(w, "following list", users)
 }
 
-// FollowersHandler returns list of users who follow the authenticated user (status = 'accepted')
 func FollowersHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] FollowersHandler: Fetching followers list")
+
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] FollowersHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	users, err := queries.GetFollowers(r.Context(), database.DB, userID)
 	if err != nil {
+		log.Printf("[ERROR] FollowersHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to get followers list: "+err.Error())
 		return
 	}
 
+	log.Printf("[SUCCESS] FollowersHandler: Found %d users", len(users))
 	responses.SendSuccess(w, "followers list", users)
 }
 
-// BlockedHandler returns list of users the authenticated user has blocked
 func BlockedHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] BlockedHandler: Fetching blocked list")
+
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] BlockedHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	users, err := queries.GetBlockedUsers(r.Context(), database.DB, userID)
 	if err != nil {
+		log.Printf("[ERROR] BlockedHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to get blocked users: "+err.Error())
 		return
 	}
 
+	log.Printf("[SUCCESS] BlockedHandler: Found %d users", len(users))
 	responses.SendSuccess(w, "blocked users list", users)
 }
 
-// PendingRequestsHandler returns list of users who have sent a pending follow request to the authenticated user
 func PendingRequestsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] PendingRequestsHandler: Fetching pending requests")
+
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
+		log.Printf("[ERROR] PendingRequestsHandler: Unauthorized: %v", err)
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	users, err := queries.GetPendingIncomingRequests(r.Context(), database.DB, userID)
 	if err != nil {
+		log.Printf("[ERROR] PendingRequestsHandler: Query error: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "failed to get pending requests: "+err.Error())
 		return
 	}
 
+	log.Printf("[SUCCESS] PendingRequestsHandler: Found %d requests", len(users))
 	responses.SendSuccess(w, "pending requests", users)
 }

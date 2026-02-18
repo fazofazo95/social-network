@@ -8,38 +8,37 @@ import (
 	"backend/pkg/models"
 )
 
-// GetFollowedUsersPosts retrieves the most recent posts from users that the current user follows
 func GetFollowedUsersPosts(ctx context.Context, db *sql.DB, currentUserID int, limit int) ([]models.Post, error) {
 	if limit <= 0 {
 		limit = 5
 	}
 
-	query := `
-		SELECT 
-			p.id,
-			p.user_id,
-			p.content,
-			COALESCE(p.extra_content, '') as extra_content,
-			p.created_at,
-			u.first_name,
-			u.last_name,
-			COALESCE(u.profile_picture, '') as profile_picture
-		FROM posts p
-		INNER JOIN users u ON p.user_id = u.id
-		WHERE p.user_id IN (
-			SELECT followed_id 
-			FROM followers 
-			WHERE follower_id = ? AND status = 'accepted'
-		)
-		ORDER BY p.created_at DESC
-		LIMIT ?
-	`
+	log.Printf("[INFO] GetFollowedUsersPosts: Fetching posts for UserID: %d, Limit: %d", currentUserID, limit)
 
-	// log query start
-	// Note: avoid importing log at top-level if unused elsewhere — use Printf directly
-	log.Printf("GetFollowedUsersPosts: executing query for user %d limit %d", currentUserID, limit)
+	query := `
+        SELECT 
+            p.id,
+            p.user_id,
+            p.content,
+            COALESCE(p.extra_content, '') as extra_content,
+            p.created_at,
+            u.first_name,
+            u.last_name,
+            COALESCE(u.profile_picture, '') as profile_picture
+        FROM posts p
+        INNER JOIN users u ON p.user_id = u.id
+        WHERE p.user_id IN (
+            SELECT followed_id 
+            FROM followers 
+            WHERE follower_id = ? AND status = 'accepted'
+        )
+        ORDER BY p.created_at DESC
+        LIMIT ?
+    `
+
 	rows, err := db.QueryContext(ctx, query, currentUserID, limit)
 	if err != nil {
+		log.Printf("[ERROR] GetFollowedUsersPosts query failed: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -58,16 +57,18 @@ func GetFollowedUsersPosts(ctx context.Context, db *sql.DB, currentUserID int, l
 			&post.AuthorProfilePicture,
 		)
 		if err != nil {
+			log.Printf("[ERROR] GetFollowedUsersPosts scan failed: %v", err)
 			return nil, err
 		}
 		posts = append(posts, post)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Printf("[ERROR] GetFollowedUsersPosts rows error: %v", err)
 		return nil, err
 	}
 
-	log.Printf("GetFollowedUsersPosts: fetched %d posts for user %d", len(posts), currentUserID)
+	log.Printf("[SUCCESS] GetFollowedUsersPosts: Found %d posts for UserID: %d", len(posts), currentUserID)
 
 	return posts, nil
 }
