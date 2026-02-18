@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -13,8 +14,10 @@ import (
 )
 
 func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] CreateUserHandler: Received request")
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		log.Printf("[ERROR] CreateUserHandler: ParseMultipartForm failed: %v", err)
 		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
 		return
 	}
@@ -32,30 +35,37 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	imageURL, err := utils.AttachAvatar(r)
 	if err != nil {
+		log.Printf("[ERROR] CreateUserHandler: Avatar attachment failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if imageURL != "" {
+		log.Printf("[INFO] CreateUserHandler: Avatar uploaded: %s", imageURL)
 		signUpInput.Avatar = imageURL
 	}
 
 	authService := services.NewAuthService(database.DB)
 
+	log.Printf("[INFO] CreateUserHandler: Attempting SignUp for Email: %s, Username: %s", signUpInput.Email, signUpInput.Username)
 	if err := authService.SignUp(r.Context(), signUpInput); err != nil {
 		switch err {
 		case services.ErrEmailTaken:
+			log.Printf("[WARN] CreateUserHandler: Email taken: %s", signUpInput.Email)
 			responses.SendError(w, http.StatusConflict, "email already in use")
 			return
 		case services.ErrUsernameTaken:
+			log.Printf("[WARN] CreateUserHandler: Username taken: %s", signUpInput.Username)
 			responses.SendError(w, http.StatusConflict, "username already in use")
 			return
 		default:
+			log.Printf("[ERROR] CreateUserHandler: SignUp service error: %v", err)
 			responses.SendError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}
 
+	log.Printf("[SUCCESS] CreateUserHandler: User %s created successfully", signUpInput.Username)
 	responses.SendCreated(w, "user created successfully", nil)
 }
 
@@ -65,20 +75,26 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {}
 
 func GetUserPostsHandler(w http.ResponseWriter, r *http.Request) {
 	targetUserID := r.PathValue("id")
+	log.Printf("[INFO] GetUserPostsHandler: Fetching posts for TargetUserID: %s", targetUserID)
+
 	targetUserIDint, err := strconv.Atoi(targetUserID)
 	if err != nil {
+		log.Printf("[ERROR] GetUserPostsHandler: Invalid ID format: %v", err)
 		responses.SendError(w, http.StatusBadRequest, "Invalid post ID")
 		return
 	}
 
 	viewerID, _ := middleware.UserIDFromContext(r.Context())
+	log.Printf("[INFO] GetUserPostsHandler: ViewerID: %d fetching posts of TargetID: %d", viewerID, targetUserIDint)
 
 	postService := services.NewPostService(database.DB)
 	posts, err := postService.GetUserPosts(r.Context(), targetUserIDint, viewerID)
 	if err != nil {
+		log.Printf("[ERROR] GetUserPostsHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	log.Printf("[SUCCESS] GetUserPostsHandler: Retrieved %d posts", len(posts))
 	responses.SendSuccess(w, "user posts retrieved successfully", posts)
 }

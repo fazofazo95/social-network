@@ -17,19 +17,20 @@ var (
 	ErrUsernameTaken = errors.New("username already in use")
 )
 
-// SignUp inserts a new user into the database.
 func SignUp(ctx context.Context, db *sql.DB, input models.Signup_fields) error {
-	log.Printf("SignUp: start signup for email=%s username=%s", input.Email, input.Username)
+	log.Printf("[INFO] SignUp: Starting signup process for Email: %s, Username: %s", input.Email, input.Username)
+
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		log.Printf("[ERROR] SignUp: Failed to begin transaction: %v", err)
 		return err
 	}
-	log.Printf("SignUp: tx begun for email=%s", input.Email)
 	defer tx.Rollback()
 
-	log.Printf("SignUp: generating bcrypt hash for email=%s", input.Email)
+	log.Printf("[INFO] SignUp: Hashing password for %s", input.Email)
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Printf("[ERROR] SignUp: Password hashing failed: %v", err)
 		return err
 	}
 
@@ -37,51 +38,58 @@ func SignUp(ctx context.Context, db *sql.DB, input models.Signup_fields) error {
         INSERT INTO login_users (email, username, password_hash)
         VALUES (?, ?, ?);
     `
-	log.Printf("SignUp: inserting into login_users email=%s", input.Email)
+	log.Printf("[INFO] SignUp: Inserting into login_users")
 	_, err = tx.ExecContext(ctx, loginUserQuery, input.Email, input.Username, string(hash))
 	if err != nil {
-		log.Printf("SignUp: insert login_users error: %v", err)
+		log.Printf("[ERROR] SignUp: login_users insertion failed: %v", err)
 		return mapSignupError(err)
 	}
 
 	var userID int
 	userIdQuery := `SELECT id FROM login_users WHERE email = ?`
-	log.Printf("SignUp: querying id for email=%s", input.Email)
 	err = tx.QueryRowContext(ctx, userIdQuery, input.Email).Scan(&userID)
 	if err != nil {
-		log.Printf("SignUp: query id error: %v", err)
+		log.Printf("[ERROR] SignUp: Failed to retrieve new UserID: %v", err)
 		return err
 	}
+	log.Printf("[INFO] SignUp: Generated UserID: %d", userID)
 
 	userQuery := `
-		INSERT INTO users (
-			id, first_name, last_name, birthday_date, relationship_status,
-			employed_at, phone_number, profile_picture, pictures, level
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-	`
-	log.Printf("SignUp: inserting into users id=%d", userID)
-	// Provide sensible defaults for optional columns; level is required by the schema
+        INSERT INTO users (
+            id, first_name, last_name, birthday_date, relationship_status,
+            employed_at, phone_number, profile_picture, pictures, level
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `
+	log.Printf("[INFO] SignUp: Inserting profile data into users table")
 	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil, "basic")
 	if err != nil {
-		log.Printf("SignUp: insert users error: %v", err)
+		log.Printf("[ERROR] SignUp: users table insertion failed: %v", err)
 		return err
 	}
 
-	log.Printf("SignUp: committing tx for id=%d", userID)
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("[ERROR] SignUp: Transaction commit failed: %v", err)
+		return err
+	}
+
+	log.Printf("[SUCCESS] SignUp: User %d registered successfully", userID)
+	return nil
 }
 
 func mapSignupError(err error) error {
 	msg := err.Error()
-
 	lowMsg := strings.ToLower(msg)
 
-	switch {
-	case strings.Contains(lowMsg, "email"):
+	if strings.Contains(lowMsg, "email") {
+		log.Printf("[WARN] SignUp: Email conflict detected")
 		return ErrEmailTaken
-	case strings.Contains(lowMsg, "username"):
-		return ErrUsernameTaken
-	default:
-		return err
 	}
+	if strings.Contains(lowMsg, "username") {
+		log.Printf("[WARN] SignUp: Username conflict detected")
+		return ErrUsernameTaken
+	}
+
+	log.Printf("[ERROR] SignUp: Unmapped database error: %s", msg)
+	return err
 }
