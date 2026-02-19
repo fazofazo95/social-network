@@ -1,9 +1,28 @@
+'use client';
 import Image from "next/image";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
+import { useState } from "react";
+import { fetchUserData } from "src/lib/services/user";
 
 
 export default function App() {
+   const [userData, setUserData] = useState([]);
+   const [isLoading, setIsLoading] = useState(true);
+   async function getUserData() {
+      try {
+        const users = await fetchUserData('me');
+        setUserData(users);
+      } catch (error) {
+        console.error('Error fetching suggested friends:', error);
+        setUserData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    useState(() => {
+      getUserData();
+    }, []);
   return ( 
     <main className="w-full max-w-2xl flex flex-col gap-20">
       <form
@@ -12,7 +31,7 @@ export default function App() {
       >
         <div className="flex items-start gap-4 mb-4">
           <Image
-            src="/profil_icon.svg"
+            src={parseProfileImage(userData.avatar)}
             alt="Profile Icon"
             width={25}
             height={25}
