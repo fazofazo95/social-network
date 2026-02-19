@@ -113,8 +113,18 @@ func GetUserPostsHandler(w http.ResponseWriter, r *http.Request) {
 	viewerID, _ := middleware.UserIDFromContext(r.Context())
 	log.Printf("[INFO] GetUserPostsHandler: ViewerID: %d fetching posts of TargetID: %d", viewerID, targetUserIDint)
 
+	pageStr := r.URL.Query().Get("page")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+
+	limit := 10
+	offset := (page - 1) * limit
+	log.Printf("[INFO] GetUserPostsHandler: Pagination - Page: %d, Limit: %d, Offset: %d", page, limit, offset)
+
 	postService := services.NewPostService(database.DB)
-	posts, err := postService.GetUserPosts(r.Context(), targetUserIDint, viewerID)
+	posts, err := postService.GetUserPosts(r.Context(), targetUserIDint, viewerID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetUserPostsHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())

@@ -95,10 +95,10 @@ func (s *PostService) GetPostByID(ctx context.Context, userID int, postID int) (
 	return post, nil
 }
 
-func (s *PostService) GetUserPosts(ctx context.Context, targetUserID int, viewerID int) ([]models.Post, error) {
+func (s *PostService) GetUserPosts(ctx context.Context, targetUserID int, viewerID int, limit int, offset int) ([]models.Post, error) {
 	log.Printf("[INFO] PostService.GetUserPosts: Fetching posts for TargetUserID %d (ViewerID %d)", targetUserID, viewerID)
 
-	posts, err := queries.GetUserPosts(ctx, s.db, targetUserID, viewerID)
+	posts, err := queries.GetUserPosts(ctx, s.db, targetUserID, viewerID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] PostService.GetUserPosts: Database error: %v", err)
 		return nil, err
