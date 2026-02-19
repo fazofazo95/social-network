@@ -18,3 +18,19 @@ type GroupResponse struct {
 	GroupMembers int    `json:"group_members"`
 	CreatedAt    string `json:"created_at"`
 }
+
+type GroupMemberListItem struct {
+	ID             int    `json:"id"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ProfilePicture string `json:"profile_picture"`
+	Role           string `json:"group_status"`
+}
+
+type GroupPendingItem struct {
+	ID             int    `json:"id"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ProfilePicture string `json:"profile_picture"`
+	Type           string `json:"type"`
+}
