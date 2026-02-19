@@ -39,7 +39,6 @@ const SuggestedFriends = () => {
                   alt={`${friend.first_name} ${friend.last_name}'s Profile Picture`}
                   width={20}
                   height={20}
-                  unoptimized
                 />
                 <span>{friend.first_name} {friend.last_name}</span>
                 <Follow_Bottom status={friend.status} targetUserId={friend.id} />
