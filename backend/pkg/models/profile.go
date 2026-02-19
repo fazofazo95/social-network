@@ -47,13 +47,23 @@ type UserProfileResponse struct {
 }
 
 type Signup_fields struct {
-	Email 		string
-	Password 	string
-	FirstName 	string
-	LastName 	string
-	Username 	string
-	Birthday	string
-	Avatar		string
-	Nickname	string
-	AboutMe		string
+	Email     string
+	Password  string
+	FirstName string
+	LastName  string
+	Username  string
+	Birthday  string
+	Avatar    string
+	Nickname  string
+	AboutMe   string
+}
+
+// VisibilitySettings represents visibility flags returned to clients
+type VisibilitySettings struct {
+	EmailVis              string `json:"email_vis"`
+	BirthdayDateVis       string `json:"birthday_date_vis"`
+	RelationshipStatusVis string `json:"relationship_status_vis"`
+	EmployedAtVis         string `json:"employed_at_vis"`
+	PhoneNumberVis        string `json:"phone_number_vis"`
+	ProfileType           string `json:"profile_type"` // public | private
 }

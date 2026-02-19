@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
 
+	"backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
@@ -69,7 +71,31 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "user created successfully", nil)
 }
 
-func GetUserHandler(w http.ResponseWriter, r *http.Request) {}
+func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || targetID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	data, err := queries.GetUserProfileView(r.Context(), database.DB, viewerID, targetID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			responses.SendError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		responses.SendError(w, http.StatusInternalServerError, "failed to fetch profile: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "profile", data)
+}
 
 func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {}
 

@@ -22,8 +22,16 @@ func UserRoutes(mux *http.ServeMux) {
 	// follow list endpoints for the authenticated user
 	mux.Handle("GET /api/users/following", middleware.Chain(FollowingHandler, auth))
 	mux.Handle("GET /api/users/followers", middleware.Chain(FollowersHandler, auth))
+	mux.Handle("GET /api/users/{id}/following", middleware.Chain(FollowingByUserHandler, auth))
+	mux.Handle("GET /api/users/{id}/followers", middleware.Chain(FollowersByUserHandler, auth))
 	mux.Handle("GET /api/users/blocked", middleware.Chain(BlockedHandler, auth))
 	mux.Handle("GET /api/users/pending", middleware.Chain(PendingRequestsHandler, auth))
+	mux.Handle("GET /api/users/settings", middleware.Chain(GetVisibilitySettingsHandler, auth))
+	mux.Handle("PATCH /api/users/settings", middleware.Chain(UpdateVisibilitySettingsHandler, auth))
+	mux.Handle("PUT /api/users/settings", middleware.Chain(UpdateVisibilitySettingsHandler, auth))
+	mux.Handle("GET /api/users/settings/content", middleware.Chain(GetUserContentSettingsHandler, auth))
+	mux.Handle("PATCH /api/users/settings/content", middleware.Chain(UpdateUserContentSettingsHandler, auth))
+	mux.Handle("PUT /api/users/settings/content", middleware.Chain(UpdateUserContentSettingsHandler, auth))
 }
 
 func AuthRoutes(mux *http.ServeMux) {

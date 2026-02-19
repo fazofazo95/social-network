@@ -21,4 +21,5 @@ type FollowListUser struct {
 	FirstName      string `json:"first_name"`
 	LastName       string `json:"last_name"`
 	ProfilePicture string `json:"profile_picture"`
+	Status         string `json:"current_status,omitempty"`
 }

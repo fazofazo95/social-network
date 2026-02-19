@@ -258,6 +258,64 @@ func FollowersHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "followers list", users)
 }
 
+func FollowingByUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] FollowingByUserHandler: Fetching following list for target user")
+
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || targetID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid target id")
+		return
+	}
+
+	var users []models.FollowListUser
+	if targetID == viewerID {
+		users, err = queries.GetFollowingUsers(r.Context(), database.DB, targetID)
+	} else {
+		users, err = queries.GetFollowingUsersForViewer(r.Context(), database.DB, targetID, viewerID)
+	}
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to get following list: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "following list", users)
+}
+
+func FollowersByUserHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] FollowersByUserHandler: Fetching followers list for target user")
+
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || targetID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid target id")
+		return
+	}
+
+	var users []models.FollowListUser
+	if targetID == viewerID {
+		users, err = queries.GetFollowers(r.Context(), database.DB, targetID)
+	} else {
+		users, err = queries.GetFollowersForViewer(r.Context(), database.DB, targetID, viewerID)
+	}
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to get followers list: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "followers list", users)
+}
+
 func BlockedHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[INFO] BlockedHandler: Fetching blocked list")
 

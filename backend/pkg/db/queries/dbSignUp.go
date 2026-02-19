@@ -67,6 +67,12 @@ func SignUp(ctx context.Context, db *sql.DB, input models.Signup_fields) error {
 		return err
 	}
 
+	// Ensure a default user_settings row exists for this user so frontend can rely on defaults.
+	if err := InsertDefaultUserSettingsTx(ctx, tx, userID); err != nil {
+		log.Printf("[ERROR] SignUp: failed to insert default user_settings for user %d: %v", userID, err)
+		return err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		log.Printf("[ERROR] SignUp: Transaction commit failed: %v", err)

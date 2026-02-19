@@ -8,6 +8,41 @@ import (
 	"backend/pkg/models"
 )
 
+func syncFollowCountsForUser(ctx context.Context, db *sql.DB, userID int) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE users
+		SET Followers = (SELECT COUNT(*) FROM followers WHERE followed_id = ? AND status = 'accepted'),
+			Following = (SELECT COUNT(*) FROM followers WHERE follower_id = ? AND status = 'accepted')
+		WHERE id = ?
+	`, userID, userID, userID)
+	return err
+}
+
+func syncFollowCountsForPair(ctx context.Context, db *sql.DB, userA, userB int) {
+	if err := syncFollowCountsForUser(ctx, db, userA); err != nil {
+		log.Printf("[WARN] syncFollowCountsForPair: failed syncing user %d: %v", userA, err)
+	}
+	if err := syncFollowCountsForUser(ctx, db, userB); err != nil {
+		log.Printf("[WARN] syncFollowCountsForPair: failed syncing user %d: %v", userB, err)
+	}
+}
+
+// RebuildAllFollowCounts recalculates Followers/Following counters for every user
+// from accepted relationships in followers table.
+func RebuildAllFollowCounts(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE users
+		SET Followers = (SELECT COUNT(*) FROM followers WHERE followed_id = users.id AND status = 'accepted'),
+			Following = (SELECT COUNT(*) FROM followers WHERE follower_id = users.id AND status = 'accepted')
+	`)
+	if err != nil {
+		log.Printf("[ERROR] RebuildAllFollowCounts failed: %v", err)
+		return err
+	}
+	log.Printf("[SUCCESS] RebuildAllFollowCounts: counters rebuilt for all users")
+	return nil
+}
+
 func CreateFollow(ctx context.Context, db *sql.DB, req models.FollowRequest, status string) error {
 	log.Printf("[INFO] CreateFollow: Attempting to create follow. Follower: %d, Followed: %d, Status: %s", req.FollowerID, req.FollowedID, status)
 	query := `INSERT INTO followers (follower_id, followed_id, status) VALUES (?, ?, ?)`
@@ -16,6 +51,7 @@ func CreateFollow(ctx context.Context, db *sql.DB, req models.FollowRequest, sta
 		log.Printf("[ERROR] CreateFollow failed: %v", err)
 		return err
 	}
+	syncFollowCountsForPair(ctx, db, req.FollowerID, req.FollowedID)
 	log.Printf("[SUCCESS] CreateFollow: Follow relationship created")
 	return nil
 }
@@ -28,6 +64,7 @@ func DeleteFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (
 		log.Printf("[ERROR] DeleteFollow failed: %v", err)
 		return 0, err
 	}
+	syncFollowCountsForPair(ctx, db, followerID, followedID)
 	rows, _ := res.RowsAffected()
 	log.Printf("[INFO] DeleteFollow: Rows affected: %d", rows)
 	return rows, nil
@@ -41,6 +78,7 @@ func AcceptFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (
 		log.Printf("[ERROR] AcceptFollow failed: %v", err)
 		return 0, err
 	}
+	syncFollowCountsForPair(ctx, db, followerID, followedID)
 	rows, _ := res.RowsAffected()
 	log.Printf("[INFO] AcceptFollow: Rows affected: %d", rows)
 	return rows, nil
@@ -55,6 +93,7 @@ func BlockFollow(ctx context.Context, db *sql.DB, blockerID, targetID int) (int6
 		log.Printf("[ERROR] BlockFollow failed: %v", err)
 		return 0, err
 	}
+	syncFollowCountsForPair(ctx, db, blockerID, targetID)
 	rows, _ := res.RowsAffected()
 	log.Printf("[INFO] BlockFollow: Rows affected: %d", rows)
 	return rows, nil
@@ -68,6 +107,7 @@ func UnblockFollow(ctx context.Context, db *sql.DB, blockerID, targetID int) (in
 		log.Printf("[ERROR] UnblockFollow failed: %v", err)
 		return 0, err
 	}
+	syncFollowCountsForPair(ctx, db, blockerID, targetID)
 	rows, _ := res.RowsAffected()
 	log.Printf("[INFO] UnblockFollow: Rows affected: %d", rows)
 	return rows, nil
@@ -201,6 +241,92 @@ func GetFollowers(ctx context.Context, db *sql.DB, currentUserID int) ([]models.
 		var u models.FollowListUser
 		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
 			log.Printf("[ERROR] GetFollowers scan failed: %v", err)
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	return res, nil
+}
+
+// GetFollowingUsersForViewer returns users that targetUserID follows (accepted),
+// and includes relationship status from viewerID to each listed user.
+func GetFollowingUsersForViewer(ctx context.Context, db *sql.DB, targetUserID, viewerID int) ([]models.FollowListUser, error) {
+	log.Printf("[INFO] GetFollowingUsersForViewer: target=%d viewer=%d", targetUserID, viewerID)
+	query := `
+		SELECT
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.profile_picture, ''),
+			CASE
+				WHEN fv.status = 'blocked' THEN 'Blocked'
+				WHEN vf.status = 'blocked' THEN 'You_Are_Blocked'
+				WHEN fv.status = 'accepted' THEN 'Following'
+				WHEN fv.status = 'pending' THEN 'Pending'
+				WHEN vf.status = 'accepted' THEN 'Follow Back'
+				ELSE 'Follow'
+			END AS current_status
+		FROM users u
+		JOIN followers t ON u.id = t.followed_id AND t.follower_id = ? AND t.status = 'accepted'
+		LEFT JOIN followers fv ON fv.follower_id = ? AND fv.followed_id = u.id
+		LEFT JOIN followers vf ON vf.follower_id = u.id AND vf.followed_id = ?
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID)
+	if err != nil {
+		log.Printf("[ERROR] GetFollowingUsersForViewer query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture, &u.Status); err != nil {
+			log.Printf("[ERROR] GetFollowingUsersForViewer scan failed: %v", err)
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	return res, nil
+}
+
+// GetFollowersForViewer returns users that follow targetUserID (accepted),
+// and includes relationship status from viewerID to each listed user.
+func GetFollowersForViewer(ctx context.Context, db *sql.DB, targetUserID, viewerID int) ([]models.FollowListUser, error) {
+	log.Printf("[INFO] GetFollowersForViewer: target=%d viewer=%d", targetUserID, viewerID)
+	query := `
+		SELECT
+			u.id,
+			u.first_name,
+			u.last_name,
+			COALESCE(u.profile_picture, ''),
+			CASE
+				WHEN fv.status = 'blocked' THEN 'Blocked'
+				WHEN vf.status = 'blocked' THEN 'You_Are_Blocked'
+				WHEN fv.status = 'accepted' THEN 'Following'
+				WHEN fv.status = 'pending' THEN 'Pending'
+				WHEN vf.status = 'accepted' THEN 'Follow Back'
+				ELSE 'Follow'
+			END AS current_status
+		FROM users u
+		JOIN followers t ON u.id = t.follower_id AND t.followed_id = ? AND t.status = 'accepted'
+		LEFT JOIN followers fv ON fv.follower_id = ? AND fv.followed_id = u.id
+		LEFT JOIN followers vf ON vf.follower_id = u.id AND vf.followed_id = ?
+		ORDER BY u.first_name, u.last_name
+	`
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID)
+	if err != nil {
+		log.Printf("[ERROR] GetFollowersForViewer query failed: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []models.FollowListUser
+	for rows.Next() {
+		var u models.FollowListUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture, &u.Status); err != nil {
+			log.Printf("[ERROR] GetFollowersForViewer scan failed: %v", err)
 			return nil, err
 		}
 		res = append(res, u)

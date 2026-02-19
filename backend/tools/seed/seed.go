@@ -137,6 +137,11 @@ func SeedFromJSON(path string) (int, error) {
 			log.Printf("seed: users insert error for id=%d: %v", userID, uerr)
 			continue
 		}
+
+		// create default user_settings row (if missing)
+		if serr := queries.InsertDefaultUserSettings(context.Background(), database.DB, int(userID)); serr != nil {
+			log.Printf("seed: failed to create default user_settings for id=%d: %v", userID, serr)
+		}
 		log.Printf("seed: inserted users id=%d", userID)
 		created++
 		fmt.Printf("seed: SeedFromJSON created user username=%s email=%s\n", u.Username, u.Email)
@@ -322,6 +327,9 @@ func SeedFollowersFromJSON(path string) (int, error) {
 	}
 
 	log.Printf("seed: followers applied=%d skippedMissingUser=%d skippedExisting=%d skippedError=%d", applied, skippedMissingUser, skippedExisting, skippedError)
+	if err := queries.RebuildAllFollowCounts(context.Background(), database.DB); err != nil {
+		log.Printf("seed: warning - failed to rebuild follow counters: %v", err)
+	}
 	return applied, nil
 }
 
