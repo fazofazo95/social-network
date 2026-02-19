@@ -187,9 +187,20 @@ Database error or the post does not exist (if the service returns an error).
 ---
 
 # Get User's Posts
-`GET /users/{id}/posts`
+`GET /users/{id}/posts?page={page_number}&limit={items_per_page}`
 
+To retrieve a specific page of results, you must append the `page` and `limit` parameters to the URL using **Query String Parameters**.
 Retrieves a list of posts for a specific user. The results are filtered based on the privacy settings of each post and the relationship between the viewer and the author.
+
+#### **Examples**
+
+| Scenario | Example URL |
+| :--- | :--- |
+| **First Page** (10 posts) | `GET /users/42/posts?page=1&limit=10` |
+| **Second Page** (10 posts) | `GET /users/42/posts?page=2&limit=10` |
+| **Custom Limit** (20 posts) | `GET /users/42/posts?page=1&limit=20` |
+
+---
 
 #### **Security**
 This endpoint is protected by session-based authentication.
@@ -202,6 +213,15 @@ This endpoint is protected by session-based authentication.
 | Parameter | Type    | Required | Description                      |
 | :-------- | :------ | :------: | :------------------------------- |
 | `id`      | integer | ✅       | The unique ID of the post author. |
+
+---
+#### **Query Parameters**
+Use these parameters to navigate through the results:
+
+| Parameter | Type    | Default | Description                                      |
+| :-------- | :------ | :-----: | :----------------------------------------------- |
+| `page`    | integer | `1`     | The page number to retrieve (starts from 1).     |
+| `limit`   | integer | `10`    | The number of posts to return per page (max 50). |
 
 ---
 

@@ -165,8 +165,8 @@ func RestorePost(ctx context.Context, db *sql.DB, postID int) error {
 	return err
 }
 
-func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID int) ([]models.Post, error) {
-	log.Printf("[INFO] GetUserPosts: TargetUserID: %d, ViewerID: %d", targetUserID, viewerID)
+func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID int, limit int, offset int) ([]models.Post, error) {
+	log.Printf("[INFO] GetUserPosts: TargetUserID: %d, ViewerID: %d, Limit: %d, Offset: %d", targetUserID, viewerID, limit, offset)
 	query := `
     SELECT 
         p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
@@ -184,9 +184,10 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
         ))
         OR ? = ?
     )
-    ORDER BY p.created_at DESC;`
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, targetUserID, viewerID, viewerID, targetUserID)
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, targetUserID, viewerID, viewerID, targetUserID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetUserPosts query failed: %v", err)
 		return nil, err
