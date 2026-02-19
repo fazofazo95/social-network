@@ -78,6 +78,21 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.PathValue("id") == "me" {
+		targetID := viewerID
+		data, err := queries.GetUserProfileView(r.Context(), database.DB, viewerID, targetID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				responses.SendError(w, http.StatusNotFound, "user not found")
+				return
+			}
+			responses.SendError(w, http.StatusInternalServerError, "failed to fetch profile: "+err.Error())
+			return
+		}
+		responses.SendSuccess(w, "profile", data)
+		return
+	}
+
 	targetID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || targetID <= 0 {
 		responses.SendError(w, http.StatusBadRequest, "invalid user id")
