@@ -53,6 +53,11 @@ func FollowRoutes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/users/{id}/unblock", middleware.Chain(UnblockUserHandler, auth))
 }
 
+func GroupRoutes(mux *http.ServeMux) {
+	mux.Handle("POST /api/groups", middleware.Chain(CreateGroupHandler, auth))
+	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(DeleteGroupHandler, auth))
+}
+
 func PostRoutes(mux *http.ServeMux, db *sql.DB) {
 	checkOwner := middleware.OwnershipMiddleware(db, "posts")
 
