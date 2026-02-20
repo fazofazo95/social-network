@@ -516,8 +516,6 @@ func MarkChatRead(ctx context.Context, db *sql.DB, userID, chatID, lastMessageID
 	return nil
 }
 
-// pkg/db/queries/chat_queries.go
-
 func GetChatParticipants(ctx context.Context, db *sql.DB, chatID int) ([]int, error) {
 	query := `
         SELECT user_id 
