@@ -25,6 +25,77 @@ var ErrCannotKickGroupStaff = errors.New("cannot kick owner or moderator")
 var ErrGroupMemberRoleMismatch = errors.New("group member role mismatch")
 var ErrGroupMemberIsActive = errors.New("group member is active")
 
+func ensureGroupChatIDTx(ctx context.Context, tx *sql.Tx, groupID int) (int, error) {
+	var chatID int
+	err := tx.QueryRowContext(ctx, `
+		SELECT id
+		FROM chats
+		WHERE type = 'group' AND group_id = ?
+		LIMIT 1
+	`, groupID).Scan(&chatID)
+	if err == nil {
+		return chatID, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+
+	var ownerID int
+	if err := tx.QueryRowContext(ctx, `SELECT owner_id FROM groups WHERE id = ?`, groupID).Scan(&ownerID); err != nil {
+		return 0, err
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO chats (type, group_id, created_by, last_message_at)
+		VALUES ('group', ?, ?, CURRENT_TIMESTAMP)
+	`, groupID, ownerID)
+	if err != nil {
+		return 0, err
+	}
+
+	chatID64, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(chatID64), nil
+}
+
+func ensureGroupChatParticipantTx(ctx context.Context, tx *sql.Tx, groupID, userID int) error {
+	chatID, err := ensureGroupChatIDTx(ctx, tx, groupID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT OR IGNORE INTO chat_participants (chat_id, user_id)
+		VALUES (?, ?)
+	`, chatID, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func removeGroupChatParticipantTx(ctx context.Context, tx *sql.Tx, groupID, userID int) error {
+	_, err := tx.ExecContext(ctx, `
+		DELETE FROM chat_participants
+		WHERE user_id = ?
+		  AND chat_id = (
+			SELECT id
+			FROM chats
+			WHERE type = 'group' AND group_id = ?
+			LIMIT 1
+		  )
+	`, userID, groupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func CreateGroup(ctx context.Context, db *sql.DB, ownerID int, in models.CreateGroupInput) (models.GroupResponse, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -53,6 +124,27 @@ func CreateGroup(ctx context.Context, db *sql.DB, ownerID int, in models.CreateG
 		INSERT INTO group_members (group_id, user_id, role, status)
 		VALUES (?, ?, 'owner', 'active')
 	`, groupID, ownerID)
+	if err != nil {
+		return models.GroupResponse{}, err
+	}
+
+	chatRes, err := tx.ExecContext(ctx, `
+		INSERT INTO chats (type, group_id, created_by, last_message_at)
+		VALUES ('group', ?, ?, CURRENT_TIMESTAMP)
+	`, groupID, ownerID)
+	if err != nil {
+		return models.GroupResponse{}, err
+	}
+
+	chatID64, err := chatRes.LastInsertId()
+	if err != nil {
+		return models.GroupResponse{}, err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO chat_participants (chat_id, user_id)
+		VALUES (?, ?)
+	`, int(chatID64), ownerID)
 	if err != nil {
 		return models.GroupResponse{}, err
 	}
@@ -184,6 +276,10 @@ func RequestToJoinGroup(ctx context.Context, db *sql.DB, userID, groupID int) (s
 			return "", err
 		}
 
+		if err := ensureGroupChatParticipantTx(ctx, tx, groupID, userID); err != nil {
+			return "", err
+		}
+
 		membershipStatus = "active"
 
 	case "request", "request_and_invite":
@@ -285,6 +381,10 @@ func AcceptGroupJoinRequest(ctx context.Context, db *sql.DB, approverID, groupID
 		SET group_members = group_members + 1
 		WHERE id = ?
 	`, groupID); err != nil {
+		return err
+	}
+
+	if err := ensureGroupChatParticipantTx(ctx, tx, groupID, requesterID); err != nil {
 		return err
 	}
 
@@ -497,6 +597,10 @@ func AcceptGroupInvite(ctx context.Context, db *sql.DB, userID, groupID int) err
 		return err
 	}
 
+	if err := ensureGroupChatParticipantTx(ctx, tx, groupID, userID); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -639,6 +743,10 @@ func KickGroupMember(ctx context.Context, db *sql.DB, actorID, groupID, targetUs
 		return err
 	}
 
+	if err := removeGroupChatParticipantTx(ctx, tx, groupID, targetUserID); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -689,6 +797,10 @@ func LeaveGroup(ctx context.Context, db *sql.DB, userID, groupID int) (LeaveGrou
 			SET group_members = CASE WHEN group_members > 0 THEN group_members - 1 ELSE 0 END
 			WHERE id = ?
 		`, groupID); err != nil {
+			return result, err
+		}
+
+		if err := removeGroupChatParticipantTx(ctx, tx, groupID, userID); err != nil {
 			return result, err
 		}
 
@@ -779,6 +891,10 @@ func LeaveGroup(ctx context.Context, db *sql.DB, userID, groupID int) (LeaveGrou
 		SET group_members = CASE WHEN group_members > 0 THEN group_members - 1 ELSE 0 END
 		WHERE id = ?
 	`, groupID); err != nil {
+		return result, err
+	}
+
+	if err := removeGroupChatParticipantTx(ctx, tx, groupID, userID); err != nil {
 		return result, err
 	}
 

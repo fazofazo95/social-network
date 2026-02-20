@@ -34,6 +34,7 @@ func runServer() {
 	handlers.AuthRoutes(mux)
 	handlers.FollowRoutes(mux)
 	handlers.GroupRoutes(mux)
+	handlers.ChatRoutes(mux)
 	handlers.PostRoutes(mux, database.DB)
 	handlers.CommentRoutes(mux, database.DB)
 	handlers.FeedRoutes(mux)
