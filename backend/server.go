@@ -9,6 +9,7 @@ import (
 	database "backend/pkg/db/sqlite"
 	handlers "backend/pkg/handlers"
 	"backend/pkg/middleware"
+	websocket "backend/pkg/ws"
 )
 
 func runServer() {
@@ -29,12 +30,15 @@ func runServer() {
 
 	mux := http.NewServeMux()
 
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	// API route(s)
 	handlers.UserRoutes(mux)
 	handlers.AuthRoutes(mux)
 	handlers.FollowRoutes(mux)
 	handlers.GroupRoutes(mux)
-	handlers.ChatRoutes(mux)
+	handlers.ChatRoutes(mux, hub)
 	handlers.PostRoutes(mux, database.DB)
 	handlers.CommentRoutes(mux, database.DB)
 	handlers.FeedRoutes(mux)

@@ -8,6 +8,8 @@ package handlers
 
 import (
 	"backend/pkg/middleware"
+	"backend/pkg/ws"
+	websocket "backend/pkg/ws"
 	"database/sql"
 	"net/http"
 )
@@ -78,10 +80,14 @@ func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(DeleteGroupHandler, auth))
 }
 
-func ChatRoutes(mux *http.ServeMux) {
+func ChatRoutes(mux *http.ServeMux, hub *websocket.Hub) {
+	// Το WebSocket endpoint (Πρέπει να περνάει από το Auth middleware σου!)
+	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWs(hub, w, r)
+	})), auth))
 	mux.Handle("GET /api/chats", middleware.Chain(ListChatsHandler, auth))
 	mux.Handle("GET /api/chats/{chat_id}/messages", middleware.Chain(GetChatMessagesHandler, auth))
-	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(SendDirectMessageHandler, auth))
+	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(SendDirectMessageHandler(hub), auth))
 	mux.Handle("POST /api/chats/{chat_id}/read", middleware.Chain(MarkChatReadHandler, auth))
 }
 

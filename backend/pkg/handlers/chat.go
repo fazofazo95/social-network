@@ -11,47 +11,50 @@ import (
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
+	websocket "backend/pkg/ws"
 )
 
 type markChatReadInput struct {
 	LastMessageID int `json:"last_message_id"`
 }
 
-func SendDirectMessageHandler(w http.ResponseWriter, r *http.Request) {
-	senderID, err := middleware.UserIDFromContext(r.Context())
-	if err != nil {
-		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	targetID, err := strconv.Atoi(r.PathValue("user_id"))
-	if err != nil || targetID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid target user id")
-		return
-	}
-
-	var in models.SendMessageInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
-		return
-	}
-
-	message, err := queries.SendDirectMessage(r.Context(), database.DB, senderID, targetID, in)
-	if err != nil {
-		switch {
-		case errors.Is(err, queries.ErrInvalidChatMessage):
-			responses.SendError(w, http.StatusBadRequest, "invalid message payload")
-			return
-		case errors.Is(err, queries.ErrDirectChatNotAllowed):
-			responses.SendError(w, http.StatusForbidden, "direct chat is not allowed for these users")
-			return
-		default:
-			responses.SendError(w, http.StatusInternalServerError, "failed to send direct message: "+err.Error())
+func SendDirectMessageHandler(hub *websocket.Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		senderID, err := middleware.UserIDFromContext(r.Context())
+		if err != nil {
+			responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-	}
 
-	responses.SendCreated(w, "message sent", message)
+		targetID, err := strconv.Atoi(r.PathValue("user_id"))
+		if err != nil || targetID <= 0 {
+			responses.SendError(w, http.StatusBadRequest, "invalid target user id")
+			return
+		}
+
+		var in models.SendMessageInput
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+
+		message, err := queries.SendDirectMessage(r.Context(), database.DB, senderID, targetID, in)
+		if err != nil {
+			switch {
+			case errors.Is(err, queries.ErrInvalidChatMessage):
+				responses.SendError(w, http.StatusBadRequest, "invalid message payload")
+				return
+			case errors.Is(err, queries.ErrDirectChatNotAllowed):
+				responses.SendError(w, http.StatusForbidden, "direct chat is not allowed for these users")
+				return
+			default:
+				responses.SendError(w, http.StatusInternalServerError, "failed to send direct message: "+err.Error())
+				return
+			}
+		}
+		hub.Broadcast <- message
+		responses.SendCreated(w, "message sent", message)
+	}
 }
 
 func SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {

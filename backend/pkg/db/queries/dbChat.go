@@ -515,3 +515,33 @@ func MarkChatRead(ctx context.Context, db *sql.DB, userID, chatID, lastMessageID
 
 	return nil
 }
+
+// pkg/db/queries/chat_queries.go
+
+func GetChatParticipants(ctx context.Context, db *sql.DB, chatID int) ([]int, error) {
+	query := `
+        SELECT user_id 
+        FROM chat_participants 
+        WHERE chat_id = ? AND left_at IS NULL
+    `
+	rows, err := db.QueryContext(ctx, query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var participants []int
+	for rows.Next() {
+		var userID int
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		participants = append(participants, userID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return participants, nil
+}
