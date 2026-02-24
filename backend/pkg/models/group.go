@@ -34,3 +34,10 @@ type GroupPendingItem struct {
 	ProfilePicture string `json:"profile_picture"`
 	Type           string `json:"type"`
 }
+
+type GroupDiscoverItem struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	GroupPicture string `json:"group_picture"`
+	Type         string `json:"type"`
+}

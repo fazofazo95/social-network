@@ -139,6 +139,39 @@ func RequestToJoinGroupHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func DiscoverGroupsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	page := 1
+	if pageStr := strings.TrimSpace(r.URL.Query().Get("page")); pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err != nil || p <= 0 {
+			responses.SendError(w, http.StatusBadRequest, "page must be a positive integer")
+			return
+		}
+		page = p
+	}
+
+	const limit = 10
+	offset := (page - 1) * limit
+
+	items, err := queries.DiscoverGroups(r.Context(), database.DB, userID, limit, offset)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to discover groups: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "discover groups", map[string]interface{}{
+		"page":  page,
+		"limit": limit,
+		"items": items,
+	})
+}
+
 func AcceptGroupRequestHandler(w http.ResponseWriter, r *http.Request) {
 	approverID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {

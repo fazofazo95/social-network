@@ -1277,6 +1277,60 @@ func GetGroupPageView(ctx context.Context, db *sql.DB, viewerID, groupID int) (G
 	return out, nil
 }
 
+func DiscoverGroups(ctx context.Context, db *sql.DB, userID, limit, offset int) ([]models.GroupDiscoverItem, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT g.id, g.name, COALESCE(g.group_picture, ''), g.join_mode
+		FROM groups g
+		WHERE g.visibility = 'public'
+		  AND g.join_mode <> 'invite'
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM group_members gm
+			WHERE gm.group_id = g.id
+			  AND gm.user_id = ?
+			  AND gm.status IN ('active', 'requested', 'invited')
+		  )
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM group_join_requests gjr
+			WHERE gjr.group_id = g.id
+			  AND gjr.user_id = ?
+			  AND gjr.status IN ('request', 'invite')
+		  )
+		ORDER BY g.created_at DESC, g.id DESC
+		LIMIT ? OFFSET ?
+	`, userID, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupDiscoverItem, 0)
+	for rows.Next() {
+		var item models.GroupDiscoverItem
+		if err := rows.Scan(&item.ID, &item.Name, &item.GroupPicture, &item.Type); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 func RemovePendingGroupInvite(ctx context.Context, db *sql.DB, actorID, groupID, targetUserID int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

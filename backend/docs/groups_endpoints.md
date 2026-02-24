@@ -47,6 +47,7 @@ All endpoints below:
 ## Endpoint Index
 
 - `POST /api/groups`
+- `GET /api/groups/discover`
 - `GET /api/groups/{id}`
 - `GET /api/groups/{id}/members`
 - `GET /api/groups/{id}/requests/pending`
@@ -105,7 +106,59 @@ All endpoints below:
 
 ---
 
-## 2) Show Group Page
+## 2) Discover Groups (paginated)
+
+### `GET /api/groups/discover?page=1`
+**Who can use:** any authenticated user.
+
+Returns a paginated batch of groups for discovery.
+
+Rules applied:
+- batch size is fixed at `10`
+- `page` is 1-based (`page=1` by default)
+- only groups with `visibility = public`
+- excludes groups with `join_mode = invite`
+- excludes groups where current user is already involved:
+  - `group_members.status IN ('active', 'requested', 'invited')`, or
+  - open request/invite in `group_join_requests.status IN ('request', 'invite')`
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "discover groups",
+  "data": {
+    "page": 1,
+    "limit": 10,
+    "items": [
+      {
+        "id": 7,
+        "name": "Hiking Club",
+        "group_picture": "",
+        "type": "request_and_invite"
+      },
+      {
+        "id": 5,
+        "name": "Cycling Team",
+        "group_picture": "/uploads/groups/cycle.png",
+        "type": "auto"
+      }
+    ]
+  }
+}
+```
+
+### Invalid page example (400)
+```json
+{
+  "status": "error",
+  "message": "page must be a positive integer"
+}
+```
+
+---
+
+## 3) Show Group Page
 
 ### `GET /api/groups/{id}`
 **Who can use:** any authenticated user.
@@ -212,7 +265,7 @@ Behavior:
 
 ---
 
-## 3) Members + Pending Lists
+## 4) Members + Pending Lists
 
 ### `GET /api/groups/{id}/members`
 **Who can use:** any authenticated user.
@@ -304,7 +357,7 @@ Returns pending invites (`request_type=invite`, `status=invite`).
 
 ---
 
-## 4) Join / Request Flow
+## 5) Join / Request Flow
 
 ### `POST /api/groups/{id}/join`
 **Who can use:** any authenticated user.
@@ -359,7 +412,7 @@ Removes pending request from both `group_members` and `group_join_requests`.
 
 ---
 
-## 5) Invite Flow
+## 6) Invite Flow
 
 ### `POST /api/groups/{id}/invite/{user_id}`
 **Who can use:** owner or moderator.
@@ -430,7 +483,7 @@ Only valid for non-active pending invite state.
 
 ---
 
-## 6) Approve / Reject Join Requests (moderation)
+## 7) Approve / Reject Join Requests (moderation)
 
 ### `POST /api/groups/{id}/requests/{user_id}/accept`
 **Who can use:** owner or moderator.
@@ -464,7 +517,7 @@ Only valid for non-active pending invite state.
 
 ---
 
-## 7) Kick / Leave / Role Management
+## 8) Kick / Leave / Role Management
 
 ### `POST /api/groups/{id}/members/{user_id}/kick`
 **Who can use:** owner or moderator.
