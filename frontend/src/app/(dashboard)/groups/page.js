@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { getDiscoveredGroups } from "src/lib/services/discoverGroups";
 import { parseProfileImage } from "src/lib/utils/profileImage";
+import Link from "next/link";
 
 const GroupsPage = () => {
     const currentUser = "User 1";
@@ -28,19 +29,25 @@ const GroupsPage = () => {
         if (activeSection === "discover") {
             setGroupsLoading(true);
             setGroupsError(null);
+            console.log("Fetching discovered groups...");
+        
             getDiscoveredGroups()
+            
                 .then(setDiscoveredGroups)
                 .catch((err) => setGroupsError(err.message || "Failed to load groups"))
                 .finally(() => setGroupsLoading(false));
         }
     }, [activeSection]);
 
+
     return (
         <main className="flex flex-col items-left w-full max-w-2xl gap-6 p-4">
         <header className="flex flex-row justify-between items-center w-full mb-4">  
         <h1 className="text-5xl font-bold p-4">Groups</h1>
-        <button id="createGroupBtn" onClick={() => setActiveSection("create-group")} className="bg-blue-500 rounded-lg  p-0.5 w-1/5 hover:bg-blue-600 text-white pl-4 relative cursor-pointer">
-        <Image src="/group_plus.svg" alt="Create Group Icon" width={20} height={20} className="inline-block -mt-1 mr-2 absolute top-2 left-2.5"/>Create Group</button>
+                <Link href="/groups/create" id="createGroupBtn" className="bg-blue-500 rounded-lg  p-0.5 w-1/5 hover:bg-blue-600 text-white pl-4 relative cursor-pointer flex items-center justify-center">
+                    <Image src="/group_plus.svg" alt="Create Group Icon" width={20} height={20} className="inline-block -mt-1 mr-2 absolute top-2 left-2.5"/>
+                    <span className="pl-6">Create Group</span>
+                </Link>
         </header>
         <ul className="flex flex-row justify-end gap-4 border-b border-purple-500 pb-4 w-full">
             <li className="font-bold  hover:border border-purple-500 rounded-lg px-2">
@@ -119,11 +126,11 @@ const GroupsPage = () => {
                 {discoveredGroups.map((group) => (
                     <article
                         key={group.id}
-                        className="bg-[#1a0033] border border-purple-900 rounded-xl shadow-lg p-5 flex flex-row items-start gap-4 max-w-xl"
+                        className="bg-[#1a0033] border border-purple-900 rounded-xl shadow-lg p-5 flex flex-row items-start gap-4 max-w-2xl"
                     >
                       
                         <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-purple-700 text-white text-2xl font-bold overflow-hidden">
-                            {group.group_picture || group.name ? (
+                            
                                 <Image
                                     src={parseProfileImage(group.group_picture)}
                                     alt={group.name}
@@ -132,9 +139,7 @@ const GroupsPage = () => {
                                     className="rounded-lg object-cover"
                                     onError={e => { e.target.onerror = null; e.target.src = "/groups_icon.svg"; }}
                                 />
-                            ) : (
-                                <span>{group.name?.[0]?.toUpperCase() || "G"}</span>
-                            )}
+                            
                         </div>
                       
                         <div className="flex-1 flex flex-col gap-1">
@@ -144,12 +149,13 @@ const GroupsPage = () => {
                             <p className="text-purple-100 text-sm mb-1">
                                 {group.description || "No description provided."}
                             </p>
-                            <div className="flex items-center gap-6 text-purple-300 text-sm mt-2">
-                                <span className="flex items-center gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 inline-block"><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 16.5a7.488 7.488 0 00-5.982 2.225M15 9a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                    {group.members_count ? group.members_count.toLocaleString() : "-"} members
+                            <div className="flex items-center text-purple-300 text-sm mt-2">
+                                <span className="flex items-center gap-2">
+                                    <Image src="/groups_icon.svg" alt="Members Icon" width={15} height={15}/>
+                                    {group.members_count.toLocaleString()} members
+                                    <span className="ml-4">Created by <span className="text-purple-200 font-medium">{group.owner_name || "Unknown"}</span></span>
                                 </span>
-                                <span>Created by <span className="text-purple-200 font-medium">{group.owner_name || "Unknown"}</span></span>
+                              
                             </div>
                         </div>
                     
