@@ -124,6 +124,7 @@ Fields:
 - `birthday_date`
 - `relationship_status`
 - `employed_at`
+- `location`
 - `phone_number`
 - `nickname`
 - `about_me`
@@ -142,6 +143,7 @@ Fields:
     "birthday_date": "1992-03-14",
     "relationship_status": "single",
     "employed_at": "Contoso",
+    "location": "Athens",
     "phone_number": "123456789",
     "nickname": "ally",
     "about_me": "Loves hiking and coffee"
@@ -163,6 +165,7 @@ Accepts any subset of content fields.
   "birthday_date": "1992-03-15",
   "relationship_status": "married",
   "employed_at": "Contoso",
+  "location": "Athens",
   "phone_number": "123456789",
   "nickname": "ally",
   "about_me": "Updated from settings"
@@ -180,6 +183,7 @@ Accepts any subset of content fields.
     "birthday_date": "1992-03-15",
     "relationship_status": "married",
     "employed_at": "Contoso",
+    "location": "Athens",
     "phone_number": "123456789",
     "nickname": "ally",
     "about_me": "Updated from settings"

@@ -35,6 +35,17 @@ const UserProfilePage = () => {
     return "";
   }
 
+  function toCoverUrl(path) {
+    if (!path) return "/example_cover.png";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "/example_cover.png";
+  }
+
   async function loadProfilePageData() {
     if (!targetUserId) {
       setError("Invalid profile id.");
@@ -80,8 +91,14 @@ const UserProfilePage = () => {
   const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
   const relationshipText = profileData.relationship_status || profileData.current_status || "";
+  const locationText = profileData.location || "";
+  const employedAtText = profileData.employed_at || "";
+  const phoneText = profileData.phone_number || "";
+  const emailText = profileData.email || "";
+  const aboutText = profileData.about_me || "";
   const birthdayText = profileData.birthday_date || "";
   const privacyText = String(profileData.profile_type || "public").toLowerCase() === "private" ? "Private" : "Public";
+  const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
 
   function handleFollowStatusChange(nextStatus) {
     const previousStatus = profileData.current_status;
@@ -104,8 +121,10 @@ const UserProfilePage = () => {
         <div
           className="w-full h-36 relative"
           style={{
-            backgroundImage: "url('/example_cover.png')",
-            backgroundSize: "100% 100%",
+            backgroundImage: `url('${toCoverUrl(profileData.cover_image)}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
           }}
         />
 
@@ -129,8 +148,8 @@ const UserProfilePage = () => {
 
           <div className="flex justify-between mx-10 gap-6 text-sm text-gray-400">
             <span className="flex items-center gap-2">
-              <Image src="/location_icon.svg" alt="Relationship" width={15} height={15} />
-              {relationshipText || "-"}
+              <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
+              {locationText || "-"}
             </span>
             <span className="flex items-center gap-2 p-1">
               <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
@@ -141,7 +160,7 @@ const UserProfilePage = () => {
               {privacyText}
             </span>
             {profileData.own_profile ? (
-              <Link href="/profile/edit" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
+              <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
                 <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
                 Edit Profile
               </Link>
@@ -156,14 +175,18 @@ const UserProfilePage = () => {
             <h1 className="text-4xl text-black">{userPosts.length}</h1>
             <span className="text-gray-400">Posts</span>
           </div>
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{followersCount}</h1>
-            <span className="text-gray-400">Followers</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{following.length}</h1>
-            <span className="text-gray-400">Following</span>
-          </div>
+          {canShowFollowLists ? (
+            <>
+              <div className="flex flex-col items-center">
+                <h1 className="text-4xl text-black">{followersCount}</h1>
+                <span className="text-gray-400">Followers</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <h1 className="text-4xl text-black">{following.length}</h1>
+                <span className="text-gray-400">Following</span>
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
@@ -173,12 +196,16 @@ const UserProfilePage = () => {
           <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400">
             About
           </button>
-          <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400">
-            Followers({followersCount})
-          </button>
-          <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
-            Following({following.length})
-          </button>
+          {canShowFollowLists ? (
+            <>
+              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400">
+                Followers({followersCount})
+              </button>
+              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
+                Following({following.length})
+              </button>
+            </>
+          ) : null}
         </section>
       </main>
 
@@ -230,11 +257,20 @@ const UserProfilePage = () => {
       {!isLoading && !error && activeTab === "about" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">About {profileData.first_name || ""}</h1>
-          <p>{profileData.about_me || "No about info yet."}</p>
+          <p className="mb-3">{aboutText || "No about info yet."}</p>
+          <ul className="text-sm text-gray-600 grid grid-cols-2 gap-2">
+            <li><strong>Email:</strong> {emailText || "-"}</li>
+            <li><strong>Nickname:</strong> {usernameText || "-"}</li>
+            <li><strong>Birthday:</strong> {birthdayText || "-"}</li>
+            <li><strong>Relationship:</strong> {relationshipText || "-"}</li>
+            <li><strong>Employed At:</strong> {employedAtText || "-"}</li>
+            <li><strong>Location:</strong> {locationText || "-"}</li>
+            <li><strong>Phone:</strong> {phoneText || "-"}</li>
+          </ul>
         </article>
       ) : null}
 
-      {!isLoading && !error && activeTab === "followers" ? (
+      {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Followers</h1>
           {followers.length === 0 ? (
@@ -257,7 +293,7 @@ const UserProfilePage = () => {
         </article>
       ) : null}
 
-      {!isLoading && !error && activeTab === "following" ? (
+      {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Following</h1>
           {following.length === 0 ? (

@@ -112,7 +112,90 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "profile", data)
 }
 
-func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {}
+func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetParam := r.PathValue("id")
+	targetID := viewerID
+	if targetParam != "" && targetParam != "me" {
+		parsedID, parseErr := strconv.Atoi(targetParam)
+		if parseErr != nil || parsedID <= 0 {
+			responses.SendError(w, http.StatusBadRequest, "invalid user id")
+			return
+		}
+		targetID = parsedID
+	}
+
+	if targetID != viewerID {
+		responses.SendError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid form")
+		return
+	}
+
+	imageURL, err := utils.AttachAvatar(r)
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	coverImageURL, err := utils.AttachCover(r)
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if imageURL == "" && coverImageURL == "" {
+		responses.SendError(w, http.StatusBadRequest, "no avatar or cover file provided")
+		return
+	}
+
+	query := "UPDATE users SET "
+	args := make([]interface{}, 0, 3)
+	if imageURL != "" {
+		query += "profile_picture = ?"
+		args = append(args, imageURL)
+	}
+	if coverImageURL != "" {
+		if len(args) > 0 {
+			query += ", "
+		}
+		query += "cover_image = ?"
+		args = append(args, coverImageURL)
+	}
+	query += " WHERE id = ?"
+	args = append(args, targetID)
+
+	res, err := database.DB.ExecContext(r.Context(), query, args...)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to update profile media")
+		return
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to confirm profile update")
+		return
+	}
+
+	if rowsAffected == 0 {
+		responses.SendError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	responses.SendSuccess(w, "profile updated", map[string]interface{}{
+		"id":              targetID,
+		"profile_picture": imageURL,
+		"cover_image":     coverImageURL,
+	})
+}
 
 func GetUserPostsHandler(w http.ResponseWriter, r *http.Request) {
 	targetUserID := r.PathValue("id")

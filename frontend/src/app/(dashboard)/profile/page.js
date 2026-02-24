@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
-import { fetchUserData } from "src/lib/services/user";
+import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
 import { getFollowersByUser, getFollowingByUser } from "src/lib/services/follow";
 import { createComment, getPostComments } from "src/lib/services/comment";
@@ -26,6 +26,9 @@ const Profile = () => {
   const [commentImageByPost, setCommentImageByPost] = useState({});
   const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
   const [commentErrorByPost, setCommentErrorByPost] = useState({});
+  const [visibilitySettings, setVisibilitySettings] = useState(null);
+  const [isSavingCover, setIsSavingCover] = useState(false);
+  const [coverStatus, setCoverStatus] = useState("");
 
   const [coverImage, setCoverImage] = useState("/example_cover.png");
 
@@ -40,11 +43,25 @@ const Profile = () => {
     return "";
   }
 
+  function toCoverUrl(path) {
+    if (!path) return "/example_cover.png";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "/example_cover.png";
+  }
+
   async function loadProfilePageData() {
     setIsLoading(true);
     setError("");
     try {
-      const profile = await fetchUserData("me");
+      const [profile, settings] = await Promise.all([
+        fetchUserData("me"),
+        fetchVisibilitySettings().catch(() => null),
+      ]);
       const userId = profile?.id;
 
       const [postsData, followersData, followingData] = await Promise.all([
@@ -54,6 +71,8 @@ const Profile = () => {
       ]);
 
       setProfileData(profile || {});
+      setCoverImage(toCoverUrl(profile?.cover_image));
+      setVisibilitySettings(settings || null);
       setUserPosts(Array.isArray(postsData) ? postsData : []);
       setFollowers(Array.isArray(followersData) ? followersData : []);
       setFollowing(Array.isArray(followingData) ? followingData : []);
@@ -77,23 +96,37 @@ const Profile = () => {
       setFollowers([]);
       setFollowing([]);
       setCommentsByPost({});
+      setVisibilitySettings(null);
       setError(loadError?.message || "Failed to load profile.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  const handleChangeCover = (event) => {
+  const handleChangeCover = async (event) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCoverImage(String(reader.result || ""));
-    };
-    reader.readAsDataURL(file);
+    setCoverStatus("");
+    const formData = new FormData();
+    formData.append("cover", file);
+
+    try {
+      setIsSavingCover(true);
+      const updated = await updateUserCover(formData);
+      const nextCover = updated?.cover_image || "";
+      setCoverImage(toCoverUrl(nextCover));
+      setProfileData((prev) => ({ ...prev, cover_image: nextCover }));
+      setCoverStatus("Cover updated.");
+    } catch (saveError) {
+      console.error("Failed to update cover:", saveError);
+      setCoverStatus(saveError?.message || "Failed to update cover.");
+    } finally {
+      setIsSavingCover(false);
+      event.target.value = "";
+    }
   };
 
   async function loadComments(postId) {
@@ -159,8 +192,15 @@ const Profile = () => {
   const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
   const relationshipText = profileData.relationship_status || profileData.current_status || "";
+  const locationText = profileData.location || "";
+  const employedAtText = profileData.employed_at || "";
+  const phoneText = profileData.phone_number || "";
+  const emailText = profileData.email || "";
+  const aboutText = profileData.about_me || "";
   const birthdayText = profileData.birthday_date || "";
-  const privacyText = String(profileData.profile_type || "public").toLowerCase() === "private" ? "Private" : "Public";
+  const privacySource = visibilitySettings?.profile_type || profileData.profile_type || "public";
+  const privacyText = String(privacySource).toLowerCase() === "private" ? "Private" : "Public";
+  const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-10">
@@ -169,7 +209,9 @@ const Profile = () => {
           className="w-full h-36 relative"
           style={{
             backgroundImage: `url('${coverImage}')`,
-            backgroundSize: "100% 100%",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
           }}
         >
           <label
@@ -183,10 +225,12 @@ const Profile = () => {
               type="file"
               accept="image/*"
               onChange={handleChangeCover}
+              disabled={isSavingCover}
               className="font-medium cursor-pointer text-black hidden"
             />
           </label>
         </div>
+        {coverStatus ? <p className="text-xs text-gray-500 px-3">{coverStatus}</p> : null}
 
         <section className="border-b border-gray-200 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
@@ -208,8 +252,8 @@ const Profile = () => {
 
           <div className="flex justify-between mx-10 gap-6 text-sm text-gray-400">
             <span className="flex items-center gap-2">
-              <Image src="/location_icon.svg" alt="Relationship" width={15} height={15} />
-              {relationshipText || "-"}
+              <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
+              {locationText || "-"}
             </span>
             <span className="flex items-center gap-2 p-1">
               <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
@@ -219,7 +263,7 @@ const Profile = () => {
               <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
               {privacyText}
             </span>
-            <Link href="/profile/edit" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
+            <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
               <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
               Edit Profile
             </Link>
@@ -231,14 +275,18 @@ const Profile = () => {
             <h1 className="text-4xl text-black">{userPosts.length}</h1>
             <span className="text-gray-400">Posts</span>
           </div>
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{followers.length}</h1>
-            <span className="text-gray-400">Followers</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{following.length}</h1>
-            <span className="text-gray-400">Following</span>
-          </div>
+          {canShowFollowLists ? (
+            <>
+              <div className="flex flex-col items-center">
+                <h1 className="text-4xl text-black">{followers.length}</h1>
+                <span className="text-gray-400">Followers</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <h1 className="text-4xl text-black">{following.length}</h1>
+                <span className="text-gray-400">Following</span>
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
@@ -248,12 +296,16 @@ const Profile = () => {
           <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400">
             About
           </button>
-          <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400">
-            Followers({followers.length})
-          </button>
-          <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
-            Following({following.length})
-          </button>
+          {canShowFollowLists ? (
+            <>
+              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400">
+                Followers({followers.length})
+              </button>
+              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
+                Following({following.length})
+              </button>
+            </>
+          ) : null}
         </section>
       </main>
 
@@ -421,11 +473,20 @@ const Profile = () => {
       {!isLoading && !error && activeTab === "about" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">About {profileData.first_name || ""}</h1>
-          <p>{profileData.about_me || "No about info yet."}</p>
+          <p className="mb-3">{aboutText || "No about info yet."}</p>
+          <ul className="text-sm text-gray-600 grid grid-cols-2 gap-2">
+            <li><strong>Email:</strong> {emailText || "-"}</li>
+            <li><strong>Nickname:</strong> {usernameText || "-"}</li>
+            <li><strong>Birthday:</strong> {birthdayText || "-"}</li>
+            <li><strong>Relationship:</strong> {relationshipText || "-"}</li>
+            <li><strong>Employed At:</strong> {employedAtText || "-"}</li>
+            <li><strong>Location:</strong> {locationText || "-"}</li>
+            <li><strong>Phone:</strong> {phoneText || "-"}</li>
+          </ul>
         </article>
       ) : null}
 
-      {!isLoading && !error && activeTab === "followers" ? (
+      {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Followers</h1>
           {followers.length === 0 ? (
@@ -448,7 +509,7 @@ const Profile = () => {
         </article>
       ) : null}
 
-      {!isLoading && !error && activeTab === "following" ? (
+      {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Following</h1>
           {following.length === 0 ? (

@@ -348,6 +348,7 @@ func GetUserContentSettings(ctx context.Context, db *sql.DB, userID int) (map[st
 			COALESCE(date(birthday_date), ''),
 			COALESCE(relationship_status, ''),
 			COALESCE(employed_at, ''),
+			COALESCE(location, ''),
 			COALESCE(phone_number, ''),
 			COALESCE(nickname, ''),
 			COALESCE(about_me, '')
@@ -355,9 +356,9 @@ func GetUserContentSettings(ctx context.Context, db *sql.DB, userID int) (map[st
 		WHERE id = ?
 	`
 
-	var firstName, lastName, birthdayDate, relationshipStatus, employedAt, phoneNumber, nickname, aboutMe string
+	var firstName, lastName, birthdayDate, relationshipStatus, employedAt, location, phoneNumber, nickname, aboutMe string
 	row := db.QueryRowContext(ctx, query, userID)
-	if err := row.Scan(&firstName, &lastName, &birthdayDate, &relationshipStatus, &employedAt, &phoneNumber, &nickname, &aboutMe); err != nil {
+	if err := row.Scan(&firstName, &lastName, &birthdayDate, &relationshipStatus, &employedAt, &location, &phoneNumber, &nickname, &aboutMe); err != nil {
 		if err == sql.ErrNoRows {
 			log.Printf("[WARN] GetUserContentSettings: no row for user %d", userID)
 		}
@@ -370,6 +371,7 @@ func GetUserContentSettings(ctx context.Context, db *sql.DB, userID int) (map[st
 		"birthday_date":       birthdayDate,
 		"relationship_status": relationshipStatus,
 		"employed_at":         employedAt,
+		"location":            location,
 		"phone_number":        phoneNumber,
 		"nickname":            nickname,
 		"about_me":            aboutMe,
@@ -379,7 +381,7 @@ func GetUserContentSettings(ctx context.Context, db *sql.DB, userID int) (map[st
 // UpdateUserContentSettings updates editable profile fields for a user.
 // Only non-nil fields are updated.
 func UpdateUserContentSettings(ctx context.Context, db *sql.DB, userID int,
-	firstName, lastName, birthdayDate, relationshipStatus, employedAt, phoneNumber, nickname, aboutMe *string) error {
+	firstName, lastName, birthdayDate, relationshipStatus, employedAt, location, phoneNumber, nickname, aboutMe *string) error {
 	setClauses := make([]string, 0, 8)
 	args := make([]interface{}, 0, 9)
 
@@ -407,6 +409,7 @@ func UpdateUserContentSettings(ctx context.Context, db *sql.DB, userID int,
 	addNullableField("birthday_date", birthdayDate)
 	addNullableField("relationship_status", relationshipStatus)
 	addNullableField("employed_at", employedAt)
+	addNullableField("location", location)
 	addNullableField("phone_number", phoneNumber)
 	addNullableField("nickname", nickname)
 	addNullableField("about_me", aboutMe)
@@ -505,18 +508,22 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 	query := `
 		SELECT
 			u.id,
+			COALESCE(lu.email, ''),
 			COALESCE(u.first_name, ''),
 			COALESCE(u.last_name, ''),
 			COALESCE(u.profile_picture, ''),
+			COALESCE(u.cover_image, ''),
 			COALESCE(date(u.birthday_date), ''),
 			COALESCE(u.relationship_status, ''),
 			COALESCE(u.employed_at, ''),
+			COALESCE(u.location, ''),
 			COALESCE(u.phone_number, ''),
 			COALESCE(u.nickname, ''),
 			COALESCE(u.about_me, ''),
 			COALESCE(u.Followers, 0),
 			COALESCE(u.Following, 0),
 			u.profile_type,
+			COALESCE(us.email_vis, 0),
 			COALESCE(us.birthday_date_vis, 1),
 			COALESCE(us.relationship_status_vis, 1),
 			COALESCE(us.employed_at_vis, 1),
@@ -525,31 +532,36 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 			COALESCE(us.about_me_vis, 1),
 			COALESCE(us.follow_vis, 0)
 		FROM users u
+		LEFT JOIN login_users lu ON lu.id = u.id
 		LEFT JOIN user_settings us ON us.id = u.id
 		WHERE u.id = ?
 	`
 
 	var id int
-	var firstName, lastName, profilePicture, birthdayDate, relationshipStatus, employedAt, phoneNumber, nickname, aboutMe string
+	var email, firstName, lastName, profilePicture, coverImage, birthdayDate, relationshipStatus, employedAt, location, phoneNumber, nickname, aboutMe string
 	var followersCount, followingCount int
 	var profileTypeRaw interface{}
-	var birthdayVis, relationshipVis, employedVis, phoneVis, nicknameVis, aboutVis int
+	var emailVis, birthdayVis, relationshipVis, employedVis, phoneVis, nicknameVis, aboutVis int
 	var followVis int
 
 	if err := db.QueryRowContext(ctx, query, targetID).Scan(
 		&id,
+		&email,
 		&firstName,
 		&lastName,
 		&profilePicture,
+		&coverImage,
 		&birthdayDate,
 		&relationshipStatus,
 		&employedAt,
+		&location,
 		&phoneNumber,
 		&nickname,
 		&aboutMe,
 		&followersCount,
 		&followingCount,
 		&profileTypeRaw,
+		&emailVis,
 		&birthdayVis,
 		&relationshipVis,
 		&employedVis,
@@ -566,6 +578,7 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 		"first_name":      firstName,
 		"last_name":       lastName,
 		"profile_picture": profilePicture,
+		"cover_image":     coverImage,
 		"followers":       followersCount,
 		"following":       followingCount,
 	}
@@ -580,6 +593,9 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 	if viewerID == targetID {
 		res["own_profile"] = true
 		res["follow_vis"] = "visible"
+		if emailVis == 1 {
+			res["email"] = email
+		}
 		if birthdayVis == 1 {
 			res["birthday_date"] = birthdayDate
 		}
@@ -631,6 +647,10 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 
 	res["follow_vis"] = mapVis(followVis)
 
+	if emailVis == 1 {
+		res["email"] = email
+	}
+
 	if birthdayVis == 1 {
 		res["birthday_date"] = birthdayDate
 	}
@@ -639,6 +659,8 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 	}
 	if employedVis == 1 {
 		res["employed_at"] = employedAt
+		res["location"] = location
+		res["location"] = location
 	}
 	if phoneVis == 1 {
 		res["phone_number"] = phoneNumber

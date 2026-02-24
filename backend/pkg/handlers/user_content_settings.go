@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func GetUserContentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUserContentSettingsHandler updates editable user fields used by settings content manager.
 // Accepts any subset of:
-// first_name, last_name, birthday_date, relationship_status, employed_at, phone_number, nickname, about_me.
+// first_name, last_name, birthday_date, relationship_status, employed_at, location, phone_number, nickname, about_me.
 func UpdateUserContentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
@@ -95,6 +96,11 @@ func UpdateUserContentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		responses.SendError(w, http.StatusBadRequest, "invalid employed_at value")
 		return
 	}
+	location, err := parseStringField("location")
+	if err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid location value")
+		return
+	}
 	phoneNumber, err := parseStringField("phone_number")
 	if err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid phone_number value")
@@ -112,7 +118,7 @@ func UpdateUserContentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := queries.UpdateUserContentSettings(r.Context(), database.DB, userID,
-		firstName, lastName, birthdayDate, relationshipStatus, employedAt, phoneNumber, nickname, aboutMe,
+		firstName, lastName, birthdayDate, relationshipStatus, employedAt, location, phoneNumber, nickname, aboutMe,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			responses.SendError(w, http.StatusNotFound, "user not found")
@@ -124,7 +130,8 @@ func UpdateUserContentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := queries.GetUserContentSettings(r.Context(), database.DB, userID)
 	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, "updated but failed to fetch content settings: "+err.Error())
+		log.Printf("[WARN] UpdateUserContentSettingsHandler: updated user %d but failed to fetch content settings: %v", userID, err)
+		responses.SendSuccess(w, "content settings updated", in)
 		return
 	}
 

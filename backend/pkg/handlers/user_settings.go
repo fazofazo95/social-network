@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -155,7 +156,8 @@ func UpdateVisibilitySettingsHandler(w http.ResponseWriter, r *http.Request) {
 	// Return the updated settings (read again)
 	settings, err := queries.GetUserVisibilitySettings(r.Context(), database.DB, userID)
 	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, "failed to fetch settings after update: "+err.Error())
+		log.Printf("[WARN] UpdateVisibilitySettingsHandler: updated user %d but failed to fetch settings after update: %v", userID, err)
+		responses.SendSuccess(w, "settings updated", in)
 		return
 	}
 
