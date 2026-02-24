@@ -8,6 +8,8 @@ package handlers
 
 import (
 	"backend/pkg/middleware"
+	"backend/pkg/ws"
+	websocket "backend/pkg/ws"
 	"database/sql"
 	"net/http"
 )
@@ -55,8 +57,9 @@ func FollowRoutes(mux *http.ServeMux) {
 
 func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups", middleware.Chain(CreateGroupHandler, auth))
-mux.Handle("GET /api/groups/{id}", middleware.Chain(GetGroupPageHandler, auth))
+	mux.Handle("GET /api/groups/{id}", middleware.Chain(GetGroupPageHandler, auth))
 	mux.Handle("POST /api/groups/{id}/join", middleware.Chain(RequestToJoinGroupHandler, auth))
+	mux.Handle("POST /api/groups/{id}/chat/messages", middleware.Chain(SendGroupMessageHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/{user_id}", middleware.Chain(InviteToGroupHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/accept", middleware.Chain(AcceptInviteHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/reject", middleware.Chain(RejectInviteHandler, auth))
@@ -75,6 +78,17 @@ mux.Handle("GET /api/groups/{id}", middleware.Chain(GetGroupPageHandler, auth))
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/accept", middleware.Chain(AcceptGroupRequestHandler, auth))
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/reject", middleware.Chain(RejectGroupRequestHandler, auth))
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(DeleteGroupHandler, auth))
+}
+
+func ChatRoutes(mux *http.ServeMux, hub *websocket.Hub) {
+	// Το WebSocket endpoint (Πρέπει να περνάει από το Auth middleware σου!)
+	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWs(hub, w, r)
+	})), auth))
+	mux.Handle("GET /api/chats", middleware.Chain(ListChatsHandler, auth))
+	mux.Handle("GET /api/chats/{chat_id}/messages", middleware.Chain(GetChatMessagesHandler, auth))
+	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(SendDirectMessageHandler(hub), auth))
+	mux.Handle("POST /api/chats/{chat_id}/read", middleware.Chain(MarkChatReadHandler, auth))
 }
 
 func PostRoutes(mux *http.ServeMux, db *sql.DB) {
