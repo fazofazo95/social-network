@@ -105,7 +105,7 @@ export default function App() {
       formData.append("parent_type", "post");
       formData.append("parent_id", String(postId));
       if (image) {
-        formData.append("image", image);
+        formData.append("avatar", image);
       }
 
       try {
@@ -141,7 +141,7 @@ export default function App() {
       formData.append("privacy", "public");
 
       if (postImage) {
-        formData.append("image", postImage);
+        formData.append("avatar", postImage);
       }
 
       try {
@@ -355,10 +355,10 @@ export default function App() {
                         </span>
                       </div>
                       <p className="text-sm">{comment.content}</p>
-                      {comment.extra_content ? (
+                      {comment.image ? (
                         <div className="mt-2">
                           <Image
-                            src={toUploadUrl(comment.extra_content)}
+                            src={toUploadUrl(comment.image)}
                             alt="Comment image"
                             width={300}
                             height={180}

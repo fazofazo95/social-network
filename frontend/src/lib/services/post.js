@@ -1,5 +1,34 @@
 import { apiRequest } from "src/lib/apiClient";
 
+function normalizeMediaUrl(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (
+    trimmed.startsWith("/uploads/") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
+  }
+
+  return "";
+}
+
+function normalizePost(post) {
+  if (!post || typeof post !== "object") {
+    return post;
+  }
+
+  return {
+    ...post,
+    image: normalizeMediaUrl(post.image || post.extra_content),
+  };
+}
+
 export async function createPost(formData) {
   return apiRequest("/api/posts", {
     method: "POST",
@@ -12,5 +41,5 @@ export async function getUserPosts(userId, page = 1, limit = 10) {
     method: "GET",
   });
 
-  return Array.isArray(payload?.data) ? payload.data : [];
+  return Array.isArray(payload?.data) ? payload.data.map(normalizePost) : [];
 }

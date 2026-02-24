@@ -155,7 +155,7 @@ const RegisterPage = () => {
       />
 
       <div className="mb-14 relative">
-        <label className="label-custom h-16" htmlFor="aboutme">
+        <label className="label-custom h-16" htmlFor="about_me">
           About Me <span className="text-gray-500">(Optional)</span>
         </label>
 

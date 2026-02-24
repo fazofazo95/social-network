@@ -15,3 +15,19 @@ export async function unfollowUser(targetUserId) {
 
   return payload?.data || null;
 }
+
+export async function getFollowersByUser(userId) {
+  const payload = await apiRequest(`/api/users/${userId}/followers`, {
+    method: "GET",
+  });
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function getFollowingByUser(userId) {
+  const payload = await apiRequest(`/api/users/${userId}/following`, {
+    method: "GET",
+  });
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}

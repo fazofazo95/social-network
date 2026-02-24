@@ -57,11 +57,11 @@ func SignUp(ctx context.Context, db *sql.DB, input models.Signup_fields) error {
 	userQuery := `
         INSERT INTO users (
             id, first_name, last_name, birthday_date, relationship_status,
-            employed_at, phone_number, profile_picture, pictures
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            employed_at, phone_number, profile_picture, pictures, nickname, about_me
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `
 	log.Printf("[INFO] SignUp: Inserting profile data into users table")
-	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil)
+	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil, input.Nickname, input.AboutMe)
 	if err != nil {
 		log.Printf("[ERROR] SignUp: users table insertion failed: %v", err)
 		return err
