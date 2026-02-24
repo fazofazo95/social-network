@@ -43,3 +43,25 @@ export async function createComment(formData) {
     body: formData,
   });
 }
+
+export async function updateComment(commentId, content) {
+  return apiRequest(`/api/comments/${commentId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteComment(commentId) {
+  return apiRequest(`/api/comments/${commentId}/delete`, {
+    method: "PUT",
+  });
+}
+
+export async function restoreComment(commentId) {
+  return apiRequest(`/api/comments/${commentId}/restore`, {
+    method: "PUT",
+  });
+}

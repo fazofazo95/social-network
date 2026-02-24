@@ -5,7 +5,7 @@ import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
 import { createPost, getFeedPosts, getUserPosts } from "src/lib/services/post";
-import { createComment, getPostComments } from "src/lib/services/comment";
+import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
@@ -24,6 +24,9 @@ export default function App() {
   const [commentImageByPost, setCommentImageByPost] = useState({});
   const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
   const [commentErrorByPost, setCommentErrorByPost] = useState({});
+  const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
+  const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
+  const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
 
    function toUploadUrl(path) {
       if (!path) return "";
@@ -129,6 +132,50 @@ export default function App() {
         }));
       } finally {
         setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
+      }
+   }
+
+   async function handleDeleteComment(postId, commentId) {
+      if (!commentId) return;
+
+      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+      try {
+        await deleteComment(commentId);
+        await loadComments(postId);
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        setCommentErrorByPost((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to delete echo.",
+        }));
+      } finally {
+        setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
+      }
+   }
+
+   async function handleSaveCommentEdit(postId, commentId) {
+      const content = (editingCommentContentByPost[postId] || "").trim();
+      if (!content) {
+        setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+        return;
+      }
+
+      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+      try {
+        await updateComment(commentId, content);
+        setEditingCommentIdByPost((prev) => ({ ...prev, [postId]: null }));
+        setEditingCommentContentByPost((prev) => ({ ...prev, [postId]: "" }));
+        await loadComments(postId);
+      } catch (error) {
+        console.error("Error updating comment:", error);
+        setCommentErrorByPost((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to update echo.",
+        }));
+      } finally {
+        setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
       }
    }
 
@@ -362,7 +409,61 @@ export default function App() {
                           {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
                         </span>
                       </div>
-                      <p className="text-sm">{comment.content}</p>
+                      {editingCommentIdByPost[post.id] === comment.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            className="border rounded px-2 py-1 text-sm flex-1"
+                            value={editingCommentContentByPost[post.id] || ""}
+                            onChange={(event) =>
+                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                            onClick={() => handleSaveCommentEdit(post.id, comment.id)}
+                            disabled={!!commentActionLoadingById[comment.id]}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                            onClick={() => {
+                              setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
+                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm">{comment.content}</p>
+                      )}
+                      {comment.user_id === userData.id ? (
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            className="text-xs text-blue-600"
+                            onClick={() => {
+                              setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
+                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
+                            }}
+                            disabled={!!commentActionLoadingById[comment.id]}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-red-600"
+                            onClick={() => handleDeleteComment(post.id, comment.id)}
+                            disabled={!!commentActionLoadingById[comment.id]}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
                       {comment.image ? (
                         <div className="mt-2">
                           <Image

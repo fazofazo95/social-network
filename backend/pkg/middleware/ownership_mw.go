@@ -22,8 +22,8 @@ func OwnershipMiddleware(db *sql.DB, tableName string) func(http.Handler) http.H
 				return
 			}
 
-			userID, ok := r.Context().Value("userID").(int)
-			if !ok {
+			userID, err := UserIDFromContext(r.Context())
+			if err != nil {
 				log.Println("[WARN] OwnershipMiddleware: UserID missing from context")
 				responses.SendError(w, http.StatusUnauthorized, "Unauthorized")
 				return
