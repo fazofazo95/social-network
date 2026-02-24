@@ -2,7 +2,9 @@
 
 import SearchBar from "src/components/ui/SearchBar";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getDiscoveredGroups } from "src/lib/services/discoverGroups";
+import { parseProfileImage } from "src/lib/utils/profileImage";
 
 const GroupsPage = () => {
     const currentUser = "User 1";
@@ -17,6 +19,21 @@ const GroupsPage = () => {
             { id: 2, from: "User B" , status: "pending"},
         ],
     };
+
+    const [discoveredGroups, setDiscoveredGroups] = useState([]);
+    const [groupsLoading, setGroupsLoading] = useState(false);
+    const [groupsError, setGroupsError] = useState(null);
+
+    useEffect(() => {
+        if (activeSection === "discover") {
+            setGroupsLoading(true);
+            setGroupsError(null);
+            getDiscoveredGroups()
+                .then(setDiscoveredGroups)
+                .catch((err) => setGroupsError(err.message || "Failed to load groups"))
+                .finally(() => setGroupsLoading(false));
+        }
+    }, [activeSection]);
 
     return (
         <main className="flex flex-col items-left w-full max-w-2xl gap-6 p-4">
@@ -92,8 +109,60 @@ const GroupsPage = () => {
         </article>
         ))}
         </section>
-                <section id="discover-section" className={activeSection === "discover" ? "flex flex-col border border-purple-500 rounded-lg p-4" : "hidden"}>
-            <p>Discover</p>
+        <section id="discover-section" className={activeSection === "discover" ? "flex flex-col gap-6" : "hidden"}>
+            {groupsLoading && <p>Loading groups...</p>}
+            {groupsError && <p className="text-red-500">{groupsError}</p>}
+            {!groupsLoading && !groupsError && discoveredGroups.length === 0 && (
+                <p>No groups to discover.</p>
+            )}
+            <div className="flex flex-col gap-6">
+                {discoveredGroups.map((group) => (
+                    <article
+                        key={group.id}
+                        className="bg-[#1a0033] border border-purple-900 rounded-xl shadow-lg p-5 flex flex-row items-start gap-4 max-w-xl"
+                    >
+                      
+                        <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-purple-700 text-white text-2xl font-bold overflow-hidden">
+                            {group.group_picture || group.name ? (
+                                <Image
+                                    src={parseProfileImage(group.group_picture)}
+                                    alt={group.name}
+                                    width={56}
+                                    height={56}
+                                    className="rounded-lg object-cover"
+                                    onError={e => { e.target.onerror = null; e.target.src = "/groups_icon.svg"; }}
+                                />
+                            ) : (
+                                <span>{group.name?.[0]?.toUpperCase() || "G"}</span>
+                            )}
+                        </div>
+                      
+                        <div className="flex-1 flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-xl text-white">{group.name}</span>
+                            </div>
+                            <p className="text-purple-100 text-sm mb-1">
+                                {group.description || "No description provided."}
+                            </p>
+                            <div className="flex items-center gap-6 text-purple-300 text-sm mt-2">
+                                <span className="flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 inline-block"><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 16.5a7.488 7.488 0 00-5.982 2.225M15 9a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    {group.members_count ? group.members_count.toLocaleString() : "-"} members
+                                </span>
+                                <span>Created by <span className="text-purple-200 font-medium">{group.owner_name || "Unknown"}</span></span>
+                            </div>
+                        </div>
+                    
+                        <div className="flex flex-col items-end ml-4">
+                            {group.request_pending ? (
+                                <button className="bg-purple-800 text-purple-300 rounded-md px-4 py-2 font-semibold cursor-not-allowed" disabled>Request Pending</button>
+                            ) : (
+                                <button className="bg-purple-500 hover:bg-purple-600 text-white rounded-md px-4 py-2 font-semibold">Join group</button>
+                            )}
+                        </div>
+                    </article>
+                ))}
+            </div>
         </section>
                     <section id="invitations-section" className={activeSection === "invitations" ? "flex flex-col border border-purple-500 rounded-lg p-4" : "hidden"}>
             <p>Invitations</p>
