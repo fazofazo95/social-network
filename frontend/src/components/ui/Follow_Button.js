@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { followUser, unfollowUser } from "src/lib/services/follow";
 
 function toUiStatus(status) {
@@ -8,6 +8,9 @@ function toUiStatus(status) {
 
   if (value === "accepted" || value === "following") {
     return "Following";
+  }
+  if (value === "unfollow") {
+    return "Unfollow";
   }
   if (value === "pending") {
     return "Pending";
@@ -22,9 +25,13 @@ function toUiStatus(status) {
   return "Follow";
 }
 
-const Follow_Bottom = ({ status: initialStatus, targetUserId }) => {
+const Follow_Bottom = ({ status: initialStatus, targetUserId, onStatusChange }) => {
   const [status, setStatus] = useState(toUiStatus(initialStatus));
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setStatus(toUiStatus(initialStatus));
+  }, [initialStatus]);
 
   const buttonLabel = status === "Following" ? "Unfollow" : status;
 
@@ -37,6 +44,7 @@ const Follow_Bottom = ({ status: initialStatus, targetUserId }) => {
     }
 
     const shouldFollow = status === "Follow" || status === "Follow Back";
+    const shouldUnfollow = status === "Following" || status === "Pending" || status === "Unfollow";
 
     try {
       setIsSubmitting(true);
@@ -44,10 +52,17 @@ const Follow_Bottom = ({ status: initialStatus, targetUserId }) => {
       if (shouldFollow) {
         const data = await followUser(targetUserId);
         const nextStatus = data?.status;
-        setStatus(toUiStatus(nextStatus));
-      } else {
+        const nextUiStatus = toUiStatus(nextStatus);
+        setStatus(nextUiStatus);
+        if (typeof onStatusChange === "function") {
+          onStatusChange(nextUiStatus);
+        }
+      } else if (shouldUnfollow) {
         await unfollowUser(targetUserId);
         setStatus("Follow");
+        if (typeof onStatusChange === "function") {
+          onStatusChange("Follow");
+        }
       }
     } catch (error) {
       console.error("Follow request failed:", error?.message || error);

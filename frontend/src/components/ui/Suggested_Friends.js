@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import Follow_Bottom from "./Follow_Button";
 import { useEffect, useState } from "react";
 import { getDiscoveredUsers } from "src/lib/services/discover";
@@ -40,7 +41,9 @@ const SuggestedFriends = () => {
                   width={20}
                   height={20}
                 />
-                <span>{friend.first_name} {friend.last_name}</span>
+                <Link href={`/profile/${friend.id}`} className="text-inherit no-underline hover:no-underline hover:text-inherit visited:text-inherit">
+                  {friend.first_name} {friend.last_name}
+                </Link>
                 <Follow_Bottom status={friend.status} targetUserId={friend.id} />
               </li>
             ))

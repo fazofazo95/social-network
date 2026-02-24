@@ -160,6 +160,7 @@ const Profile = () => {
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
   const relationshipText = profileData.relationship_status || profileData.current_status || "";
   const birthdayText = profileData.birthday_date || "";
+  const privacyText = String(profileData.profile_type || "public").toLowerCase() === "private" ? "Private" : "Public";
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-10">
@@ -216,7 +217,7 @@ const Profile = () => {
             </span>
             <span className="flex items-center gap-2 p-1">
               <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
-              {profileData.own_profile ? "My Profile" : (profileData.current_status || "Profile")}
+              {privacyText}
             </span>
             <Link href="/profile/edit" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
               <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
