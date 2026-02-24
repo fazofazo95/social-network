@@ -1289,7 +1289,7 @@ func DiscoverGroups(ctx context.Context, db *sql.DB, userID, limit, offset int) 
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT g.id, g.name, COALESCE(g.group_picture, ''), g.join_mode
+		SELECT g.id, g.name, COALESCE(g.description, ''), COALESCE(g.group_picture, ''), g.group_members, g.owner_id, g.join_mode
 		FROM groups g
 		WHERE g.visibility = 'public'
 		  AND g.join_mode <> 'invite'
@@ -1318,7 +1318,7 @@ func DiscoverGroups(ctx context.Context, db *sql.DB, userID, limit, offset int) 
 	out := make([]models.GroupDiscoverItem, 0)
 	for rows.Next() {
 		var item models.GroupDiscoverItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.GroupPicture, &item.Type); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.GroupPicture, &item.GroupMembers, &item.OwnerID, &item.Type); err != nil {
 			return nil, err
 		}
 		out = append(out, item)

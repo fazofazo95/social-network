@@ -134,13 +134,19 @@ Rules applied:
       {
         "id": 7,
         "name": "Hiking Club",
+        "description": "Group for mountain lovers",
         "group_picture": "",
+        "group_members": 12,
+        "owner_id": 1,
         "type": "request_and_invite"
       },
       {
         "id": 5,
         "name": "Cycling Team",
+        "description": "Road cycling enthusiasts",
         "group_picture": "/uploads/groups/cycle.png",
+        "group_members": 8,
+        "owner_id": 4,
         "type": "auto"
       }
     ]

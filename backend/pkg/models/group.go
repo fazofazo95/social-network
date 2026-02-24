@@ -38,6 +38,9 @@ type GroupPendingItem struct {
 type GroupDiscoverItem struct {
 	ID           int    `json:"id"`
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	GroupPicture string `json:"group_picture"`
+	GroupMembers int    `json:"group_members"`
+	OwnerID      int    `json:"owner_id"`
 	Type         string `json:"type"`
 }
