@@ -199,9 +199,15 @@ func GetFollowingUsers(ctx context.Context, db *sql.DB, currentUserID int) ([]mo
         FROM users u
         JOIN followers f ON u.id = f.followed_id
         WHERE f.follower_id = ? AND f.status = 'accepted'
+		AND NOT EXISTS (
+			SELECT 1 FROM followers fb
+			WHERE fb.status = 'blocked'
+			  AND ((fb.follower_id = ? AND fb.followed_id = u.id)
+				   OR (fb.follower_id = u.id AND fb.followed_id = ?))
+		)
         ORDER BY u.first_name, u.last_name
     `
-	rows, err := db.QueryContext(ctx, query, currentUserID)
+	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID)
 	if err != nil {
 		log.Printf("[ERROR] GetFollowingUsers query failed: %v", err)
 		return nil, err
@@ -227,9 +233,15 @@ func GetFollowers(ctx context.Context, db *sql.DB, currentUserID int) ([]models.
         FROM users u
         JOIN followers f ON u.id = f.follower_id
         WHERE f.followed_id = ? AND f.status = 'accepted'
+		AND NOT EXISTS (
+			SELECT 1 FROM followers fb
+			WHERE fb.status = 'blocked'
+			  AND ((fb.follower_id = ? AND fb.followed_id = u.id)
+				   OR (fb.follower_id = u.id AND fb.followed_id = ?))
+		)
         ORDER BY u.first_name, u.last_name
     `
-	rows, err := db.QueryContext(ctx, query, currentUserID)
+	rows, err := db.QueryContext(ctx, query, currentUserID, currentUserID, currentUserID)
 	if err != nil {
 		log.Printf("[ERROR] GetFollowers query failed: %v", err)
 		return nil, err
@@ -270,9 +282,15 @@ func GetFollowingUsersForViewer(ctx context.Context, db *sql.DB, targetUserID, v
 		JOIN followers t ON u.id = t.followed_id AND t.follower_id = ? AND t.status = 'accepted'
 		LEFT JOIN followers fv ON fv.follower_id = ? AND fv.followed_id = u.id
 		LEFT JOIN followers vf ON vf.follower_id = u.id AND vf.followed_id = ?
+		WHERE NOT EXISTS (
+			SELECT 1 FROM followers fb
+			WHERE fb.status = 'blocked'
+			  AND ((fb.follower_id = ? AND fb.followed_id = u.id)
+			       OR (fb.follower_id = u.id AND fb.followed_id = ?))
+		)
 		ORDER BY u.first_name, u.last_name
 	`
-	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID)
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, viewerID)
 	if err != nil {
 		log.Printf("[ERROR] GetFollowingUsersForViewer query failed: %v", err)
 		return nil, err
@@ -313,9 +331,15 @@ func GetFollowersForViewer(ctx context.Context, db *sql.DB, targetUserID, viewer
 		JOIN followers t ON u.id = t.follower_id AND t.followed_id = ? AND t.status = 'accepted'
 		LEFT JOIN followers fv ON fv.follower_id = ? AND fv.followed_id = u.id
 		LEFT JOIN followers vf ON vf.follower_id = u.id AND vf.followed_id = ?
+		WHERE NOT EXISTS (
+			SELECT 1 FROM followers fb
+			WHERE fb.status = 'blocked'
+			  AND ((fb.follower_id = ? AND fb.followed_id = u.id)
+			       OR (fb.follower_id = u.id AND fb.followed_id = ?))
+		)
 		ORDER BY u.first_name, u.last_name
 	`
-	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID)
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, viewerID)
 	if err != nil {
 		log.Printf("[ERROR] GetFollowersForViewer query failed: %v", err)
 		return nil, err

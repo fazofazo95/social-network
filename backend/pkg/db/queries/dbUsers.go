@@ -620,6 +620,19 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 
 	res["own_profile"] = false
 
+	// If viewer has blocked target -> return blocked status and no profile data.
+	viewerBlockedTarget, err := hasRelationshipStatus(ctx, db, viewerID, targetID, "blocked")
+	if err != nil {
+		return nil, err
+	}
+	if viewerBlockedTarget {
+		return map[string]interface{}{
+			"id":             id,
+			"own_profile":    false,
+			"current_status": "Blocked",
+		}, nil
+	}
+
 	// If target has blocked viewer -> return blocked status and no profile data.
 	blockedByTarget, err := hasRelationshipStatus(ctx, db, targetID, viewerID, "blocked")
 	if err != nil {

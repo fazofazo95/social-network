@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
 import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
+import { getFollowers, getFollowing } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -17,6 +18,9 @@ export default function App() {
    const [isLoading, setIsLoading] = useState(true);
    const [postContent, setPostContent] = useState("");
    const [postImage, setPostImage] = useState(null);
+  const [postPrivacy, setPostPrivacy] = useState("public");
+  const [selectiveUserIds, setSelectiveUserIds] = useState([]);
+  const [selectiveUsers, setSelectiveUsers] = useState([]);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [submitError, setSubmitError] = useState("");
   const [commentsByPost, setCommentsByPost] = useState({});
@@ -58,6 +62,18 @@ export default function App() {
           loadedPosts = userId ? await getUserPosts(userId, 1, 10) : [];
         }
 
+        const [followers, following] = await Promise.all([
+          getFollowers().catch(() => []),
+          getFollowing().catch(() => []),
+        ]);
+
+        const usersById = new Map();
+        [...followers, ...following].forEach((user) => {
+          if (user?.id) {
+            usersById.set(user.id, user);
+          }
+        });
+
         const safePosts = Array.isArray(loadedPosts) ? loadedPosts : [];
 
         const commentsEntries = await Promise.all(
@@ -73,15 +89,26 @@ export default function App() {
 
         setUserData(profile || {});
         setPosts(safePosts);
+        setSelectiveUsers(Array.from(usersById.values()));
         setCommentsByPost(Object.fromEntries(commentsEntries));
       } catch (error) {
         console.error("Error loading dashboard:", error);
         setUserData({});
         setPosts([]);
+        setSelectiveUsers([]);
         setCommentsByPost({});
       } finally {
         setIsLoading(false);
       }
+   }
+
+   function handleToggleSelectiveUser(userId) {
+      setSelectiveUserIds((prev) => {
+        if (prev.includes(userId)) {
+          return prev.filter((id) => id !== userId);
+        }
+        return [...prev, userId];
+      });
    }
 
    async function loadComments(postId) {
@@ -261,12 +288,23 @@ export default function App() {
         return;
       }
 
+      if (postPrivacy === "custom" && selectiveUserIds.length === 0) {
+        setSubmitError("Select at least one user for selective post privacy.");
+        return;
+      }
+
       setIsSubmitting(true);
       setSubmitError("");
 
       const formData = new FormData();
       formData.append("content", trimmedContent);
-      formData.append("privacy", "public");
+      formData.append("privacy", postPrivacy);
+
+      if (postPrivacy === "custom") {
+        selectiveUserIds.forEach((userId) => {
+          formData.append("whitelisted_users", String(userId));
+        });
+      }
 
       if (postImage) {
         formData.append("avatar", postImage);
@@ -276,6 +314,8 @@ export default function App() {
         await createPost(formData);
         setPostContent("");
         setPostImage(null);
+        setPostPrivacy("public");
+        setSelectiveUserIds([]);
         await loadDashboardData();
       } catch (error) {
         console.error("Error creating post:", error);
@@ -333,6 +373,20 @@ export default function App() {
               </span>
             </label>
           </li>
+          <li className="flex items-center gap-2 hover:bg-gray-200 rounded-lg px-2 text-black text-sm">
+            <label htmlFor="post-privacy" className="font-medium cursor-pointer">Privacy</label>
+            <select
+              id="post-privacy"
+              className="font-medium cursor-pointer text-black bg-transparent focus:outline-none"
+              value={postPrivacy}
+              onChange={(event) => setPostPrivacy(event.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="public">Public</option>
+              <option value="followers">Followers</option>
+              <option value="custom">Selective</option>
+            </select>
+          </li>
           <li className="flex bg-blue-500  hover:bg-blue-700 rounded-lg p-1 ml-auto">
             <Image
               src="/share_icon.svg"
@@ -345,6 +399,28 @@ export default function App() {
             </button>
           </li>
         </ul>
+        {postPrivacy === "custom" ? (
+          <div className="mt-2 border border-gray-200 rounded p-2">
+            <p className="text-sm text-gray-600 mb-2">Choose users who can see this post:</p>
+            {selectiveUsers.length === 0 ? (
+              <p className="text-sm text-gray-500">No followers/following available to select.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto pr-1 rounded-md bg-gray-50 p-2 [scrollbar-width:thin] [scrollbar-color:#9CA3AF_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-track]:bg-transparent">
+                {selectiveUsers.map((user) => (
+                  <label key={user.id} className="flex items-center gap-2 text-sm text-black">
+                    <input
+                      type="checkbox"
+                      checked={selectiveUserIds.includes(user.id)}
+                      onChange={() => handleToggleSelectiveUser(user.id)}
+                      disabled={isSubmitting}
+                    />
+                    <span>{`${user.first_name || ""} ${user.last_name || ""}`.trim() || "Unknown User"}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
         {submitError ? <p className="text-red-600 text-sm mt-2">{submitError}</p> : null}
       </form>
 

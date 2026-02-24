@@ -56,6 +56,12 @@ func GetPostByID(ctx context.Context, db *sql.DB, postID int, viewerID int) (*mo
     FROM active_posts p
     JOIN users u ON p.user_id = u.id
     WHERE p.id = ? 
+	AND NOT EXISTS (
+		SELECT 1 FROM followers fb
+		WHERE fb.status = 'blocked'
+		  AND ((fb.follower_id = ? AND fb.followed_id = p.user_id)
+			   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
+	)
     AND (
         p.user_id = ? 
         OR p.privacy = 'public'
@@ -67,7 +73,7 @@ func GetPostByID(ctx context.Context, db *sql.DB, postID int, viewerID int) (*mo
         ))
     );`
 
-	err := db.QueryRowContext(ctx, query, postID, viewerID, viewerID, viewerID).Scan(
+	err := db.QueryRowContext(ctx, query, postID, viewerID, viewerID, viewerID, viewerID, viewerID).Scan(
 		&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
 		&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
 	)
@@ -174,6 +180,12 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
     FROM active_posts p
     JOIN users u ON p.user_id = u.id
     WHERE p.user_id = ? 
+	AND NOT EXISTS (
+		SELECT 1 FROM followers fb
+		WHERE fb.status = 'blocked'
+		  AND ((fb.follower_id = ? AND fb.followed_id = p.user_id)
+			   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
+	)
     AND (
         p.privacy = 'public'
         OR (p.privacy = 'followers' AND EXISTS (
@@ -187,7 +199,7 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
     ORDER BY p.created_at DESC
     LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, targetUserID, viewerID, viewerID, targetUserID, limit, offset)
+	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, targetUserID, viewerID, viewerID, targetUserID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetUserPosts query failed: %v", err)
 		return nil, err
@@ -219,6 +231,13 @@ func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset
     FROM active_posts p
     JOIN users u ON p.user_id = u.id
     WHERE 
+		NOT EXISTS (
+			SELECT 1 FROM followers fb
+			WHERE fb.status = 'blocked'
+			  AND ((fb.follower_id = ? AND fb.followed_id = p.user_id)
+				   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
+		)
+		AND (
         p.user_id = ? 
         OR p.privacy = 'public'
         OR (p.privacy = 'followers' AND EXISTS (
@@ -227,10 +246,11 @@ func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset
         OR (p.privacy = 'custom' AND EXISTS (
             SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
         ))
+	)
     ORDER BY p.created_at DESC
     LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, userID, userID, userID, limit, offset)
+	rows, err := db.QueryContext(ctx, query, userID, userID, userID, userID, userID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetFeedPosts query failed: %v", err)
 		return nil, err

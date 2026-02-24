@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import Follow_Bottom from "src/components/ui/Follow_Button";
 import { fetchUserData } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
-import { getFollowersByUser, getFollowingByUser } from "src/lib/services/follow";
+import { blockUser, getFollowersByUser, getFollowingByUser, unblockUser } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -24,6 +24,8 @@ const UserProfilePage = () => {
   const [following, setFollowing] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isBlockActionLoading, setIsBlockActionLoading] = useState(false);
+  const [blockActionError, setBlockActionError] = useState("");
 
   function toUploadUrl(path) {
     if (!path) return "";
@@ -91,7 +93,7 @@ const UserProfilePage = () => {
 
   const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
-  const relationshipText = profileData.relationship_status || profileData.current_status || "";
+  const relationshipText = profileData.relationship_status || "";
   const locationText = profileData.location || "";
   const employedAtText = profileData.employed_at || "";
   const phoneText = profileData.phone_number || "";
@@ -100,6 +102,31 @@ const UserProfilePage = () => {
   const birthdayText = profileData.birthday_date || "";
   const privacyText = String(profileData.profile_type || "public").toLowerCase() === "private" ? "Private" : "Public";
   const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
+  const currentStatus = String(profileData.current_status || "");
+  const isBlockedByMe = currentStatus === "Blocked";
+  const isBlockedByTarget = currentStatus === "You_Are_Blocked";
+
+  async function handleToggleBlock() {
+    if (!profileData?.id || profileData?.own_profile || isBlockedByTarget) {
+      return;
+    }
+
+    setBlockActionError("");
+    setIsBlockActionLoading(true);
+    try {
+      if (isBlockedByMe) {
+        await unblockUser(profileData.id);
+      } else {
+        await blockUser(profileData.id);
+      }
+      await loadProfilePageData();
+    } catch (actionError) {
+      console.error("Failed to change block status:", actionError);
+      setBlockActionError(actionError?.message || "Failed to update block status.");
+    } finally {
+      setIsBlockActionLoading(false);
+    }
+  }
 
   function handleFollowStatusChange(nextStatus) {
     const previousStatus = profileData.current_status;
@@ -171,10 +198,25 @@ const UserProfilePage = () => {
                 <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
                 Edit Profile
               </Link>
+            ) : isBlockedByTarget ? (
+              <span className="text-sm text-red-500">You are blocked</span>
             ) : (
-              <Follow_Bottom status={profileData.current_status} targetUserId={profileData.id} onStatusChange={handleFollowStatusChange} />
+              <div className="flex items-center gap-2 ml-auto">
+                {!isBlockedByMe ? (
+                  <Follow_Bottom status={profileData.current_status} targetUserId={profileData.id} onStatusChange={handleFollowStatusChange} />
+                ) : null}
+                <button
+                  type="button"
+                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                  onClick={handleToggleBlock}
+                  disabled={isBlockActionLoading}
+                >
+                  {isBlockActionLoading ? "Working..." : isBlockedByMe ? "Unblock" : "Block"}
+                </button>
+              </div>
             )}
           </div>
+          {blockActionError ? <p className="text-red-600 text-sm mx-10 mt-2">{blockActionError}</p> : null}
         </section>
 
         <section className="flex justify-start gap-8 ml-5">

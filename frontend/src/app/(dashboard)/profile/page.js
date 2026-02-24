@@ -7,7 +7,15 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
 import { deletePost, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
-import { acceptFollowRequest, getFollowers, getFollowing, getPendingRequests, unfollowUser } from "src/lib/services/follow";
+import {
+  acceptFollowRequest,
+  getBlockedUsers,
+  getFollowers,
+  getFollowing,
+  getPendingRequests,
+  unblockUser,
+  unfollowUser,
+} from "src/lib/services/follow";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
@@ -19,6 +27,7 @@ const Profile = () => {
   const [userPosts, setUserPosts] = useState([]);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
+  const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [commentsByPost, setCommentsByPost] = useState({});
@@ -41,6 +50,7 @@ const Profile = () => {
   const [acceptingByUserId, setAcceptingByUserId] = useState({});
   const [pendingError, setPendingError] = useState("");
   const [isRemovingByUserId, setIsRemovingByUserId] = useState({});
+  const [isUnblockingByUserId, setIsUnblockingByUserId] = useState({});
   const [followListActionError, setFollowListActionError] = useState("");
 
   const [coverImage, setCoverImage] = useState("/example_cover.png");
@@ -77,10 +87,11 @@ const Profile = () => {
       ]);
       const userId = profile?.id;
 
-      const [postsData, followersData, followingData] = await Promise.all([
+      const [postsData, followersData, followingData, blockedData] = await Promise.all([
         userId ? getUserPosts(userId, 1, 10) : Promise.resolve([]),
         getFollowers(),
         getFollowing(),
+        getBlockedUsers(),
       ]);
 
       const pendingData = await getPendingRequests().catch(() => []);
@@ -91,6 +102,7 @@ const Profile = () => {
       setUserPosts(Array.isArray(postsData) ? postsData : []);
       setFollowers(Array.isArray(followersData) ? followersData : []);
       setFollowing(Array.isArray(followingData) ? followingData : []);
+      setBlockedUsers(Array.isArray(blockedData) ? blockedData : []);
       setPendingRequests(Array.isArray(pendingData) ? pendingData : []);
       setPendingError("");
 
@@ -112,6 +124,7 @@ const Profile = () => {
       setUserPosts([]);
       setFollowers([]);
       setFollowing([]);
+      setBlockedUsers([]);
       setPendingRequests([]);
       setCommentsByPost({});
       setVisibilitySettings(null);
@@ -341,13 +354,30 @@ const Profile = () => {
     }
   }
 
+  async function handleUnblockUser(targetUserId) {
+    if (!targetUserId) return;
+
+    setFollowListActionError("");
+    setIsUnblockingByUserId((prev) => ({ ...prev, [targetUserId]: true }));
+
+    try {
+      await unblockUser(targetUserId);
+      setBlockedUsers((prev) => prev.filter((user) => user.id !== targetUserId));
+    } catch (unblockError) {
+      console.error("Failed to unblock user:", unblockError);
+      setFollowListActionError(unblockError?.message || "Failed to unblock user.");
+    } finally {
+      setIsUnblockingByUserId((prev) => ({ ...prev, [targetUserId]: false }));
+    }
+  }
+
   useEffect(() => {
     loadProfilePageData();
   }, []);
 
   const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
-  const relationshipText = profileData.relationship_status || profileData.current_status || "";
+  const relationshipText = profileData.relationship_status || "";
   const locationText = profileData.location || "";
   const employedAtText = profileData.employed_at || "";
   const phoneText = profileData.phone_number || "";
@@ -465,6 +495,9 @@ const Profile = () => {
               </button>
               <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
                 Following({following.length})
+              </button>
+              <button type="button" onClick={() => setActiveTab("blocked")} className="text-gray-400">
+                Blocked({blockedUsers.length})
               </button>
             </>
           ) : null}
@@ -839,6 +872,44 @@ const Profile = () => {
                     disabled={!!isRemovingByUserId[followedUser.id]}
                   >
                     {!!isRemovingByUserId[followedUser.id] ? "Removing..." : "Unfollow"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      ) : null}
+
+      {!isLoading && !error && canShowFollowLists && activeTab === "blocked" ? (
+        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+          <h1 className="font-bold text-lg mb-2">Blocked</h1>
+          {followListActionError ? <p className="text-red-600 text-sm mb-2">{followListActionError}</p> : null}
+          {blockedUsers.length === 0 ? (
+            <p>No blocked users.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {blockedUsers.map((blockedUser) => (
+                <li key={blockedUser.id} className="flex items-center gap-2">
+                  <Image
+                    src={parseProfileImage(blockedUser.profile_picture)}
+                    alt="Blocked user"
+                    width={24}
+                    height={24}
+                  />
+                  <span className="flex-1">{`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <Link
+                    href={`/profile/${blockedUser.id}`}
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                    onClick={() => handleUnblockUser(blockedUser.id)}
+                    disabled={!!isUnblockingByUserId[blockedUser.id]}
+                  >
+                    {!!isUnblockingByUserId[blockedUser.id] ? "Unblocking..." : "Unblock"}
                   </button>
                 </li>
               ))}
