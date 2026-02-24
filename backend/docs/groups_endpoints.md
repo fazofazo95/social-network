@@ -137,7 +137,8 @@ Rules applied:
         "description": "Group for mountain lovers",
         "group_picture": "",
         "group_members": 12,
-        "owner_id": 1,
+        "owner_first_name": "Alice",
+        "owner_last_name": "Anderson",
         "type": "request_and_invite"
       },
       {
@@ -146,7 +147,8 @@ Rules applied:
         "description": "Road cycling enthusiasts",
         "group_picture": "/uploads/groups/cycle.png",
         "group_members": 8,
-        "owner_id": 4,
+        "owner_first_name": "Dave",
+        "owner_last_name": "Dawson",
         "type": "auto"
       }
     ]

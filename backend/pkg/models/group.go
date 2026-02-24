@@ -41,6 +41,7 @@ type GroupDiscoverItem struct {
 	Description  string `json:"description"`
 	GroupPicture string `json:"group_picture"`
 	GroupMembers int    `json:"group_members"`
-	OwnerID      int    `json:"owner_id"`
+	OwnerFirst   string `json:"owner_first_name"`
+	OwnerLast    string `json:"owner_last_name"`
 	Type         string `json:"type"`
 }
