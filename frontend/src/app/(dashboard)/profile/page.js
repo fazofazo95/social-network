@@ -482,26 +482,26 @@ const Profile = () => {
         </section>
 
         <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
-          <button type="button" onClick={() => setActiveTab("posts")} className="text-gray-400">
+          <button type="button" onClick={() => setActiveTab("posts")} className="text-gray-400 cursor-pointer">
             Posts({userPosts.length})
           </button>
-          <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400">
+          <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400 cursor-pointer">
             About
           </button>
           {canShowFollowLists ? (
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400">
+              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400 cursor-pointer">
                 Followers({followers.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400">
+              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400 cursor-pointer">
                 Following({following.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("blocked")} className="text-gray-400">
+              <button type="button" onClick={() => setActiveTab("blocked")} className="text-gray-400 cursor-pointer">
                 Blocked({blockedUsers.length})
               </button>
             </>
           ) : null}
-          <button type="button" onClick={() => setActiveTab("requests")} className="text-gray-400">
+          <button type="button" onClick={() => setActiveTab("requests")} className="text-gray-400 cursor-pointer">
             Follow Requests({pendingRequests.length})
           </button>
         </section>
