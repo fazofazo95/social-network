@@ -64,6 +64,22 @@ export async function acceptFollowRequest(userId) {
   return payload?.data || null;
 }
 
+export async function rejectFollowRequest(userId) {
+  const payload = await apiRequest(`/api/users/${userId}/follow/reject`, {
+    method: "DELETE",
+  });
+
+  return payload?.data || null;
+}
+
+export async function removeFollower(userId) {
+  const payload = await apiRequest(`/api/users/${userId}/remove-follower`, {
+    method: "DELETE",
+  });
+
+  return payload?.data || null;
+}
+
 export async function getBlockedUsers() {
   const payload = await apiRequest("/api/users/blocked", {
     method: "GET",

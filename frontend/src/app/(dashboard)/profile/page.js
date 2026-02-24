@@ -13,6 +13,8 @@ import {
   getFollowers,
   getFollowing,
   getPendingRequests,
+  removeFollower,
+  rejectFollowRequest,
   unblockUser,
   unfollowUser,
 } from "src/lib/services/follow";
@@ -48,6 +50,7 @@ const Profile = () => {
   const [postActionError, setPostActionError] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
   const [acceptingByUserId, setAcceptingByUserId] = useState({});
+  const [rejectingByUserId, setRejectingByUserId] = useState({});
   const [pendingError, setPendingError] = useState("");
   const [isRemovingByUserId, setIsRemovingByUserId] = useState({});
   const [isUnblockingByUserId, setIsUnblockingByUserId] = useState({});
@@ -351,6 +354,40 @@ const Profile = () => {
       setFollowListActionError(removeError?.message || "Failed to unfollow user.");
     } finally {
       setIsRemovingByUserId((prev) => ({ ...prev, [followedUserId]: false }));
+    }
+  }
+
+  async function handleRemoveFollower(followerUserId) {
+    if (!followerUserId) return;
+
+    setFollowListActionError("");
+    setIsRemovingByUserId((prev) => ({ ...prev, [followerUserId]: true }));
+
+    try {
+      await removeFollower(followerUserId);
+      setFollowers((prev) => prev.filter((user) => user.id !== followerUserId));
+    } catch (removeError) {
+      console.error("Failed to remove follower:", removeError);
+      setFollowListActionError(removeError?.message || "Failed to remove follower.");
+    } finally {
+      setIsRemovingByUserId((prev) => ({ ...prev, [followerUserId]: false }));
+    }
+  }
+
+  async function handleRejectRequest(requestUserId) {
+    if (!requestUserId) return;
+
+    setPendingError("");
+    setRejectingByUserId((prev) => ({ ...prev, [requestUserId]: true }));
+
+    try {
+      await rejectFollowRequest(requestUserId);
+      setPendingRequests((prev) => prev.filter((req) => req.id !== requestUserId));
+    } catch (rejectError) {
+      console.error("Failed to reject follow request:", rejectError);
+      setPendingError(rejectError?.message || "Failed to reject request.");
+    } finally {
+      setRejectingByUserId((prev) => ({ ...prev, [requestUserId]: false }));
     }
   }
 
@@ -873,11 +910,11 @@ const Profile = () => {
                   </Link>
                   <button
                     type="button"
-                    className="text-xs bg-[#4d3f74] text-white rounded-md px-3 py-1 opacity-50 cursor-not-allowed"
-                    title="Remove follower endpoint is not available in backend"
-                    disabled
+                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                    onClick={() => handleRemoveFollower(follower.id)}
+                    disabled={!!isRemovingByUserId[follower.id]}
                   >
-                    Remove
+                    {!!isRemovingByUserId[follower.id] ? "Removing..." : "Remove"}
                   </button>
                 </li>
               ))}
@@ -984,6 +1021,7 @@ const Profile = () => {
             <ul className="flex flex-col gap-2.5">
               {pendingRequests.map((requestUser) => {
                 const isAccepting = !!acceptingByUserId[requestUser.id];
+                const isRejecting = !!rejectingByUserId[requestUser.id];
                 return (
                   <li key={requestUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
                     <Image
@@ -1009,9 +1047,17 @@ const Profile = () => {
                       type="button"
                       className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
                       onClick={() => handleAcceptRequest(requestUser.id)}
-                      disabled={isAccepting}
+                      disabled={isAccepting || isRejecting}
                     >
                       {isAccepting ? "Accepting..." : "Accept"}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                      onClick={() => handleRejectRequest(requestUser.id)}
+                      disabled={isAccepting || isRejecting}
+                    >
+                      {isRejecting ? "Rejecting..." : "Reject"}
                     </button>
                   </li>
                 );
