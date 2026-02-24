@@ -2,9 +2,17 @@
 'use client';
 import Image from "next/image";
 
-const Echo_Button = () => {
-      const handleEchoBtn = () => {
-    const echoSection = document.getElementById("echo-section");
+const Echo_Button = ({ targetId }) => {
+  const handleEchoBtn = () => {
+    if (!targetId) {
+      return;
+    }
+
+    const echoSection = document.getElementById(targetId);
+    if (!echoSection) {
+      return;
+    }
+
     if (echoSection.classList.contains("hidden")) {
       echoSection.classList.remove("hidden");
       echoSection.classList.add("flex");
@@ -13,17 +21,17 @@ const Echo_Button = () => {
       echoSection.classList.remove("flex");
     }
   };
-    return ( 
-                  <button onClick={handleEchoBtn} className="flex cursor-pointer gap-1">
-                    <Image
-                      src="/echo_icon.svg"
-                      alt="Echo Icon"
-                      width={20}
-                      height={20}
-                    />
-                    Echo
-                  </button>
-     );
-}
+  return (
+    <button type="button" onClick={handleEchoBtn} className="flex cursor-pointer gap-1">
+      <Image
+        src="/echo_icon.svg"
+        alt="Echo Icon"
+        width={20}
+        height={20}
+      />
+      Echo
+    </button>
+  );
+};
  
 export default Echo_Button;

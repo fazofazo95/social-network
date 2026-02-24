@@ -183,7 +183,7 @@ const Profile = () => {
         </div>
         <div className="flex justify-between gap-8 mt-2 mx-8">
           <Ripple_Button />
-         <Echo_Button />
+         <Echo_Button targetId="profile-echo-section" />
           <button className="flex cursor-pointer gap-1">
             <Image
               src="/spread_icon.svg"
@@ -195,7 +195,7 @@ const Profile = () => {
           </button>
         </div>
         <div
-          id="echo-section"
+          id="profile-echo-section"
           className="border-t border-gray-200 rounded mt-2 pt-2 gap-1 hidden"
         >
           <Image
