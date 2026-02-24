@@ -593,6 +593,7 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 	if viewerID == targetID {
 		res["own_profile"] = true
 		res["follow_vis"] = "visible"
+		res["location"] = location
 		if emailVis == 1 {
 			res["email"] = email
 		}
@@ -659,7 +660,6 @@ func GetUserProfileView(ctx context.Context, db *sql.DB, viewerID, targetID int)
 	}
 	if employedVis == 1 {
 		res["employed_at"] = employedAt
-		res["location"] = location
 		res["location"] = location
 	}
 	if phoneVis == 1 {

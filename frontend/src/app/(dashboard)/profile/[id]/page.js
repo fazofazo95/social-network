@@ -147,19 +147,25 @@ const UserProfilePage = () => {
             </div>
           </div>
 
-          <div className="flex justify-between mx-10 gap-6 text-sm text-gray-400">
-            <span className="flex items-center gap-2">
-              <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
-              {locationText || "-"}
-            </span>
-            <span className="flex items-center gap-2 p-1">
-              <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
-              {birthdayText || "-"}
-            </span>
-            <span className="flex items-center gap-2 p-1">
-              <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
-              {privacyText}
-            </span>
+          <div className="flex justify-between items-center mx-10 gap-6 text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-6">
+              {locationText ? (
+                <span className="flex items-center gap-2">
+                  <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
+                  {locationText}
+                </span>
+              ) : null}
+              {birthdayText ? (
+                <span className="flex items-center gap-2 p-1">
+                  <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
+                  {birthdayText}
+                </span>
+              ) : null}
+              <span className="flex items-center gap-2 p-1">
+                <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
+                {privacyText}
+              </span>
+            </div>
             {profileData.own_profile ? (
               <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
                 <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
