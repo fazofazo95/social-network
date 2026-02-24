@@ -70,6 +70,23 @@ func DeleteFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (
 	return rows, nil
 }
 
+func RemoveFollower(ctx context.Context, db *sql.DB, currentUserID, targetFollowerID int) (int64, error) {
+	log.Printf("[INFO] RemoveFollower: Removing follower. TargetFollower: %d, CurrentUser: %d", targetFollowerID, currentUserID)
+	query := `
+		DELETE FROM followers
+		WHERE follower_id = ? AND followed_id = ? AND status = 'accepted';
+	`
+	res, err := db.ExecContext(ctx, query, targetFollowerID, currentUserID)
+	if err != nil {
+		log.Printf("[ERROR] RemoveFollower failed: %v", err)
+		return 0, err
+	}
+	syncFollowCountsForPair(ctx, db, targetFollowerID, currentUserID)
+	rows, _ := res.RowsAffected()
+	log.Printf("[INFO] RemoveFollower: Rows affected: %d", rows)
+	return rows, nil
+}
+
 func AcceptFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (int64, error) {
 	log.Printf("[INFO] AcceptFollow: Accepting request. Follower: %d, Followed: %d", followerID, followedID)
 	query := `UPDATE followers SET status = 'accepted' WHERE follower_id = ? AND followed_id = ? AND status = 'pending';`
@@ -81,6 +98,19 @@ func AcceptFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (
 	syncFollowCountsForPair(ctx, db, followerID, followedID)
 	rows, _ := res.RowsAffected()
 	log.Printf("[INFO] AcceptFollow: Rows affected: %d", rows)
+	return rows, nil
+}
+
+func RejectFollow(ctx context.Context, db *sql.DB, followerID, followedID int) (int64, error) {
+	log.Printf("[INFO] RejectFollow: Rejecting request. Follower: %d, Followed: %d", followerID, followedID)
+	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'pending';`
+	res, err := db.ExecContext(ctx, query, followerID, followedID)
+	if err != nil {
+		log.Printf("[ERROR] RejectFollow failed: %v", err)
+		return 0, err
+	}
+	rows, _ := res.RowsAffected()
+	log.Printf("[INFO] RejectFollow: Rows affected: %d", rows)
 	return rows, nil
 }
 

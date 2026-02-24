@@ -103,6 +103,46 @@ func UnfollowUserHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "unfollowed successfully", map[string]interface{}{"follower_id": followerID, "followed_id": targetID})
 }
 
+func RemoveFollowerHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] RemoveFollowerHandler: Received remove follower request")
+
+	currentUserID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		log.Printf("[ERROR] RemoveFollowerHandler: Unauthorized: %v", err)
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		responses.SendError(w, http.StatusBadRequest, "invalid path")
+		return
+	}
+	targetStr := parts[3]
+	targetFollowerID, err := strconv.Atoi(targetStr)
+	if err != nil || targetFollowerID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid target id")
+		return
+	}
+
+	log.Printf("[INFO] RemoveFollowerHandler: User %d removing follower %d", currentUserID, targetFollowerID)
+	deleted, err := queries.RemoveFollower(r.Context(), database.DB, currentUserID, targetFollowerID)
+	if err != nil {
+		log.Printf("[ERROR] RemoveFollowerHandler: Query error: %v", err)
+		responses.SendError(w, http.StatusInternalServerError, "failed to remove follower: "+err.Error())
+		return
+	}
+
+	if deleted == 0 {
+		log.Printf("[WARN] RemoveFollowerHandler: No accepted follower relationship found")
+		responses.SendError(w, http.StatusNotFound, "no accepted follower relationship found")
+		return
+	}
+
+	log.Printf("[SUCCESS] RemoveFollowerHandler: Follower removed")
+	responses.SendSuccess(w, "follower removed successfully", map[string]interface{}{"user_id": currentUserID, "removed_follower_id": targetFollowerID})
+}
+
 func AcceptFollowHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[INFO] AcceptFollowHandler: Received accept request")
 
@@ -141,6 +181,46 @@ func AcceptFollowHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[SUCCESS] AcceptFollowHandler: Request accepted")
 	responses.SendSuccess(w, "follow request accepted", map[string]interface{}{"follower_id": followerID, "followed_id": followedID})
+}
+
+func RejectFollowHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] RejectFollowHandler: Received reject request")
+
+	followedID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		log.Printf("[ERROR] RejectFollowHandler: Unauthorized: %v", err)
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 5 {
+		responses.SendError(w, http.StatusBadRequest, "invalid path")
+		return
+	}
+	followerStr := parts[3]
+	followerID, err := strconv.Atoi(followerStr)
+	if err != nil || followerID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid follower id")
+		return
+	}
+
+	log.Printf("[INFO] RejectFollowHandler: User %d rejecting request from User %d", followedID, followerID)
+	deleted, err := queries.RejectFollow(r.Context(), database.DB, followerID, followedID)
+	if err != nil {
+		log.Printf("[ERROR] RejectFollowHandler: Query error: %v", err)
+		responses.SendError(w, http.StatusInternalServerError, "failed to reject follow: "+err.Error())
+		return
+	}
+
+	if deleted == 0 {
+		log.Printf("[WARN] RejectFollowHandler: No pending request found")
+		responses.SendError(w, http.StatusNotFound, "no pending follow request found")
+		return
+	}
+
+	log.Printf("[SUCCESS] RejectFollowHandler: Request rejected")
+	responses.SendSuccess(w, "follow request rejected", map[string]interface{}{"follower_id": followerID, "followed_id": followedID})
 }
 
 func BlockUserHandler(w http.ResponseWriter, r *http.Request) {

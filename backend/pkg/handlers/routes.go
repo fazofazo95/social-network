@@ -50,7 +50,9 @@ func FeedRoutes(mux *http.ServeMux) {
 func FollowRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/users/{id}/follow", middleware.Chain(FollowUserHandler, auth))
 	mux.Handle("DELETE /api/users/{id}/unfollow", middleware.Chain(UnfollowUserHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/remove-follower", middleware.Chain(RemoveFollowerHandler, auth))
 	mux.Handle("POST /api/users/{id}/follow/accept", middleware.Chain(AcceptFollowHandler, auth))
+	mux.Handle("DELETE /api/users/{id}/follow/reject", middleware.Chain(RejectFollowHandler, auth))
 	mux.Handle("POST /api/users/{id}/block", middleware.Chain(BlockUserHandler, auth))
 	mux.Handle("DELETE /api/users/{id}/unblock", middleware.Chain(UnblockUserHandler, auth))
 }

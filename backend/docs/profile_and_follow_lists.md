@@ -15,6 +15,16 @@ All responses follow the same envelope:
 
 All endpoints below require authentication (`session_id` cookie).
 
+### Quick Reference: Follow Actions
+
+- `POST /users/{id}/follow` — Follow user (creates `pending` or `accepted` based on target privacy)
+- `DELETE /users/{id}/unfollow` — Remove your outgoing follow relationship to `{id}`
+- `DELETE /users/{id}/remove-follower` — Remove `{id}` from your incoming followers (accepted only)
+- `POST /users/{id}/follow/accept` — Accept pending follow request from `{id}`
+- `DELETE /users/{id}/follow/reject` — Reject pending follow request from `{id}` (removes row)
+- `POST /users/{id}/block` — Block `{id}`
+- `DELETE /users/{id}/unblock` — Unblock `{id}`
+
 ---
 
 ## 2) Get Profile
@@ -333,5 +343,95 @@ Returns users that **current user has blocked**.
 {
   "status": "error",
   "message": "failed to get ...: <details>"
+}
+```
+
+---
+
+## 5) Follow Action Endpoint: Remove Follower
+
+### 5.1 Remove a User from Your Followers
+`DELETE /users/{id}/remove-follower`
+
+Purpose:
+- Removes `{id}` from the authenticated user's followers list.
+- Deletes only an existing `accepted` follow row where:
+  - `follower_id = {id}`
+  - `followed_id = current_user_id`
+
+Notes:
+- This is different from `unfollow`.
+  - `unfollow` removes **your outgoing** follow relationship.
+  - `remove-follower` removes **incoming follower** relationship.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "follower removed successfully",
+  "data": {
+    "user_id": 1,
+    "removed_follower_id": 2
+  }
+}
+```
+
+#### Not Found (404)
+```json
+{
+  "status": "error",
+  "message": "no accepted follower relationship found"
+}
+```
+
+#### Unauthorized (401)
+```json
+{
+  "status": "error",
+  "message": "unauthorized"
+}
+```
+
+---
+
+## 6) Follow Action Endpoint: Reject Follow Request
+
+### 6.1 Reject a Pending Incoming Follow Request
+`DELETE /users/{id}/follow/reject`
+
+Purpose:
+- Rejects pending follow request from `{id}` to authenticated user.
+- Deletes only a `pending` row where:
+  - `follower_id = {id}`
+  - `followed_id = current_user_id`
+
+Notes:
+- Request is fully removed so the same user can send a new follow request later.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "follow request rejected",
+  "data": {
+    "follower_id": 2,
+    "followed_id": 1
+  }
+}
+```
+
+#### Not Found (404)
+```json
+{
+  "status": "error",
+  "message": "no pending follow request found"
+}
+```
+
+#### Unauthorized (401)
+```json
+{
+  "status": "error",
+  "message": "unauthorized"
 }
 ```
