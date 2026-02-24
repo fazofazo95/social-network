@@ -9,6 +9,7 @@ import { fetchUserData } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
 import { getFollowersByUser, getFollowingByUser } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
+import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 const UserProfilePage = () => {
@@ -225,32 +226,35 @@ const UserProfilePage = () => {
             No posts yet.
           </article>
         ) : (
-          userPosts.map((post) => (
-            <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-              <div className="flex items-center gap-2">
-                <Image
-                  src={parseProfileImage(post.author_profile_picture || profileData.profile_picture)}
-                  alt="Profile Icon"
-                  width={30}
-                  height={30}
-                />
-                <h1 className="font-bold text-lg">{fullName}</h1>
-              </div>
-              <span className="text-sm text-gray-500 ml-4 mb-2">{post.created_at || ""}</span>
-              <p>{post.content}</p>
-              {post.image ? (
-                <div className="mt-3">
+          userPosts.map((post) => {
+            const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
+            return (
+              <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+                <div className="flex items-center gap-2">
                   <Image
-                    src={toUploadUrl(post.image)}
-                    alt="Post image"
-                    width={500}
-                    height={300}
-                    className="rounded-lg w-full h-auto"
+                    src={parseProfileImage(post.author_profile_picture || profileData.profile_picture)}
+                    alt="Profile Icon"
+                    width={30}
+                    height={30}
                   />
+                  <h1 className="font-bold text-lg">{fullName}</h1>
                 </div>
-              ) : null}
-            </article>
-          ))
+                {postDateLabel ? <span className="text-sm text-gray-500 ml-4 mb-2">{postDateLabel}</span> : null}
+                <p>{post.content}</p>
+                {post.image ? (
+                  <div className="mt-3">
+                    <Image
+                      src={toUploadUrl(post.image)}
+                      alt="Post image"
+                      width={500}
+                      height={300}
+                      className="rounded-lg w-full h-auto"
+                    />
+                  </div>
+                ) : null}
+              </article>
+            );
+          })
         )
       ) : null}
 

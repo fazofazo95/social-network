@@ -7,6 +7,7 @@ import { fetchUserData } from "src/lib/services/user";
 import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
+import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 
@@ -368,21 +369,46 @@ export default function App() {
           const isEditingPost = editingPostId === post.id;
           const isPostActionLoading = !!postActionLoadingById[post.id];
           const postActionError = postActionErrorById[post.id] || "";
+          const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
 
           return (
             <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-            <div className="flex items-center gap-2">
-              <Image
-                src={parseProfileImage(post.author_profile_picture)}
-                alt="Profile Icon"
-                width={30}
-                height={30}
-              />
-              <h1 className="font-bold text-lg">
-                {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
-              </h1>
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex items-start gap-2">
+                <Image
+                  src={parseProfileImage(post.author_profile_picture)}
+                  alt="Profile Icon"
+                  width={30}
+                  height={30}
+                />
+                <div className="flex flex-col">
+                  <h1 className="font-bold text-lg leading-tight">
+                    {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
+                  </h1>
+                  {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
+                </div>
+              </div>
+              {isOwnPost ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                    onClick={() => handleStartEditPost(post.id)}
+                    disabled={isPostActionLoading}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                    onClick={() => handleDeletePost(post.id)}
+                    disabled={isPostActionLoading}
+                  >
+                    {isPostActionLoading ? "Working..." : "Delete"}
+                  </button>
+                </div>
+              ) : null}
             </div>
-            <span className="text-sm text-gray-500 ml-4 mb-2">{post.created_at || ""}</span>
             {isEditingPost ? (
               <div className="flex items-center gap-2 mb-2">
                 <input
@@ -413,26 +439,6 @@ export default function App() {
             ) : (
               <p>{post.content}</p>
             )}
-            {isOwnPost ? (
-              <div className="flex gap-2 mt-1 mb-2">
-                <button
-                  type="button"
-                  className="text-xs text-blue-600 disabled:opacity-50"
-                  onClick={() => handleStartEditPost(post.id)}
-                  disabled={isPostActionLoading}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="text-xs text-red-600 disabled:opacity-50"
-                  onClick={() => handleDeletePost(post.id)}
-                  disabled={isPostActionLoading}
-                >
-                  {isPostActionLoading ? "Working..." : "Delete"}
-                </button>
-              </div>
-            ) : null}
             {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
             {post.image ? (
               <div className="mt-3">
@@ -524,16 +530,50 @@ export default function App() {
                 ) : (
                   comments.map((comment) => (
                     <div key={comment.id} className="bg-gray-50 rounded p-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Image
-                          src={parseProfileImage(comment.author_profile_picture)}
-                          alt="Comment author"
-                          width={20}
-                          height={20}
-                        />
-                        <span className="text-sm font-medium">
-                          {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                        </span>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="flex items-start gap-2">
+                          <div className="pt-0.5">
+                            <Image
+                              src={parseProfileImage(comment.author_profile_picture)}
+                              alt="Comment author"
+                              width={20}
+                              height={20}
+                            />
+                          </div>
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-sm font-medium">
+                              {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                            </span>
+                            {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
+                              <span className="text-xs text-gray-500 mt-0.5">
+                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        {comment.user_id === userData.id ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                              onClick={() => {
+                                setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
+                                setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
+                              }}
+                              disabled={!!commentActionLoadingById[comment.id]}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                              onClick={() => handleDeleteComment(post.id, comment.id)}
+                              disabled={!!commentActionLoadingById[comment.id]}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                       {editingCommentIdByPost[post.id] === comment.id ? (
                         <div className="flex items-center gap-2">
@@ -567,29 +607,6 @@ export default function App() {
                       ) : (
                         <p className="text-sm">{comment.content}</p>
                       )}
-                      {comment.user_id === userData.id ? (
-                        <div className="flex gap-2 mt-1">
-                          <button
-                            type="button"
-                            className="text-xs text-blue-600"
-                            onClick={() => {
-                              setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
-                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
-                            }}
-                            disabled={!!commentActionLoadingById[comment.id]}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs text-red-600"
-                            onClick={() => handleDeleteComment(post.id, comment.id)}
-                            disabled={!!commentActionLoadingById[comment.id]}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ) : null}
                       {comment.image ? (
                         <div className="mt-2">
                           <Image

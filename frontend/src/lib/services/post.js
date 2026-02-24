@@ -52,3 +52,27 @@ export async function getFeedPosts(page = 1) {
   const posts = Array.isArray(payload?.data?.posts) ? payload.data.posts : [];
   return posts.map(normalizePost);
 }
+
+export async function getPostById(postId) {
+  const payload = await apiRequest(`/api/posts/${postId}`, {
+    method: "GET",
+  });
+
+  return normalizePost(payload?.data || null);
+}
+
+export async function updatePost(postId, content) {
+  return apiRequest(`/api/posts/${postId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deletePost(postId) {
+  return apiRequest(`/api/posts/${postId}`, {
+    method: "DELETE",
+  });
+}

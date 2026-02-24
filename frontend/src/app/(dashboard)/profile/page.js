@@ -10,6 +10,7 @@ import { deletePost, getPostById, getUserPosts, updatePost } from "src/lib/servi
 import { acceptFollowRequest, getFollowers, getFollowing, getPendingRequests, unfollowUser } from "src/lib/services/follow";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
+import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 const Profile = () => {
@@ -493,18 +494,41 @@ const Profile = () => {
             const commentError = commentErrorByPost[post.id] || "";
             const isPostActionLoading = !!postActionLoadingById[post.id];
             const isEditingPost = editingPostId === post.id;
+            const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
             return (
               <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-                <div className="flex items-center gap-2">
-                  <Image
-                    src={parseProfileImage(profileData.profile_picture)}
-                    alt="Profile Icon"
-                    width={30}
-                    height={30}
-                  />
-                  <h1 className="font-bold text-lg">{fullName}</h1>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-start gap-2">
+                    <Image
+                      src={parseProfileImage(profileData.profile_picture)}
+                      alt="Profile Icon"
+                      width={30}
+                      height={30}
+                    />
+                    <div className="flex flex-col">
+                      <h1 className="font-bold text-lg leading-tight">{fullName}</h1>
+                      {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                      onClick={() => handleStartEditPost(post.id)}
+                      disabled={isPostActionLoading}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                      onClick={() => handleDeletePost(post.id)}
+                      disabled={isPostActionLoading}
+                    >
+                      {isPostActionLoading ? "Working..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500 ml-4 mb-2">{post.created_at || ""}</span>
                 {isEditingPost ? (
                   <div className="flex items-center gap-2 mb-2">
                     <input
@@ -535,24 +559,6 @@ const Profile = () => {
                 ) : (
                   <p>{post.content}</p>
                 )}
-                <div className="flex gap-2 mt-1 mb-2">
-                  <button
-                    type="button"
-                    className="text-xs text-blue-600 disabled:opacity-50"
-                    onClick={() => handleStartEditPost(post.id)}
-                    disabled={isPostActionLoading}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="text-xs text-red-600 disabled:opacity-50"
-                    onClick={() => handleDeletePost(post.id)}
-                    disabled={isPostActionLoading}
-                  >
-                    {isPostActionLoading ? "Working..." : "Delete"}
-                  </button>
-                </div>
                 {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
                 {post.image ? (
                   <div className="mt-3">
@@ -644,16 +650,50 @@ const Profile = () => {
                     ) : (
                       comments.map((comment) => (
                         <div key={comment.id} className="bg-gray-50 rounded p-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Image
-                              src={parseProfileImage(comment.author_profile_picture)}
-                              alt="Comment author"
-                              width={20}
-                              height={20}
-                            />
-                            <span className="text-sm font-medium">
-                              {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                            </span>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div className="flex items-start gap-2">
+                              <div className="pt-0.5">
+                                <Image
+                                  src={parseProfileImage(comment.author_profile_picture)}
+                                  alt="Comment author"
+                                  width={20}
+                                  height={20}
+                                />
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-sm font-medium">
+                                  {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                </span>
+                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
+                                  <span className="text-xs text-gray-500 mt-0.5">
+                                    {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            {comment.user_id === profileData.id ? (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  onClick={() => {
+                                    setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
+                                    setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
+                                  }}
+                                  disabled={!!commentActionLoadingById[comment.id]}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  onClick={() => handleDeleteComment(post.id, comment.id)}
+                                  disabled={!!commentActionLoadingById[comment.id]}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                           {editingCommentIdByPost[post.id] === comment.id ? (
                             <div className="flex items-center gap-2">
@@ -687,29 +727,6 @@ const Profile = () => {
                           ) : (
                             <p className="text-sm">{comment.content}</p>
                           )}
-                          {comment.user_id === profileData.id ? (
-                            <div className="flex gap-2 mt-1">
-                              <button
-                                type="button"
-                                className="text-xs text-blue-600"
-                                onClick={() => {
-                                  setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
-                                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
-                                }}
-                                disabled={!!commentActionLoadingById[comment.id]}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="text-xs text-red-600"
-                                onClick={() => handleDeleteComment(post.id, comment.id)}
-                                disabled={!!commentActionLoadingById[comment.id]}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          ) : null}
                           {comment.image ? (
                             <div className="mt-2">
                               <Image
@@ -767,13 +784,13 @@ const Profile = () => {
                   <span className="flex-1">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
                   <Link
                     href={`/profile/${follower.id}`}
-                    className="text-xs border rounded px-2 py-1 text-blue-600 border-blue-600"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1"
                   >
                     Profile
                   </Link>
                   <button
                     type="button"
-                    className="text-xs border rounded px-2 py-1 text-gray-400 border-gray-300 cursor-not-allowed"
+                    className="text-xs bg-purple-900 text-white rounded-lg px-3 py-1 opacity-50 cursor-not-allowed"
                     title="Remove follower endpoint is not available in backend"
                     disabled
                   >
@@ -805,13 +822,13 @@ const Profile = () => {
                   <span className="flex-1">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
                   <Link
                     href={`/profile/${followedUser.id}`}
-                    className="text-xs border rounded px-2 py-1 text-blue-600 border-blue-600"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1"
                   >
                     Profile
                   </Link>
                   <button
                     type="button"
-                    className="text-xs border rounded px-2 py-1 text-red-600 border-red-600 disabled:opacity-50"
+                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
                     onClick={() => handleUnfollow(followedUser.id)}
                     disabled={!!isRemovingByUserId[followedUser.id]}
                   >
