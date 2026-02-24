@@ -7,7 +7,7 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
-import { getFollowersByUser, getFollowingByUser } from "src/lib/services/follow";
+import { acceptFollowRequest, getFollowers, getFollowing, getPendingRequests, unfollowUser } from "src/lib/services/follow";
 import { createComment, getPostComments } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -29,6 +29,11 @@ const Profile = () => {
   const [visibilitySettings, setVisibilitySettings] = useState(null);
   const [isSavingCover, setIsSavingCover] = useState(false);
   const [coverStatus, setCoverStatus] = useState("");
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [acceptingByUserId, setAcceptingByUserId] = useState({});
+  const [pendingError, setPendingError] = useState("");
+  const [isRemovingByUserId, setIsRemovingByUserId] = useState({});
+  const [followListActionError, setFollowListActionError] = useState("");
 
   const [coverImage, setCoverImage] = useState("/example_cover.png");
 
@@ -66,9 +71,11 @@ const Profile = () => {
 
       const [postsData, followersData, followingData] = await Promise.all([
         userId ? getUserPosts(userId, 1, 10) : Promise.resolve([]),
-        userId ? getFollowersByUser(userId) : Promise.resolve([]),
-        userId ? getFollowingByUser(userId) : Promise.resolve([]),
+        getFollowers(),
+        getFollowing(),
       ]);
+
+      const pendingData = await getPendingRequests().catch(() => []);
 
       setProfileData(profile || {});
       setCoverImage(toCoverUrl(profile?.cover_image));
@@ -76,6 +83,8 @@ const Profile = () => {
       setUserPosts(Array.isArray(postsData) ? postsData : []);
       setFollowers(Array.isArray(followersData) ? followersData : []);
       setFollowing(Array.isArray(followingData) ? followingData : []);
+      setPendingRequests(Array.isArray(pendingData) ? pendingData : []);
+      setPendingError("");
 
       const safePosts = Array.isArray(postsData) ? postsData : [];
       const commentsEntries = await Promise.all(
@@ -95,6 +104,7 @@ const Profile = () => {
       setUserPosts([]);
       setFollowers([]);
       setFollowing([]);
+      setPendingRequests([]);
       setCommentsByPost({});
       setVisibilitySettings(null);
       setError(loadError?.message || "Failed to load profile.");
@@ -182,6 +192,42 @@ const Profile = () => {
       }));
     } finally {
       setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleAcceptRequest(requestUserId) {
+    if (!requestUserId) return;
+
+    setPendingError("");
+    setAcceptingByUserId((prev) => ({ ...prev, [requestUserId]: true }));
+
+    try {
+      await acceptFollowRequest(requestUserId);
+      setPendingRequests((prev) => prev.filter((req) => req.id !== requestUserId));
+      const refreshedFollowers = await getFollowers();
+      setFollowers(Array.isArray(refreshedFollowers) ? refreshedFollowers : []);
+    } catch (acceptError) {
+      console.error("Failed to accept follow request:", acceptError);
+      setPendingError(acceptError?.message || "Failed to accept request.");
+    } finally {
+      setAcceptingByUserId((prev) => ({ ...prev, [requestUserId]: false }));
+    }
+  }
+
+  async function handleUnfollow(followedUserId) {
+    if (!followedUserId) return;
+
+    setFollowListActionError("");
+    setIsRemovingByUserId((prev) => ({ ...prev, [followedUserId]: true }));
+
+    try {
+      await unfollowUser(followedUserId);
+      setFollowing((prev) => prev.filter((user) => user.id !== followedUserId));
+    } catch (removeError) {
+      console.error("Failed to unfollow user:", removeError);
+      setFollowListActionError(removeError?.message || "Failed to unfollow user.");
+    } finally {
+      setIsRemovingByUserId((prev) => ({ ...prev, [followedUserId]: false }));
     }
   }
 
@@ -306,6 +352,9 @@ const Profile = () => {
               </button>
             </>
           ) : null}
+          <button type="button" onClick={() => setActiveTab("requests")} className="text-gray-400">
+            Follow Requests({pendingRequests.length})
+          </button>
         </section>
       </main>
 
@@ -489,6 +538,7 @@ const Profile = () => {
       {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Followers</h1>
+          {followListActionError ? <p className="text-red-600 text-sm mb-2">{followListActionError}</p> : null}
           {followers.length === 0 ? (
             <p>No followers yet.</p>
           ) : (
@@ -501,7 +551,21 @@ const Profile = () => {
                     width={24}
                     height={24}
                   />
-                  <span>{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <span className="flex-1">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <Link
+                    href={`/profile/${follower.id}`}
+                    className="text-xs border rounded px-2 py-1 text-blue-600 border-blue-600"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    className="text-xs border rounded px-2 py-1 text-gray-400 border-gray-300 cursor-not-allowed"
+                    title="Remove follower endpoint is not available in backend"
+                    disabled
+                  >
+                    Remove
+                  </button>
                 </li>
               ))}
             </ul>
@@ -512,6 +576,7 @@ const Profile = () => {
       {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
         <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
           <h1 className="font-bold text-lg mb-2">Following</h1>
+          {followListActionError ? <p className="text-red-600 text-sm mb-2">{followListActionError}</p> : null}
           {following.length === 0 ? (
             <p>Not following anyone yet.</p>
           ) : (
@@ -524,9 +589,58 @@ const Profile = () => {
                     width={24}
                     height={24}
                   />
-                  <span>{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <span className="flex-1">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <Link
+                    href={`/profile/${followedUser.id}`}
+                    className="text-xs border rounded px-2 py-1 text-blue-600 border-blue-600"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    className="text-xs border rounded px-2 py-1 text-red-600 border-red-600 disabled:opacity-50"
+                    onClick={() => handleUnfollow(followedUser.id)}
+                    disabled={!!isRemovingByUserId[followedUser.id]}
+                  >
+                    {!!isRemovingByUserId[followedUser.id] ? "Removing..." : "Unfollow"}
+                  </button>
                 </li>
               ))}
+            </ul>
+          )}
+        </article>
+      ) : null}
+
+      {!isLoading && !error && activeTab === "requests" ? (
+        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+          <h1 className="font-bold text-lg mb-2">Follow Requests</h1>
+          {pendingError ? <p className="text-red-600 text-sm mb-2">{pendingError}</p> : null}
+          {pendingRequests.length === 0 ? (
+            <p>No pending requests.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {pendingRequests.map((requestUser) => {
+                const isAccepting = !!acceptingByUserId[requestUser.id];
+                return (
+                  <li key={requestUser.id} className="flex items-center gap-3">
+                    <Image
+                      src={parseProfileImage(requestUser.profile_picture)}
+                      alt="Request user"
+                      width={24}
+                      height={24}
+                    />
+                    <span className="flex-1">{`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <button
+                      type="button"
+                      className="bg-blue-500 text-white rounded px-3 py-1 text-sm disabled:opacity-50"
+                      onClick={() => handleAcceptRequest(requestUser.id)}
+                      disabled={isAccepting}
+                    >
+                      {isAccepting ? "Accepting..." : "Accept"}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </article>

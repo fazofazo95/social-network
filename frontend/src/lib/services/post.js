@@ -43,3 +43,12 @@ export async function getUserPosts(userId, page = 1, limit = 10) {
 
   return Array.isArray(payload?.data) ? payload.data.map(normalizePost) : [];
 }
+
+export async function getFeedPosts(page = 1) {
+  const payload = await apiRequest(`/api/feed?page=${page}`, {
+    method: "GET",
+  });
+
+  const posts = Array.isArray(payload?.data?.posts) ? payload.data.posts : [];
+  return posts.map(normalizePost);
+}

@@ -31,3 +31,35 @@ export async function getFollowingByUser(userId) {
 
   return Array.isArray(payload?.data) ? payload.data : [];
 }
+
+export async function getFollowers() {
+  const payload = await apiRequest("/api/users/followers", {
+    method: "GET",
+  });
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function getFollowing() {
+  const payload = await apiRequest("/api/users/following", {
+    method: "GET",
+  });
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function getPendingRequests() {
+  const payload = await apiRequest("/api/users/pending", {
+    method: "GET",
+  });
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function acceptFollowRequest(userId) {
+  const payload = await apiRequest(`/api/users/${userId}/follow/accept`, {
+    method: "POST",
+  });
+
+  return payload?.data || null;
+}

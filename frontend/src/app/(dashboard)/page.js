@@ -4,7 +4,7 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
-import { createPost, getUserPosts } from "src/lib/services/post";
+import { createPost, getFeedPosts, getUserPosts } from "src/lib/services/post";
 import { createComment, getPostComments } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -41,8 +41,16 @@ export default function App() {
       try {
         const profile = await fetchUserData("me");
         const userId = profile?.id;
-        const userPosts = userId ? await getUserPosts(userId, 1, 10) : [];
-        const safePosts = Array.isArray(userPosts) ? userPosts : [];
+        let loadedPosts = [];
+
+        try {
+          loadedPosts = await getFeedPosts(1);
+        } catch (feedError) {
+          console.warn("Feed load failed, falling back to user posts:", feedError);
+          loadedPosts = userId ? await getUserPosts(userId, 1, 10) : [];
+        }
+
+        const safePosts = Array.isArray(loadedPosts) ? loadedPosts : [];
 
         const commentsEntries = await Promise.all(
           safePosts.map(async (post) => {
