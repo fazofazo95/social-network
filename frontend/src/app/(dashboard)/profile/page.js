@@ -179,20 +179,10 @@ const Profile = () => {
         <div className="flex justify-end gap-4 mt-2 border-b border-gray-200 pb-1">
           <span className="text-gray-500 text-sm mr-auto">10 Ripples</span>
           <span className="text-gray-500 text-sm">2 Echoes</span>
-          <span className="text-gray-500 text-sm">1 Spreads</span>
         </div>
         <div className="flex justify-between gap-8 mt-2 mx-8">
           <Ripple_Button />
          <Echo_Button targetId="profile-echo-section" />
-          <button className="flex cursor-pointer gap-1">
-            <Image
-              src="/spread_icon.svg"
-              alt="Spread Icon"
-              width={20}
-              height={20}
-            />
-            Spread
-          </button>
         </div>
         <div
           id="profile-echo-section"

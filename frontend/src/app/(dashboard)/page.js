@@ -5,6 +5,7 @@ import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
 import { createPost, getUserPosts } from "src/lib/services/post";
+import { createComment, getPostComments } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
@@ -17,6 +18,12 @@ export default function App() {
    const [postImage, setPostImage] = useState(null);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [submitError, setSubmitError] = useState("");
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentsLoadingByPost, setCommentsLoadingByPost] = useState({});
+  const [commentInputByPost, setCommentInputByPost] = useState({});
+  const [commentImageByPost, setCommentImageByPost] = useState({});
+  const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
+  const [commentErrorByPost, setCommentErrorByPost] = useState({});
 
    function toUploadUrl(path) {
       if (!path) return "";
@@ -37,12 +44,69 @@ export default function App() {
         const userPosts = userId ? await getUserPosts(userId, 1, 10) : [];
         setUserData(profile || {});
         setPosts(Array.isArray(userPosts) ? userPosts : []);
+        setCommentsByPost({});
       } catch (error) {
         console.error("Error loading dashboard:", error);
         setUserData({});
         setPosts([]);
       } finally {
         setIsLoading(false);
+      }
+   }
+
+   async function loadComments(postId) {
+      setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: true }));
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+      try {
+        const comments = await getPostComments(postId);
+        setCommentsByPost((prev) => ({ ...prev, [postId]: comments }));
+      } catch (error) {
+        console.error("Error loading comments:", error);
+        setCommentsByPost((prev) => ({ ...prev, [postId]: [] }));
+        setCommentErrorByPost((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to load echoes.",
+        }));
+      } finally {
+        setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: false }));
+      }
+   }
+
+   async function handleCommentSubmit(event, postId) {
+      event.preventDefault();
+
+      const content = (commentInputByPost[postId] || "").trim();
+      const image = commentImageByPost[postId] || null;
+
+      if (!content) {
+        setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+        return;
+      }
+
+      setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: true }));
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+
+      const formData = new FormData();
+      formData.append("content", content);
+      formData.append("parent_type", "post");
+      formData.append("parent_id", String(postId));
+      if (image) {
+        formData.append("image", image);
+      }
+
+      try {
+        await createComment(formData);
+        setCommentInputByPost((prev) => ({ ...prev, [postId]: "" }));
+        setCommentImageByPost((prev) => ({ ...prev, [postId]: null }));
+        await loadComments(postId);
+      } catch (error) {
+        console.error("Error creating comment:", error);
+        setCommentErrorByPost((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to create echo.",
+        }));
+      } finally {
+        setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
       }
    }
 
@@ -127,20 +191,6 @@ export default function App() {
               </span>
             </label>
           </li>
-          <li className="flex gap-1 hover:bg-gray-200  rounded-lg">
-            <Image
-              src="/feelings_icon.svg"
-              alt="Share Icon"
-              width={20}
-              height={20}
-            />
-            <button
-              type="button"
-              className="font-medium cursor-pointer text-black"
-            >
-              Feeling
-            </button>
-          </li>
           <li className="flex bg-blue-500  hover:bg-blue-700 rounded-lg p-1 ml-auto">
             <Image
               src="/share_icon.svg"
@@ -168,6 +218,11 @@ export default function App() {
         posts.map((post) => {
           const echoSectionId = `echo-section-${post.id}`;
           const echoPhotoUploadId = `echo-photo-upload-${post.id}`;
+          const comments = commentsByPost[post.id] || [];
+          const isCommentsLoading = commentsLoadingByPost[post.id];
+          const commentValue = commentInputByPost[post.id] || "";
+          const isCommentSubmitting = commentSubmittingByPost[post.id];
+          const commentError = commentErrorByPost[post.id] || "";
 
           return (
             <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
@@ -195,52 +250,111 @@ export default function App() {
                 />
               </div>
             ) : null}
+            <div className="flex justify-between gap-4 mt-4">
+              <span className="text-sm text-gray-500">{post.likes_count || 0} Likes</span>
+              <span className="text-sm text-gray-500">{comments.length} Echoes</span>
+            </div>
             <div className="flex justify-between gap-8 mt-2 mx-8 border-t border-gray-200 pt-2">
               <Ripple_Button />
-              <Echo_Button targetId={echoSectionId} />
-              <button className="flex cursor-pointer gap-1">
-                <Image
-                  src="/spread_icon.svg"
-                  alt="Spread Icon"
-                  width={20}
-                  height={20}
-                />
-                Spread
-              </button>
+              <Echo_Button
+                targetId={echoSectionId}
+                onToggle={(isOpen) => {
+                  if (isOpen && commentsByPost[post.id] === undefined) {
+                    loadComments(post.id);
+                  }
+                }}
+              />
             </div>
             <div
               id={echoSectionId}
-              className="border-t border-gray-200 rounded mt-2 pt-2 gap-1 hidden"
+              className="border-t border-gray-200 rounded mt-2 pt-2 gap-2 hidden flex-col"
             >
-              <Image
-                src={parseProfileImage(userData.profile_picture)}
-                alt="Profile Icon"
-                width={25}
-                height={25}
-              />
-              <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
-                <input
-                  type="text"
-                  placeholder="Write a comment..."
-                  className="focus:outline-none w-full pl-1"
+              <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
+                <Image
+                  src={parseProfileImage(userData.profile_picture)}
+                  alt="Profile Icon"
+                  width={25}
+                  height={25}
                 />
-
-                <label
-                  htmlFor={echoPhotoUploadId}
-                  className="flex items-center gap-1 cursor-pointer"
-                >
-                  <Image
-                    src="/photo_icon.svg"
-                    alt="Share Icon"
-                    width={20}
-                    height={20}
-                  />
+                <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
                   <input
-                    id={echoPhotoUploadId}
-                    type="file"
-                    className="font-medium cursor-pointer text-black hidden"
+                    type="text"
+                    placeholder="Write a comment..."
+                    className="focus:outline-none w-full pl-1 bg-transparent"
+                    value={commentValue}
+                    onChange={(event) =>
+                      setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                    }
+                    disabled={isCommentSubmitting}
                   />
-                </label>
+
+                  <label
+                    htmlFor={echoPhotoUploadId}
+                    className="flex items-center gap-1 cursor-pointer px-1"
+                  >
+                    <Image
+                      src="/photo_icon.svg"
+                      alt="Share Icon"
+                      width={20}
+                      height={20}
+                    />
+                    <input
+                      id={echoPhotoUploadId}
+                      type="file"
+                      className="font-medium cursor-pointer text-black hidden"
+                      accept="image/*"
+                      onChange={(event) =>
+                        setCommentImageByPost((prev) => ({ ...prev, [post.id]: event.target.files?.[0] || null }))
+                      }
+                      disabled={isCommentSubmitting}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="submit"
+                  className="text-sm px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                  disabled={isCommentSubmitting}
+                >
+                  {isCommentSubmitting ? "Sending..." : "Send"}
+                </button>
+              </form>
+
+              {commentError ? <p className="text-red-600 text-sm">{commentError}</p> : null}
+
+              <div className="flex flex-col gap-2">
+                {isCommentsLoading ? (
+                  <p className="text-sm text-gray-500">Loading echoes...</p>
+                ) : comments.length === 0 ? (
+                  <p className="text-sm text-gray-500">No echoes yet.</p>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="bg-gray-50 rounded p-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Image
+                          src={parseProfileImage(comment.author_profile_picture)}
+                          alt="Comment author"
+                          width={20}
+                          height={20}
+                        />
+                        <span className="text-sm font-medium">
+                          {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                        </span>
+                      </div>
+                      <p className="text-sm">{comment.content}</p>
+                      {comment.extra_content ? (
+                        <div className="mt-2">
+                          <Image
+                            src={toUploadUrl(comment.extra_content)}
+                            alt="Comment image"
+                            width={300}
+                            height={180}
+                            className="rounded w-full h-auto"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
             </article>
