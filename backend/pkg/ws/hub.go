@@ -13,7 +13,7 @@ import (
 )
 
 type Hub struct {
-	Clients map[int]*Client
+	Clients    map[int]*Client
 	Broadcast  chan models.ChatMessage
 	Register   chan *Client
 	Unregister chan *Client
@@ -35,7 +35,7 @@ type Client struct {
 	Hub    *Hub
 	UserID int
 	Conn   *websocket.Conn
-	Send   chan models.ChatMessage
+	Send   chan any
 }
 
 func (h *Hub) Run() {
@@ -44,6 +44,8 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.mu.Lock()
 			h.Clients[client.UserID] = client
+			h.sendPresenceSnapshotLocked(client)
+			h.broadcastPresenceLocked(client.UserID, true, client.UserID)
 			h.mu.Unlock()
 
 		case client := <-h.Unregister:
@@ -51,12 +53,49 @@ func (h *Hub) Run() {
 			if _, ok := h.Clients[client.UserID]; ok {
 				delete(h.Clients, client.UserID)
 				close(client.Send)
+				h.broadcastPresenceLocked(client.UserID, false, client.UserID)
 			}
 			h.mu.Unlock()
 
 		case msg := <-h.Broadcast:
 			h.routeMessage(msg)
 		}
+	}
+}
+
+func (h *Hub) sendPresenceSnapshotLocked(client *Client) {
+	onlineUserIDs := make([]int, 0, len(h.Clients))
+	for userID := range h.Clients {
+		onlineUserIDs = append(onlineUserIDs, userID)
+	}
+
+	h.sendToClientLocked(client, map[string]any{
+		"event":           "presence_snapshot",
+		"online_user_ids": onlineUserIDs,
+	})
+}
+
+func (h *Hub) broadcastPresenceLocked(userID int, online bool, excludeUserID int) {
+	payload := map[string]any{
+		"event":   "presence",
+		"user_id": userID,
+		"online":  online,
+	}
+
+	for id, client := range h.Clients {
+		if excludeUserID > 0 && id == excludeUserID {
+			continue
+		}
+		h.sendToClientLocked(client, payload)
+	}
+}
+
+func (h *Hub) sendToClientLocked(client *Client, payload any) {
+	select {
+	case client.Send <- payload:
+	default:
+		close(client.Send)
+		delete(h.Clients, client.UserID)
 	}
 }
 

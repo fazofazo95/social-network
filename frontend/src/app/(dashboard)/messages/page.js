@@ -132,6 +132,7 @@ const MessagesPage = () => {
   const [error, setError] = useState("");
   const [accessNotice, setAccessNotice] = useState("");
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState([]);
   const [timeTick, setTimeTick] = useState(Date.now());
   const socketRef = useRef(null);
   const selectedChatIdRef = useRef(null);
@@ -200,6 +201,18 @@ const MessagesPage = () => {
     }
     return 0;
   }, [newChatTarget, selectedChat]);
+
+  const onlineUserIdSet = useMemo(
+    () => new Set((onlineUserIds || []).map((id) => Number(id))),
+    [onlineUserIds]
+  );
+
+  const isDirectTargetOnline = useMemo(() => {
+    if (!activeDirectTargetId) {
+      return false;
+    }
+    return onlineUserIdSet.has(Number(activeDirectTargetId));
+  }, [activeDirectTargetId, onlineUserIdSet]);
 
   const canSendInCurrentContext = useMemo(() => {
     if (selectedChat?.type === "group") {
@@ -451,6 +464,35 @@ const MessagesPage = () => {
           try {
             incoming = JSON.parse(event.data);
           } catch {
+            return;
+          }
+
+          if (incoming?.event === "presence_snapshot") {
+            const snapshotIds = Array.isArray(incoming?.online_user_ids)
+              ? incoming.online_user_ids
+                  .map((value) => Number(value))
+                  .filter((value) => Number.isInteger(value) && value > 0)
+              : [];
+            setOnlineUserIds(snapshotIds);
+            return;
+          }
+
+          if (incoming?.event === "presence") {
+            const targetUserId = Number(incoming?.user_id || 0);
+            if (!targetUserId) {
+              return;
+            }
+            const isOnline = incoming?.online === true;
+            setOnlineUserIds((prev) => {
+              const previous = Array.isArray(prev) ? prev : [];
+              if (isOnline) {
+                if (previous.includes(targetUserId)) {
+                  return previous;
+                }
+                return [...previous, targetUserId];
+              }
+              return previous.filter((id) => Number(id) !== targetUserId);
+            });
             return;
           }
 
@@ -764,15 +806,32 @@ const MessagesPage = () => {
                   ) : (
                     <h1 className="text-sm font-semibold text-purple-100 truncate">Messages</h1>
                   )}
-                  <p className="text-[11px] text-purple-300">{headerActivityText}</p>
+                  <p className="text-[11px] text-purple-300 inline-flex items-center gap-2">
+                    {activeDirectTargetId ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={`h-2 w-2 rounded-full ${isDirectTargetOnline ? "bg-green-400" : "bg-gray-500"}`} />
+                        {isDirectTargetOnline ? "Online" : "Offline"}
+                      </span>
+                    ) : null}
+                    <span>{headerActivityText}</span>
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-purple-300 text-sm">
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-purple-200">
-                  <span className={`h-2 w-2 rounded-full ${isSocketConnected ? "bg-green-400" : "bg-gray-500"}`} />
-                  {isSocketConnected ? "Live" : "Offline"}
-                </span>
-              </div>
+              {selectedChat || newChatTarget ? (
+                <div className="flex items-center gap-3 text-purple-300 text-sm">
+                  {activeDirectTargetId ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-purple-200">
+                      <span className={`h-2 w-2 rounded-full ${isDirectTargetOnline ? "bg-green-400" : "bg-gray-500"}`} />
+                      {isDirectTargetOnline ? "Online" : "Offline"}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-purple-200">
+                      <span className={`h-2 w-2 rounded-full ${isSocketConnected ? "bg-green-400" : "bg-gray-500"}`} />
+                      {isSocketConnected ? "Live" : "Offline"}
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </header>
 
             <div className="flex-1 overflow-y-auto px-3 py-3">

@@ -68,7 +68,21 @@ const NavBar = () => {
           refreshUnreadCount();
         };
 
-        socket.onmessage = () => {
+        socket.onmessage = (event) => {
+          let incoming = null;
+          try {
+            incoming = JSON.parse(event.data);
+          } catch {
+            refreshUnreadCount();
+            return;
+          }
+
+          const incomingChatId = Number(incoming?.chat_id || 0);
+          const incomingMessageId = Number(incoming?.id || 0);
+          if (!incomingChatId || !incomingMessageId) {
+            return;
+          }
+
           refreshUnreadCount();
         };
 
