@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
-import { getUserPosts } from "src/lib/services/post";
+import { deletePost, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
 import { acceptFollowRequest, getFollowers, getFollowing, getPendingRequests, unfollowUser } from "src/lib/services/follow";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
@@ -32,6 +32,10 @@ const Profile = () => {
   const [visibilitySettings, setVisibilitySettings] = useState(null);
   const [isSavingCover, setIsSavingCover] = useState(false);
   const [coverStatus, setCoverStatus] = useState("");
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editingPostContent, setEditingPostContent] = useState("");
+  const [postActionLoadingById, setPostActionLoadingById] = useState({});
+  const [postActionError, setPostActionError] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
   const [acceptingByUserId, setAcceptingByUserId] = useState({});
   const [pendingError, setPendingError] = useState("");
@@ -195,6 +199,64 @@ const Profile = () => {
       }));
     } finally {
       setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleStartEditPost(postId) {
+    if (!postId) return;
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      const post = await getPostById(postId);
+      setEditingPostId(postId);
+      setEditingPostContent(post?.content || "");
+    } catch (editError) {
+      console.error("Failed to load post for editing:", editError);
+      setPostActionError(editError?.message || "Failed to load post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleSavePostEdit(postId) {
+    const content = editingPostContent.trim();
+    if (!content) {
+      setPostActionError("Post content is required.");
+      return;
+    }
+
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await updatePost(postId, content);
+      setUserPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, content } : post)));
+      setEditingPostId(null);
+      setEditingPostContent("");
+    } catch (saveError) {
+      console.error("Failed to update post:", saveError);
+      setPostActionError(saveError?.message || "Failed to update post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleDeletePost(postId) {
+    if (!postId) return;
+
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await deletePost(postId);
+      setUserPosts((prev) => prev.filter((post) => post.id !== postId));
+      if (editingPostId === postId) {
+        setEditingPostId(null);
+        setEditingPostContent("");
+      }
+    } catch (deleteError) {
+      console.error("Failed to delete post:", deleteError);
+      setPostActionError(deleteError?.message || "Failed to delete post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
     }
   }
 
@@ -429,6 +491,8 @@ const Profile = () => {
             const commentValue = commentInputByPost[post.id] || "";
             const isCommentSubmitting = commentSubmittingByPost[post.id];
             const commentError = commentErrorByPost[post.id] || "";
+            const isPostActionLoading = !!postActionLoadingById[post.id];
+            const isEditingPost = editingPostId === post.id;
             return (
               <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
                 <div className="flex items-center gap-2">
@@ -441,7 +505,55 @@ const Profile = () => {
                   <h1 className="font-bold text-lg">{fullName}</h1>
                 </div>
                 <span className="text-sm text-gray-500 ml-4 mb-2">{post.created_at || ""}</span>
-                <p>{post.content}</p>
+                {isEditingPost ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      className="border rounded px-2 py-1 text-sm flex-1"
+                      value={editingPostContent}
+                      onChange={(event) => setEditingPostContent(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                      onClick={() => handleSavePostEdit(post.id)}
+                      disabled={isPostActionLoading}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setEditingPostContent("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <p>{post.content}</p>
+                )}
+                <div className="flex gap-2 mt-1 mb-2">
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 disabled:opacity-50"
+                    onClick={() => handleStartEditPost(post.id)}
+                    disabled={isPostActionLoading}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs text-red-600 disabled:opacity-50"
+                    onClick={() => handleDeletePost(post.id)}
+                    disabled={isPostActionLoading}
+                  >
+                    {isPostActionLoading ? "Working..." : "Delete"}
+                  </button>
+                </div>
+                {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
                 {post.image ? (
                   <div className="mt-3">
                     <Image

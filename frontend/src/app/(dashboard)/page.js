@@ -4,7 +4,7 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
-import { createPost, getFeedPosts, getUserPosts } from "src/lib/services/post";
+import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
 import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -27,6 +27,10 @@ export default function App() {
   const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
   const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
   const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editingPostContent, setEditingPostContent] = useState("");
+  const [postActionLoadingById, setPostActionLoadingById] = useState({});
+  const [postActionErrorById, setPostActionErrorById] = useState({});
 
    function toUploadUrl(path) {
       if (!path) return "";
@@ -179,6 +183,74 @@ export default function App() {
       }
    }
 
+   async function handleStartEditPost(postId) {
+      if (!postId) return;
+
+      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+      try {
+        const post = await getPostById(postId);
+        setEditingPostId(postId);
+        setEditingPostContent(post?.content || "");
+      } catch (error) {
+        console.error("Error loading post for edit:", error);
+        setPostActionErrorById((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to load post.",
+        }));
+      } finally {
+        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+      }
+   }
+
+   async function handleSavePostEdit(postId) {
+      const content = editingPostContent.trim();
+      if (!content) {
+        setPostActionErrorById((prev) => ({ ...prev, [postId]: "Post content is required." }));
+        return;
+      }
+
+      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+      try {
+        await updatePost(postId, content);
+        setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, content } : post)));
+        setEditingPostId(null);
+        setEditingPostContent("");
+      } catch (error) {
+        console.error("Error updating post:", error);
+        setPostActionErrorById((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to update post.",
+        }));
+      } finally {
+        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+      }
+   }
+
+   async function handleDeletePost(postId) {
+      if (!postId) return;
+
+      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+      try {
+        await deletePost(postId);
+        setPosts((prev) => prev.filter((post) => post.id !== postId));
+        if (editingPostId === postId) {
+          setEditingPostId(null);
+          setEditingPostContent("");
+        }
+      } catch (error) {
+        console.error("Error deleting post:", error);
+        setPostActionErrorById((prev) => ({
+          ...prev,
+          [postId]: error?.message || "Failed to delete post.",
+        }));
+      } finally {
+        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+      }
+   }
+
    async function handleSubmit(event) {
       event.preventDefault();
 
@@ -292,6 +364,10 @@ export default function App() {
           const commentValue = commentInputByPost[post.id] || "";
           const isCommentSubmitting = commentSubmittingByPost[post.id];
           const commentError = commentErrorByPost[post.id] || "";
+          const isOwnPost = post.user_id === userData.id;
+          const isEditingPost = editingPostId === post.id;
+          const isPostActionLoading = !!postActionLoadingById[post.id];
+          const postActionError = postActionErrorById[post.id] || "";
 
           return (
             <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
@@ -307,7 +383,57 @@ export default function App() {
               </h1>
             </div>
             <span className="text-sm text-gray-500 ml-4 mb-2">{post.created_at || ""}</span>
-            <p>{post.content}</p>
+            {isEditingPost ? (
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  className="border rounded px-2 py-1 text-sm flex-1"
+                  value={editingPostContent}
+                  onChange={(event) => setEditingPostContent(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                  onClick={() => handleSavePostEdit(post.id)}
+                  disabled={isPostActionLoading}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                  onClick={() => {
+                    setEditingPostId(null);
+                    setEditingPostContent("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <p>{post.content}</p>
+            )}
+            {isOwnPost ? (
+              <div className="flex gap-2 mt-1 mb-2">
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 disabled:opacity-50"
+                  onClick={() => handleStartEditPost(post.id)}
+                  disabled={isPostActionLoading}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-red-600 disabled:opacity-50"
+                  onClick={() => handleDeletePost(post.id)}
+                  disabled={isPostActionLoading}
+                >
+                  {isPostActionLoading ? "Working..." : "Delete"}
+                </button>
+              </div>
+            ) : null}
+            {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
             {post.image ? (
               <div className="mt-3">
                 <Image

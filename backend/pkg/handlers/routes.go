@@ -97,7 +97,7 @@ func PostRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.Handle("POST /api/posts", middleware.Chain(CreatePostHandler, auth))
 
 	mux.Handle("PUT /api/posts/{id}", middleware.Chain(UpdatePostHandler, auth, checkOwner))
-	mux.Handle("PUT /api/posts/{id}/delete", middleware.Chain(DeletePostHandler, auth, checkOwner))
+	mux.Handle("DELETE /api/posts/{id}", middleware.Chain(DeletePostHandler, auth, checkOwner))
 	mux.Handle("PUT /api/posts/{id}/restore", middleware.Chain(RestorePostHandler, auth, checkOwner))
 
 	mux.Handle("GET /api/posts/{id}", middleware.Chain(GetPostHandler, auth))
