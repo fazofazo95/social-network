@@ -144,7 +144,7 @@ const UserProfilePage = () => {
   }
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-10">
+    <div className="w-full max-w-2xl flex flex-col gap-10 pb-8">
       <main className="flex flex-col w-full bg-white rounded-lg overflow-hidden gap-2">
         <div
           className="w-full h-36 relative"
@@ -312,37 +312,79 @@ const UserProfilePage = () => {
       ) : null}
 
       {!isLoading && !error && activeTab === "about" ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-          <h1 className="font-bold text-lg mb-2">About {profileData.first_name || ""}</h1>
-          <p className="mb-3">{aboutText || "No about info yet."}</p>
-          <ul className="text-sm text-gray-600 grid grid-cols-2 gap-2">
-            <li><strong>Email:</strong> {emailText || "-"}</li>
-            <li><strong>Nickname:</strong> {usernameText || "-"}</li>
-            <li><strong>Birthday:</strong> {birthdayText || "-"}</li>
-            <li><strong>Relationship:</strong> {relationshipText || "-"}</li>
-            <li><strong>Employed At:</strong> {employedAtText || "-"}</li>
-            <li><strong>Location:</strong> {locationText || "-"}</li>
-            <li><strong>Phone:</strong> {phoneText || "-"}</li>
+        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+          <h1 className="font-bold text-2xl mb-1">User Information</h1>
+          <h2 className="font-semibold text-sm text-purple-300 mb-2">Contact Information</h2>
+          <ul className="text-sm">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Email:</span>
+              <span>{emailText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Full Name:</span>
+              <span>{fullName || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Nickname:</span>
+              <span>{usernameText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Date of Birth:</span>
+              <span>{birthdayText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Location:</span>
+              <span>{locationText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Relationship:</span>
+              <span>{relationshipText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Employed At:</span>
+              <span>{employedAtText || "-"}</span>
+            </li>
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+              <span className="font-semibold">Phone:</span>
+              <span>{phoneText || "-"}</span>
+            </li>
           </ul>
+          <div className="mt-4">
+            <h3 className="font-semibold text-sm mb-1">About me</h3>
+            <p className="text-sm text-purple-200">{aboutText || "No about info yet."}</p>
+          </div>
         </article>
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-          <h1 className="font-bold text-lg mb-2">Followers</h1>
+        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">Followers ({followers.length})</h1>
           {followers.length === 0 ? (
-            <p>No followers yet.</p>
+            <p className="text-sm text-purple-200">No followers yet.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
-                <li key={follower.id} className="flex items-center gap-2">
+                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
                   <Image
                     src={parseProfileImage(follower.profile_picture)}
                     alt="Follower"
                     width={24}
                     height={24}
+                    className="h-6 w-6 rounded-full"
                   />
-                  <span>{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                    {follower.username ? (
+                      <span className="block truncate text-[11px] text-[#5b4d76]">@{follower.username}</span>
+                    ) : null}
+                  </span>
+                  <Link
+                    href={`/profile/${follower.id}`}
+                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                  >
+                    View profile
+                  </Link>
+                  <span className="text-xs bg-[#4d3f74] text-white rounded-md px-3 py-1">Follower</span>
                 </li>
               ))}
             </ul>
@@ -351,21 +393,34 @@ const UserProfilePage = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
-          <h1 className="font-bold text-lg mb-2">Following</h1>
+        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">Following ({following.length})</h1>
           {following.length === 0 ? (
-            <p>Not following anyone yet.</p>
+            <p className="text-sm text-purple-200">Not following anyone yet.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="flex items-center gap-2">
+                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
                   <Image
                     src={parseProfileImage(followedUser.profile_picture)}
                     alt="Following"
                     width={24}
                     height={24}
+                    className="h-6 w-6 rounded-full"
                   />
-                  <span>{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    {followedUser.username ? (
+                      <span className="block truncate text-[11px] text-[#5b4d76]">@{followedUser.username}</span>
+                    ) : null}
+                  </span>
+                  <Link
+                    href={`/profile/${followedUser.id}`}
+                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                  >
+                    View profile
+                  </Link>
+                  <span className="text-xs bg-[#4d3f74] text-white rounded-md px-3 py-1">Following</span>
                 </li>
               ))}
             </ul>
