@@ -1,14 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
-import { getFollowers, getFollowing } from "src/lib/services/follow";
+import { getFollowing } from "src/lib/services/follow";
 import { getChatMessages, listChats, markChatRead, sendDirectMessage, sendGroupMessage } from "src/lib/services/chat";
+import { getApiBaseUrl } from "src/lib/apiClient";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 
-const DIRECT_CHAT_RULE_MESSAGE = "You can chat only with users you follow, unless your account or their account is public.";
-const DIRECT_VIEW_RULE_MESSAGE = "You can view direct messages only with users you follow, unless your account or their account is public.";
+const DIRECT_SEND_RULE_MESSAGE = "You can send a direct message only if you follow this user or their account is public.";
+const DIRECT_VIEW_RULE_MESSAGE = "Your account is private. You can receive/view direct messages only from users you follow back.";
 
 function isPublicProfile(profileType) {
   return String(profileType || "public").toLowerCase() === "public";
@@ -25,19 +27,16 @@ function formatChatTitle(chat) {
 }
 
 function formatSmallTime(value) {
-  if (!value) return "";
-  const parsedDate = new Date(value);
+  const parsedDate = parseChatDate(value);
   if (Number.isNaN(parsedDate.getTime())) return "";
   return parsedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatListTime(value) {
-  if (!value) return "";
-  const parsedDate = new Date(value);
+function formatListTime(value, nowTs = Date.now()) {
+  const parsedDate = parseChatDate(value);
   if (Number.isNaN(parsedDate.getTime())) return "";
 
-  const now = new Date();
-  const diffMs = now.getTime() - parsedDate.getTime();
+  const diffMs = nowTs - parsedDate.getTime();
   const hourMs = 60 * 60 * 1000;
 
   if (diffMs < hourMs) {
@@ -51,6 +50,33 @@ function formatListTime(value) {
   }
 
   return parsedDate.toLocaleDateString();
+}
+
+function parseChatDate(value) {
+  if (!value) {
+    return new Date("");
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return new Date("");
+  }
+
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(raw);
+  if (hasTimezone) {
+    return new Date(raw);
+  }
+
+  const normalized = raw.replace(" ", "T");
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(normalized)) {
+    return new Date(`${normalized}Z`);
+  }
+
+  return new Date(raw);
 }
 
 function normalizeUserItem(user) {
@@ -78,6 +104,15 @@ function normalizeUserItem(user) {
   };
 }
 
+function toWebSocketUrl(path = "/ws") {
+  const baseUrl = getApiBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (baseUrl.startsWith("https://")) {
+    return `${baseUrl.replace("https://", "wss://")}${normalizedPath}`;
+  }
+  return `${baseUrl.replace("http://", "ws://")}${normalizedPath}`;
+}
+
 const MessagesPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [chats, setChats] = useState([]);
@@ -96,11 +131,32 @@ const MessagesPage = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
   const [accessNotice, setAccessNotice] = useState("");
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [timeTick, setTimeTick] = useState(Date.now());
+  const socketRef = useRef(null);
+  const selectedChatIdRef = useRef(null);
+
+  const emitUnreadRefresh = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("messages:unread-refresh"));
+    }
+  };
 
   const selectedChat = useMemo(
     () => chats.find((chatItem) => chatItem.chat_id === selectedChatId) || null,
     [chats, selectedChatId]
   );
+
+  const headerActivityText = useMemo(() => {
+    if (newChatTarget) {
+      return "Start new chat";
+    }
+    if (!selectedChat) {
+      return "No chat selected";
+    }
+    const lastActivity = formatListTime(selectedChat.last_message_at, timeTick);
+    return lastActivity ? `Last message ${lastActivity}` : "No messages yet";
+  }, [newChatTarget, selectedChat, timeTick]);
 
   const filteredChats = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -166,6 +222,22 @@ const MessagesPage = () => {
 
   }, [activeDirectTargetId, followingIdSet, isOwnProfilePublic, newChatTarget, profilePublicByUserId, selectedChat]);
 
+  const canViewCurrentDirectContext = useMemo(() => {
+    if (selectedChat?.type === "group") {
+      return true;
+    }
+
+    if (!activeDirectTargetId) {
+      return false;
+    }
+
+    if (isOwnProfilePublic) {
+      return true;
+    }
+
+    return followingIdSet.has(activeDirectTargetId);
+  }, [activeDirectTargetId, followingIdSet, isOwnProfilePublic, selectedChat]);
+
   async function ensureTargetPublicStatus(userId) {
     const numericId = Number(userId);
     if (!Number.isInteger(numericId) || numericId <= 0) {
@@ -210,15 +282,27 @@ const MessagesPage = () => {
     return ensureTargetPublicStatus(targetId);
   }
 
+  function canViewDirectMessagesFromTarget(userId) {
+    const targetId = Number(userId);
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return false;
+    }
+
+    if (isOwnProfilePublic) {
+      return true;
+    }
+
+    return followingIdSet.has(targetId);
+  }
+
   async function loadChatsAndProfile() {
     setIsLoading(true);
     setError("");
 
     try {
-      const [profile, inboxChats, followersList, followingList] = await Promise.all([
+      const [profile, inboxChats, followingList] = await Promise.all([
         fetchUserData("me"),
         listChats(),
-        getFollowers().catch(() => []),
         getFollowing().catch(() => []),
       ]);
       const safeChats = Array.isArray(inboxChats) ? inboxChats : [];
@@ -229,7 +313,7 @@ const MessagesPage = () => {
       );
 
       const mergedCandidatesMap = new Map();
-      [...(Array.isArray(followersList) ? followersList : []), ...(Array.isArray(followingList) ? followingList : [])].forEach((item) => {
+      (Array.isArray(followingList) ? followingList : []).forEach((item) => {
         const normalized = normalizeUserItem(item);
         if (!normalized) {
           return;
@@ -286,8 +370,8 @@ const MessagesPage = () => {
 
     const selected = chats.find((chatItem) => chatItem.chat_id === chatId) || null;
     if (selected?.type === "direct") {
-      const allowed = await canDirectMessageTarget(selected.other_user_id);
-      if (!allowed) {
+      const canView = canViewDirectMessagesFromTarget(selected.other_user_id);
+      if (!canView) {
         setMessages([]);
         setAccessNotice(DIRECT_VIEW_RULE_MESSAGE);
         return;
@@ -305,6 +389,7 @@ const MessagesPage = () => {
         ? chatMessages[chatMessages.length - 1]?.id || 0
         : 0;
       await markChatRead(chatId, lastMessageId).catch(() => null);
+      emitUnreadRefresh();
     } catch (loadError) {
       console.error("Failed to load chat messages:", loadError);
       setMessages([]);
@@ -323,16 +408,130 @@ const MessagesPage = () => {
   }, [selectedChatId]);
 
   useEffect(() => {
+    selectedChatIdRef.current = selectedChatId;
+  }, [selectedChatId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeTick(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      return undefined;
+    }
+
+    let isDisposed = false;
+    let reconnectTimeout = null;
+
+    const connect = () => {
+      if (isDisposed) {
+        return;
+      }
+
+      try {
+        const socket = new WebSocket(toWebSocketUrl("/ws"));
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          if (!isDisposed) {
+            setIsSocketConnected(true);
+          }
+        };
+
+        socket.onmessage = async (event) => {
+          if (isDisposed) {
+            return;
+          }
+
+          let incoming = null;
+          try {
+            incoming = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+
+          const incomingChatId = Number(incoming?.chat_id || 0);
+          const incomingMessageId = Number(incoming?.id || 0);
+          if (!incomingChatId || !incomingMessageId) {
+            return;
+          }
+
+          const refreshedChats = await listChats().catch(() => null);
+          if (Array.isArray(refreshedChats)) {
+            setChats(refreshedChats);
+          }
+
+          if (Number(selectedChatIdRef.current) === incomingChatId) {
+            setMessages((prev) => {
+              if (!Array.isArray(prev)) {
+                return [incoming];
+              }
+              if (prev.some((item) => Number(item?.id) === incomingMessageId)) {
+                return prev;
+              }
+              return [...prev, incoming];
+            });
+            await markChatRead(incomingChatId, incomingMessageId).catch(() => null);
+            emitUnreadRefresh();
+          }
+        };
+
+        socket.onerror = () => {
+          if (!isDisposed) {
+            setIsSocketConnected(false);
+          }
+          if (!isDisposed) {
+            socket.close();
+          }
+        };
+
+        socket.onclose = () => {
+          setIsSocketConnected(false);
+          if (isDisposed) {
+            return;
+          }
+          reconnectTimeout = setTimeout(connect, 2000);
+        };
+      } catch {
+        reconnectTimeout = setTimeout(connect, 2000);
+      }
+    };
+
+    connect();
+
+    return () => {
+      isDisposed = true;
+      setIsSocketConnected(false);
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (socketRef.current) {
+        try {
+          socketRef.current.onclose = null;
+          socketRef.current.close();
+        } catch {
+          // no-op
+        }
+        socketRef.current = null;
+      }
+    };
+  }, [currentUser?.id]);
+
+  useEffect(() => {
     if (!activeDirectTargetId) {
       return;
     }
 
-    if (followingIdSet.has(activeDirectTargetId) || isOwnProfilePublic || profilePublicByUserId[activeDirectTargetId] !== undefined) {
+    if (followingIdSet.has(activeDirectTargetId) || profilePublicByUserId[activeDirectTargetId] !== undefined) {
       return;
     }
 
     ensureTargetPublicStatus(activeDirectTargetId);
-  }, [activeDirectTargetId, followingIdSet, isOwnProfilePublic, profilePublicByUserId]);
+  }, [activeDirectTargetId, followingIdSet, profilePublicByUserId]);
 
   async function handleStartNewChat(userItem) {
     if (!userItem?.id) {
@@ -340,7 +539,7 @@ const MessagesPage = () => {
     }
 
     const targetId = Number(userItem.id);
-    let allowed = followingIdSet.has(targetId) || isOwnProfilePublic;
+    let allowed = followingIdSet.has(targetId);
 
     if (!allowed) {
       if (userItem.profile_type) {
@@ -351,7 +550,7 @@ const MessagesPage = () => {
     }
 
     if (!allowed) {
-      setError(DIRECT_CHAT_RULE_MESSAGE);
+      setError(DIRECT_SEND_RULE_MESSAGE);
       return;
     }
 
@@ -377,7 +576,7 @@ const MessagesPage = () => {
     }
 
     if (!canSendInCurrentContext) {
-      setError(DIRECT_CHAT_RULE_MESSAGE);
+      setError(DIRECT_SEND_RULE_MESSAGE);
       return;
     }
 
@@ -463,7 +662,13 @@ const MessagesPage = () => {
                           height={18}
                           className="h-4.5 w-4.5 rounded-full"
                         />
-                        <span className="truncate text-xs text-purple-100">{candidate.display_name}</span>
+                        <Link
+                          href={`/profile/${candidate.id}`}
+                          className="truncate text-xs text-purple-100 hover:text-purple-200"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {candidate.display_name}
+                        </Link>
                       </button>
                     ))}
                   </div>
@@ -503,8 +708,18 @@ const MessagesPage = () => {
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-purple-100 text-sm font-semibold truncate">{rowTitle}</span>
-                            <span className="text-[11px] text-purple-300 shrink-0">{formatListTime(chatItem.last_message_at)}</span>
+                            {chatItem.type === "direct" && chatItem.other_user_id ? (
+                              <Link
+                                href={`/profile/${chatItem.other_user_id}`}
+                                className="text-purple-100 text-sm font-semibold truncate hover:text-purple-200"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {rowTitle}
+                              </Link>
+                            ) : (
+                              <span className="text-purple-100 text-sm font-semibold truncate">{rowTitle}</span>
+                            )}
+                            <span className="text-[11px] text-purple-300 shrink-0">{formatListTime(chatItem.last_message_at, timeTick)}</span>
                           </div>
                           <div className="flex items-center justify-between gap-2 mt-0.5">
                             <span className="text-xs text-purple-300 truncate">
@@ -532,16 +747,31 @@ const MessagesPage = () => {
                   className="h-6 w-6 rounded-full"
                 />
                 <div className="min-w-0">
-                  <h1 className="text-sm font-semibold text-purple-100 truncate">
-                    {selectedChat ? formatChatTitle(selectedChat) : (newChatTarget?.display_name || "Messages")}
-                  </h1>
-                  <p className="text-[11px] text-purple-300">{newChatTarget ? "Start new chat" : "Active now"}</p>
+                  {selectedChat?.type === "direct" && selectedChat?.other_user_id ? (
+                    <Link
+                      href={`/profile/${selectedChat.other_user_id}`}
+                      className="text-sm font-semibold text-purple-100 truncate hover:text-purple-200"
+                    >
+                      {formatChatTitle(selectedChat)}
+                    </Link>
+                  ) : newChatTarget?.id ? (
+                    <Link
+                      href={`/profile/${newChatTarget.id}`}
+                      className="text-sm font-semibold text-purple-100 truncate hover:text-purple-200"
+                    >
+                      {newChatTarget.display_name}
+                    </Link>
+                  ) : (
+                    <h1 className="text-sm font-semibold text-purple-100 truncate">Messages</h1>
+                  )}
+                  <p className="text-[11px] text-purple-300">{headerActivityText}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-purple-300 text-sm">
-                <span>◌</span>
-                <span>◻</span>
-                <span>⋮</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-purple-200">
+                  <span className={`h-2 w-2 rounded-full ${isSocketConnected ? "bg-green-400" : "bg-gray-500"}`} />
+                  {isSocketConnected ? "Live" : "Offline"}
+                </span>
               </div>
             </header>
 
@@ -572,7 +802,7 @@ const MessagesPage = () => {
                 </div>
               )}
               {selectedChat?.type === "direct" && !canSendInCurrentContext ? (
-                <p className="text-xs text-red-300 mt-2">{DIRECT_CHAT_RULE_MESSAGE}</p>
+                <p className="text-xs text-red-300 mt-2">{DIRECT_SEND_RULE_MESSAGE}</p>
               ) : null}
             </div>
 

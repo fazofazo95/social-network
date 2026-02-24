@@ -7,12 +7,25 @@ import { useRouter } from "next/navigation";
 import IconButton from "./IconButton";
 import SearchBar from "./SearchBar";
 import { logoutUser } from "src/lib/services/auth";
+import { listChats } from "src/lib/services/chat";
+import { getApiBaseUrl } from "src/lib/apiClient";
+
+function toWebSocketUrl(path = "/ws") {
+  const baseUrl = getApiBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (baseUrl.startsWith("https://")) {
+    return `${baseUrl.replace("https://", "wss://")}${normalizedPath}`;
+  }
+  return `${baseUrl.replace("http://", "ws://")}${normalizedPath}`;
+}
 
 const NavBar = () => {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const menuRef = useRef(null);
+  const wsRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -24,6 +37,87 @@ const NavBar = () => {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let reconnectTimeout = null;
+
+    async function refreshUnreadCount() {
+      try {
+        const chats = await listChats();
+        if (disposed) return;
+        const unread = (Array.isArray(chats) ? chats : []).filter((chatItem) => !chatItem?.seen).length;
+        setUnreadMessagesCount(unread);
+      } catch {
+        if (!disposed) {
+          setUnreadMessagesCount(0);
+        }
+      }
+    }
+
+    const connect = () => {
+      if (disposed) return;
+
+      try {
+        const socket = new WebSocket(toWebSocketUrl("/ws"));
+        wsRef.current = socket;
+
+        socket.onopen = () => {
+          refreshUnreadCount();
+        };
+
+        socket.onmessage = () => {
+          refreshUnreadCount();
+        };
+
+        socket.onerror = () => {
+          if (!disposed) socket.close();
+        };
+
+        socket.onclose = () => {
+          if (disposed) return;
+          reconnectTimeout = setTimeout(connect, 2000);
+        };
+      } catch {
+        reconnectTimeout = setTimeout(connect, 2000);
+      }
+    };
+
+    const handleUnreadRefresh = () => {
+      refreshUnreadCount();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshUnreadCount();
+      }
+    };
+
+    refreshUnreadCount();
+    const poll = setInterval(refreshUnreadCount, 30000);
+    window.addEventListener("messages:unread-refresh", handleUnreadRefresh);
+    window.addEventListener("focus", handleUnreadRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    connect();
+
+    return () => {
+      disposed = true;
+      clearInterval(poll);
+      window.removeEventListener("messages:unread-refresh", handleUnreadRefresh);
+      window.removeEventListener("focus", handleUnreadRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) {
+        try {
+          wsRef.current.onclose = null;
+          wsRef.current.close();
+        } catch {
+          // no-op
+        }
+        wsRef.current = null;
+      }
     };
   }, []);
 
@@ -62,6 +156,20 @@ const NavBar = () => {
           alt="Notification Icon" 
           iconSize={17}
         />
+
+        <Link href="/messages" className="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-white hover:bg-(--color-customPurple) transition" aria-label="Messages">
+          <Image
+            src="/echo_icon.svg"
+            alt="Messages Icon"
+            width={18}
+            height={18}
+          />
+          {unreadMessagesCount > 0 ? (
+            <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+              {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+            </span>
+          ) : null}
+        </Link>
 
         <div className="relative" ref={menuRef}>
           <IconButton
