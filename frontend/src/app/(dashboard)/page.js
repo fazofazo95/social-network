@@ -42,13 +42,27 @@ export default function App() {
         const profile = await fetchUserData("me");
         const userId = profile?.id;
         const userPosts = userId ? await getUserPosts(userId, 1, 10) : [];
+        const safePosts = Array.isArray(userPosts) ? userPosts : [];
+
+        const commentsEntries = await Promise.all(
+          safePosts.map(async (post) => {
+            try {
+              const comments = await getPostComments(post.id);
+              return [post.id, comments];
+            } catch {
+              return [post.id, []];
+            }
+          })
+        );
+
         setUserData(profile || {});
-        setPosts(Array.isArray(userPosts) ? userPosts : []);
-        setCommentsByPost({});
+        setPosts(safePosts);
+        setCommentsByPost(Object.fromEntries(commentsEntries));
       } catch (error) {
         console.error("Error loading dashboard:", error);
         setUserData({});
         setPosts([]);
+        setCommentsByPost({});
       } finally {
         setIsLoading(false);
       }
