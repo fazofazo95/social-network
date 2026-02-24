@@ -545,7 +545,7 @@ const Profile = () => {
                       height={30}
                     />
                     <div className="flex flex-col">
-                      <h1 className="font-bold text-lg leading-tight">{fullName}</h1>
+                      <Link href="/profile" className="font-bold text-lg leading-tight">{fullName}</Link>
                       {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
                     </div>
                   </div>
@@ -700,9 +700,18 @@ const Profile = () => {
                                 />
                               </div>
                               <div className="flex flex-col leading-tight">
-                                <span className="text-sm font-medium">
-                                  {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                                </span>
+                                {comment.user_id ? (
+                                  <Link
+                                    href={comment.user_id === profileData.id ? "/profile" : `/profile/${comment.user_id}`}
+                                    className="text-sm font-medium"
+                                  >
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                  </Link>
+                                ) : (
+                                  <span className="text-sm font-medium">
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                  </span>
+                                )}
                                 {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
                                   <span className="text-xs text-gray-500 mt-0.5">
                                     {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}

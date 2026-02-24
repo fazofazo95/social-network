@@ -285,7 +285,12 @@ const UserProfilePage = () => {
                     width={30}
                     height={30}
                   />
-                  <h1 className="font-bold text-lg">{fullName}</h1>
+                  <Link
+                    href={post.user_id ? `/profile/${post.user_id}` : (targetUserId ? `/profile/${targetUserId}` : "/profile")}
+                    className="font-bold text-lg"
+                  >
+                    {fullName}
+                  </Link>
                 </div>
                 {postDateLabel ? <span className="text-sm text-gray-500 ml-4 mb-2">{postDateLabel}</span> : null}
                 <p>{post.content}</p>

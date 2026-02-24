@@ -1,5 +1,6 @@
 'use client';
 import Image from "next/image";
+import Link from "next/link";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
@@ -458,9 +459,15 @@ export default function App() {
                   height={30}
                 />
                 <div className="flex flex-col">
-                  <h1 className="font-bold text-lg leading-tight">
-                    {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
-                  </h1>
+                  {post.user_id ? (
+                    <Link href={`/profile/${post.user_id}`} className="font-bold text-lg leading-tight">
+                      {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
+                    </Link>
+                  ) : (
+                    <h1 className="font-bold text-lg leading-tight">
+                      {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
+                    </h1>
+                  )}
                   {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
                 </div>
               </div>
@@ -617,9 +624,15 @@ export default function App() {
                             />
                           </div>
                           <div className="flex flex-col leading-tight">
-                            <span className="text-sm font-medium">
-                              {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                            </span>
+                            {comment.user_id ? (
+                              <Link href={`/profile/${comment.user_id}`} className="text-sm font-medium">
+                                {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                              </Link>
+                            ) : (
+                              <span className="text-sm font-medium">
+                                {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                              </span>
+                            )}
                             {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
                               <span className="text-xs text-gray-500 mt-0.5">
                                 {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
