@@ -48,6 +48,7 @@ All endpoints below:
 
 - `POST /api/groups`
 - `GET /api/groups/discover`
+- `GET /api/groups/active`
 - `GET /api/groups/{id}`
 - `GET /api/groups/{id}/members`
 - `GET /api/groups/{id}/requests/pending`
@@ -153,6 +154,35 @@ Rules applied:
       }
     ]
   }
+}
+```
+
+## 2b) Active Groups (current user)
+
+### `GET /api/groups/active`
+**Who can use:** any authenticated user.
+
+Returns groups where the current user has an active membership.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "active groups",
+  "data": [
+    {
+      "id": 12,
+      "name": "Board Games Club",
+      "description": "Weekly meetups",
+      "group_picture": "",
+      "group_members": 23,
+      "owner_id": 3,
+      "owner_first_name": "Alex",
+      "owner_last_name": "Lee",
+      "role": "member",
+      "created_at": "2026-02-19 10:08:56"
+    }
+  ]
 }
 ```
 

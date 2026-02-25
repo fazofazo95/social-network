@@ -5,12 +5,14 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
-import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
-import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
+import { createPost, getFeedPosts, getUserPosts } from "src/lib/services/post";
 import { getFollowers, getFollowing } from "src/lib/services/follow";
+import { getPostComments } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
-import { getApiBaseUrl } from "src/lib/apiClient";
+import { usePostComments } from "src/lib/hooks/usePostComments";
+import { toUploadUrl } from "src/lib/utils/mediaUrl";
+import CommentThread from "src/components/posts/CommentThread";
 
 
 export default function App() {
@@ -24,30 +26,35 @@ export default function App() {
   const [selectiveUsers, setSelectiveUsers] = useState([]);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [submitError, setSubmitError] = useState("");
-  const [commentsByPost, setCommentsByPost] = useState({});
-  const [commentsLoadingByPost, setCommentsLoadingByPost] = useState({});
-  const [commentInputByPost, setCommentInputByPost] = useState({});
-  const [commentImageByPost, setCommentImageByPost] = useState({});
-  const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
-  const [commentErrorByPost, setCommentErrorByPost] = useState({});
-  const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
-  const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
-  const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editingPostContent, setEditingPostContent] = useState("");
-  const [postActionLoadingById, setPostActionLoadingById] = useState({});
-  const [postActionErrorById, setPostActionErrorById] = useState({});
-
-   function toUploadUrl(path) {
-      if (!path) return "";
-      if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
-        return path;
-      }
-      if (path.startsWith("/uploads/")) {
-        return `${getApiBaseUrl()}${path}`;
-      }
-      return "";
-   }
+  const {
+    commentsByPost,
+    setCommentsByPost,
+    commentsLoadingByPost,
+    commentInputByPost,
+    setCommentInputByPost,
+    commentImageByPost,
+    setCommentImageByPost,
+    commentSubmittingByPost,
+    commentErrorByPost,
+    editingCommentIdByPost,
+    setEditingCommentIdByPost,
+    editingCommentContentByPost,
+    setEditingCommentContentByPost,
+    commentActionLoadingById,
+    editingPostId,
+    setEditingPostId,
+    editingPostContent,
+    setEditingPostContent,
+    postActionLoadingById,
+    postActionErrorById,
+    loadComments,
+    handleCommentSubmit,
+    handleDeleteComment,
+    handleSaveCommentEdit,
+    handleStartEditPost,
+    handleSavePostEdit,
+    handleDeletePost,
+  } = usePostComments({ setPosts });
 
    async function loadDashboardData() {
       setIsLoading(true);
@@ -112,173 +119,6 @@ export default function App() {
       });
    }
 
-   async function loadComments(postId) {
-      setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: true }));
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
-      try {
-        const comments = await getPostComments(postId);
-        setCommentsByPost((prev) => ({ ...prev, [postId]: comments }));
-      } catch (error) {
-        console.error("Error loading comments:", error);
-        setCommentsByPost((prev) => ({ ...prev, [postId]: [] }));
-        setCommentErrorByPost((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to load echoes.",
-        }));
-      } finally {
-        setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: false }));
-      }
-   }
-
-   async function handleCommentSubmit(event, postId) {
-      event.preventDefault();
-
-      const content = (commentInputByPost[postId] || "").trim();
-      const image = commentImageByPost[postId] || null;
-
-      if (!content) {
-        setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
-        return;
-      }
-
-      setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: true }));
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
-
-      const formData = new FormData();
-      formData.append("content", content);
-      formData.append("parent_type", "post");
-      formData.append("parent_id", String(postId));
-      if (image) {
-        formData.append("avatar", image);
-      }
-
-      try {
-        await createComment(formData);
-        setCommentInputByPost((prev) => ({ ...prev, [postId]: "" }));
-        setCommentImageByPost((prev) => ({ ...prev, [postId]: null }));
-        await loadComments(postId);
-      } catch (error) {
-        console.error("Error creating comment:", error);
-        setCommentErrorByPost((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to create echo.",
-        }));
-      } finally {
-        setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
-      }
-   }
-
-   async function handleDeleteComment(postId, commentId) {
-      if (!commentId) return;
-
-      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
-      try {
-        await deleteComment(commentId);
-        await loadComments(postId);
-      } catch (error) {
-        console.error("Error deleting comment:", error);
-        setCommentErrorByPost((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to delete echo.",
-        }));
-      } finally {
-        setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
-      }
-   }
-
-   async function handleSaveCommentEdit(postId, commentId) {
-      const content = (editingCommentContentByPost[postId] || "").trim();
-      if (!content) {
-        setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
-        return;
-      }
-
-      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
-      try {
-        await updateComment(commentId, content);
-        setEditingCommentIdByPost((prev) => ({ ...prev, [postId]: null }));
-        setEditingCommentContentByPost((prev) => ({ ...prev, [postId]: "" }));
-        await loadComments(postId);
-      } catch (error) {
-        console.error("Error updating comment:", error);
-        setCommentErrorByPost((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to update echo.",
-        }));
-      } finally {
-        setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
-      }
-   }
-
-   async function handleStartEditPost(postId) {
-      if (!postId) return;
-
-      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
-      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
-      try {
-        const post = await getPostById(postId);
-        setEditingPostId(postId);
-        setEditingPostContent(post?.content || "");
-      } catch (error) {
-        console.error("Error loading post for edit:", error);
-        setPostActionErrorById((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to load post.",
-        }));
-      } finally {
-        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
-      }
-   }
-
-   async function handleSavePostEdit(postId) {
-      const content = editingPostContent.trim();
-      if (!content) {
-        setPostActionErrorById((prev) => ({ ...prev, [postId]: "Post content is required." }));
-        return;
-      }
-
-      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
-      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
-      try {
-        await updatePost(postId, content);
-        setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, content } : post)));
-        setEditingPostId(null);
-        setEditingPostContent("");
-      } catch (error) {
-        console.error("Error updating post:", error);
-        setPostActionErrorById((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to update post.",
-        }));
-      } finally {
-        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
-      }
-   }
-
-   async function handleDeletePost(postId) {
-      if (!postId) return;
-
-      setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
-      setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
-      try {
-        await deletePost(postId);
-        setPosts((prev) => prev.filter((post) => post.id !== postId));
-        if (editingPostId === postId) {
-          setEditingPostId(null);
-          setEditingPostContent("");
-        }
-      } catch (error) {
-        console.error("Error deleting post:", error);
-        setPostActionErrorById((prev) => ({
-          ...prev,
-          [postId]: error?.message || "Failed to delete post.",
-        }));
-      } finally {
-        setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
-      }
-   }
 
    async function handleSubmit(event) {
       event.preventDefault();
@@ -436,7 +276,6 @@ export default function App() {
       ) : (
         posts.map((post) => {
           const echoSectionId = `echo-section-${post.id}`;
-          const echoPhotoUploadId = `echo-photo-upload-${post.id}`;
           const comments = commentsByPost[post.id] || [];
           const isCommentsLoading = commentsLoadingByPost[post.id];
           const commentValue = commentInputByPost[post.id] || "";
@@ -553,164 +392,43 @@ export default function App() {
               id={echoSectionId}
               className="border-t border-gray-200 rounded mt-2 pt-2 gap-2 hidden flex-col"
             >
-              <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
-                <Image
-                  src={parseProfileImage(userData.profile_picture)}
-                  alt="Profile Icon"
-                  width={25}
-                  height={25}
-                />
-                <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
-                  <input
-                    type="text"
-                    placeholder="Write a comment..."
-                    className="focus:outline-none w-full pl-1 bg-transparent"
-                    value={commentValue}
-                    onChange={(event) =>
-                      setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
-                    }
-                    disabled={isCommentSubmitting}
-                  />
-
-                  <label
-                    htmlFor={echoPhotoUploadId}
-                    className="flex items-center gap-1 cursor-pointer px-1"
-                  >
-                    <Image
-                      src="/photo_icon.svg"
-                      alt="Share Icon"
-                      width={20}
-                      height={20}
-                    />
-                    <input
-                      id={echoPhotoUploadId}
-                      type="file"
-                      className="font-medium cursor-pointer text-black hidden"
-                      accept="image/*"
-                      onChange={(event) =>
-                        setCommentImageByPost((prev) => ({ ...prev, [post.id]: event.target.files?.[0] || null }))
-                      }
-                      disabled={isCommentSubmitting}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="submit"
-                  className="text-sm px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
-                  disabled={isCommentSubmitting}
-                >
-                  {isCommentSubmitting ? "Sending..." : "Send"}
-                </button>
-              </form>
-
-              {commentError ? <p className="text-red-600 text-sm">{commentError}</p> : null}
-
-              <div className="flex flex-col gap-2">
-                {isCommentsLoading ? (
-                  <p className="text-sm text-gray-500">Loading echoes...</p>
-                ) : comments.length === 0 ? (
-                  <p className="text-sm text-gray-500">No echoes yet.</p>
-                ) : (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 rounded p-2">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="flex items-start gap-2">
-                          <div className="pt-0.5">
-                            <Image
-                              src={parseProfileImage(comment.author_profile_picture)}
-                              alt="Comment author"
-                              width={20}
-                              height={20}
-                            />
-                          </div>
-                          <div className="flex flex-col leading-tight">
-                            {comment.user_id ? (
-                              <Link href={`/profile/${comment.user_id}`} className="text-sm font-medium">
-                                {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                              </Link>
-                            ) : (
-                              <span className="text-sm font-medium">
-                                {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
-                              </span>
-                            )}
-                            {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
-                              <span className="text-xs text-gray-500 mt-0.5">
-                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        {comment.user_id === userData.id ? (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
-                              onClick={() => {
-                                setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
-                                setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
-                              }}
-                              disabled={!!commentActionLoadingById[comment.id]}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
-                              onClick={() => handleDeleteComment(post.id, comment.id)}
-                              disabled={!!commentActionLoadingById[comment.id]}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                      {editingCommentIdByPost[post.id] === comment.id ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            className="border rounded px-2 py-1 text-sm flex-1"
-                            value={editingCommentContentByPost[post.id] || ""}
-                            onChange={(event) =>
-                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
-                            }
-                          />
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
-                            onClick={() => handleSaveCommentEdit(post.id, comment.id)}
-                            disabled={!!commentActionLoadingById[comment.id]}
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
-                            onClick={() => {
-                              setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
-                              setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="text-sm">{comment.content}</p>
-                      )}
-                      {comment.image ? (
-                        <div className="mt-2">
-                          <Image
-                            src={toUploadUrl(comment.image)}
-                            alt="Comment image"
-                            width={300}
-                            height={180}
-                            className="rounded w-full h-auto"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
+              <CommentThread
+                postId={post.id}
+                currentUserId={userData.id}
+                currentUserProfilePicture={userData.profile_picture}
+                commentValue={commentValue}
+                onCommentChange={(value) =>
+                  setCommentInputByPost((prev) => ({ ...prev, [post.id]: value }))
+                }
+                onCommentImageChange={(file) =>
+                  setCommentImageByPost((prev) => ({ ...prev, [post.id]: file }))
+                }
+                onSubmit={(event) => handleCommentSubmit(event, post.id)}
+                isCommentSubmitting={isCommentSubmitting}
+                commentError={commentError}
+                comments={comments}
+                isCommentsLoading={isCommentsLoading}
+                editingCommentId={editingCommentIdByPost[post.id]}
+                editingCommentContent={editingCommentContentByPost[post.id] || ""}
+                onStartEdit={(comment) => {
+                  setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
+                  setEditingCommentContentByPost((prev) => ({
+                    ...prev,
+                    [post.id]: comment.content || "",
+                  }));
+                }}
+                onEditContentChange={(value) =>
+                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: value }))
+                }
+                onSaveEdit={(commentId) => handleSaveCommentEdit(post.id, commentId)}
+                onCancelEdit={() => {
+                  setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
+                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
+                }}
+                onDelete={(commentId) => handleDeleteComment(post.id, commentId)}
+                commentActionLoadingById={commentActionLoadingById}
+                toUploadUrl={toUploadUrl}
+              />
             </div>
             </article>
           );

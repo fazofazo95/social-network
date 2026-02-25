@@ -46,3 +46,16 @@ type GroupDiscoverItem struct {
 	OwnerLast    string `json:"owner_last_name"`
 	Type         string `json:"type"`
 }
+
+type GroupActiveItem struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	GroupPicture string `json:"group_picture"`
+	GroupMembers int    `json:"group_members"`
+	OwnerID      int    `json:"owner_id"`
+	OwnerFirst   string `json:"owner_first_name"`
+	OwnerLast    string `json:"owner_last_name"`
+	Role         string `json:"role"`
+	CreatedAt    string `json:"created_at"`
+}

@@ -1335,6 +1335,49 @@ func DiscoverGroups(ctx context.Context, db *sql.DB, userID, limit, offset int) 
 	return out, nil
 }
 
+func GetActiveGroupsForUser(ctx context.Context, db *sql.DB, userID int) ([]models.GroupActiveItem, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT g.id, g.name, COALESCE(g.description, ''), COALESCE(g.group_picture, ''), g.group_members,
+		       g.owner_id, COALESCE(u.first_name, ''), COALESCE(u.last_name, ''), gm.role,
+		       COALESCE(datetime(g.created_at), '')
+		FROM group_members gm
+		JOIN groups g ON g.id = gm.group_id
+		JOIN users u ON u.id = g.owner_id
+		WHERE gm.user_id = ? AND gm.status = 'active'
+		ORDER BY g.created_at DESC, g.id DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupActiveItem, 0)
+	for rows.Next() {
+		var item models.GroupActiveItem
+		if err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Description,
+			&item.GroupPicture,
+			&item.GroupMembers,
+			&item.OwnerID,
+			&item.OwnerFirst,
+			&item.OwnerLast,
+			&item.Role,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 func RemovePendingGroupInvite(ctx context.Context, db *sql.DB, actorID, groupID, targetUserID int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
