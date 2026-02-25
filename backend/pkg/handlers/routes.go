@@ -87,6 +87,11 @@ func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(DeleteGroupHandler, auth))
 }
 
+func ReactionRoutes(mux *http.ServeMux, db *sql.DB) {
+	mux.Handle("POST /api/posts/{id}/reactions", middleware.Chain(AddReactionHandler, auth))
+	mux.Handle("DELETE /api/posts/{id}/reactions", middleware.Chain(RemoveReactionHandler, auth))
+}
+
 func ChatRoutes(mux *http.ServeMux, hub *websocket.Hub) {
 	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws.ServeWs(hub, w, r)
