@@ -52,6 +52,13 @@ All endpoints below:
 - `GET /api/groups/requests/pending`
 - `GET /api/groups/invites/pending`
 - `GET /api/groups/{id}`
+- `POST /api/groups/{id}/events`
+- `GET /api/groups/{id}/events/{event_id}/inviteable`
+- `POST /api/groups/{id}/events/{event_id}/invites/all`
+- `POST /api/groups/{id}/events/{event_id}/invites/{user_id}`
+- `POST /api/groups/{id}/events/{event_id}/respond`
+- `PATCH /api/groups/{id}/events/{event_id}/respond`
+- `DELETE /api/groups/{id}/events/{event_id}`
 - `GET /api/groups/{id}/members`
 - `GET /api/groups/{id}/requests/pending`
 - `GET /api/groups/{id}/invites/pending`
@@ -245,6 +252,181 @@ Returns groups where the current user has a pending invite.
       "type": "invited"
     }
   ]
+}
+```
+
+## 2e) Create Group Event
+
+### `POST /api/groups/{id}/events`
+**Who can use:** owner or moderator only.
+
+Creates a group event. The creator is auto-marked as going.
+
+### Request body
+```json
+{
+  "title": "Game Night",
+  "description": "Bring your favorite board game",
+  "event_day": "2026-03-01",
+  "event_time": "19:30"
+}
+```
+
+## 2f) List Inviteable Members (Group Event)
+
+### `GET /api/groups/{id}/events/{event_id}/inviteable`
+**Who can use:** any active member of the group who is invited/responded.
+
+Returns active members who have not been invited or responded yet.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event inviteable members",
+  "data": [
+    {
+      "id": 7,
+      "first_name": "Sam",
+      "last_name": "Wong",
+      "profile_picture": "sam.jpg",
+      "group_status": "member"
+    }
+  ]
+}
+```
+
+## 2g) Invite All Members (Group Event)
+
+### `POST /api/groups/{id}/events/{event_id}/invites/all`
+**Who can use:** any active member of the group who is invited/responded.
+
+Invites all active members who have not been invited or responded yet.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event invites sent",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "invited": 9
+  }
+}
+```
+
+## 2h) Invite One Member (Group Event)
+
+### `POST /api/groups/{id}/events/{event_id}/invites/{user_id}`
+**Who can use:** any active member of the group who is invited/responded.
+
+Invites a single active member who has not been invited or responded yet.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event invite sent",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "user_id": 7
+  }
+}
+```
+
+## 2i) Respond to Group Event Invite
+
+### `POST /api/groups/{id}/events/{event_id}/respond`
+**Who can use:** invited members only.
+
+Records a response to an event invite. Valid reactions: `going`, `not_going`.
+
+### Request body
+```json
+{
+  "reaction_type": "going"
+}
+```
+
+## 2j) Change Group Event Response
+
+### `PATCH /api/groups/{id}/events/{event_id}/respond`
+**Who can use:** members who already responded.
+
+Changes a response between `going` and `not_going`.
+
+### Request body
+```json
+{
+  "reaction_type": "not_going"
+}
+```
+
+## 2k) Cancel Group Event
+
+### `DELETE /api/groups/{id}/events/{event_id}`
+**Who can use:** owner or moderator only.
+
+Deletes the event and all related rows.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event cancelled",
+  "data": {
+    "group_id": 12,
+    "event_id": 5
+  }
+}
+```
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event response updated",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "reaction_type": "not_going"
+  }
+}
+```
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event response recorded",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "reaction_type": "going"
+  }
+}
+```
+
+### Success (201)
+```json
+{
+  "status": "success",
+  "message": "group event created",
+  "data": {
+    "id": 5,
+    "group_id": 12,
+    "creator_id": 3,
+    "title": "Game Night",
+    "description": "Bring your favorite board game",
+    "event_day": "2026-03-01",
+    "event_time": "19:30",
+    "created_at": "2026-02-25 14:03:11",
+    "going": 0,
+    "not_going": 0,
+    "invited": 0
+  }
 }
 ```
 

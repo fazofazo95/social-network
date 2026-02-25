@@ -12,6 +12,7 @@ import (
 var (
 	ErrGroupNameTaken           = errors.New("group name already in use")
 	ErrGroupNotFound            = errors.New("group not found")
+	ErrGroupEventNotFound       = errors.New("group event not found")
 	ErrNotGroupOwner            = errors.New("only the group owner can delete the group")
 	ErrPrivateGroup             = errors.New("cannot join private group from this endpoint")
 	ErrInviteOnlyGroup          = errors.New("group is invite-only")
@@ -25,6 +26,14 @@ var (
 	ErrCannotKickGroupStaff     = errors.New("cannot kick owner or moderator")
 	ErrGroupMemberRoleMismatch  = errors.New("group member role mismatch")
 	ErrGroupMemberIsActive      = errors.New("group member is active")
+	ErrNotActiveGroupMember     = errors.New("user is not an active group member")
+	ErrTargetNotActiveMember    = errors.New("target user is not an active group member")
+	ErrCannotInviteSelf         = errors.New("cannot invite yourself")
+	ErrGroupEventAlreadyAnswered = errors.New("user already invited or responded to event")
+	ErrNotInvitedToEvent        = errors.New("user is not invited or responded to event")
+	ErrGroupEventAlreadyResponded = errors.New("user already responded to event")
+	ErrGroupEventNoResponseToChange = errors.New("no event response to change")
+	ErrGroupEventResponseUnchanged  = errors.New("event response already set")
 )
 
 func ensureGroupChatIDTx(ctx context.Context, tx *sql.Tx, groupID int) (int, error) {
@@ -1149,6 +1158,65 @@ func isGroupModeratorOrOwner(ctx context.Context, db *sql.DB, groupID, userID in
 	return false, nil
 }
 
+func isActiveGroupMember(ctx context.Context, db *sql.DB, groupID, userID int) (bool, error) {
+	var exists int
+	err := db.QueryRowContext(ctx, `
+		SELECT 1
+		FROM group_members
+		WHERE group_id = ? AND user_id = ? AND status = 'active'
+		LIMIT 1
+	`, groupID, userID).Scan(&exists)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+
+	var groupExists int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM groups WHERE id = ?`, groupID).Scan(&groupExists); err != nil {
+		return false, err
+	}
+	if groupExists == 0 {
+		return false, ErrGroupNotFound
+	}
+
+	return false, nil
+}
+
+func getGroupEventCreator(ctx context.Context, db *sql.DB, groupID, eventID int) (int, error) {
+	var creatorID int
+	err := db.QueryRowContext(ctx, `
+		SELECT creator_id
+		FROM group_events
+		WHERE id = ? AND group_id = ?
+	`, eventID, groupID).Scan(&creatorID)
+	if err == nil {
+		return creatorID, nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrGroupEventNotFound
+	}
+	return 0, err
+}
+
+func hasGroupEventReaction(ctx context.Context, db *sql.DB, eventID, userID int) (bool, error) {
+	var exists int
+	err := db.QueryRowContext(ctx, `
+		SELECT 1
+		FROM group_events_reaction
+		WHERE event_id = ? AND reactor_id = ?
+		LIMIT 1
+	`, eventID, userID).Scan(&exists)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+	return false, nil
+}
+
 func GetPendingGroupJoinRequests(ctx context.Context, db *sql.DB, actorID, groupID int) ([]models.GroupPendingItem, error) {
 	allowed, err := isGroupModeratorOrOwner(ctx, db, groupID, actorID)
 	if err != nil {
@@ -1376,6 +1444,438 @@ func GetActiveGroupsForUser(ctx context.Context, db *sql.DB, userID int) ([]mode
 	}
 
 	return out, nil
+}
+
+func CreateGroupEvent(ctx context.Context, db *sql.DB, actorID, groupID int, in models.GroupEventCreateInput) (models.GroupEvent, error) {
+	var out models.GroupEvent
+
+	allowed, err := isGroupModeratorOrOwner(ctx, db, groupID, actorID)
+	if err != nil {
+		return out, err
+	}
+	if !allowed {
+		return out, ErrNotGroupModeratorOrOwner
+	}
+
+	res, err := db.ExecContext(ctx, `
+		INSERT INTO group_events (group_id, creator_id, title, description, event_day, event_time, going)
+		VALUES (?, ?, ?, ?, ?, ?, 1)
+	`, groupID, actorID, in.Title, in.Description, in.EventDay, in.EventTime)
+	if err != nil {
+		return out, err
+	}
+
+	newID, err := res.LastInsertId()
+	if err != nil {
+		return out, err
+	}
+
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO group_events_reaction (event_id, group_id, creator_id, reactor_id, reaction_type)
+		VALUES (?, ?, ?, ?, 'going')
+	`, newID, groupID, actorID, actorID); err != nil {
+		return out, err
+	}
+
+	if err := db.QueryRowContext(ctx, `
+		SELECT id, group_id, creator_id, title, COALESCE(description, ''),
+		       COALESCE(date(event_day), ''), COALESCE(time(event_time), ''),
+		       COALESCE(datetime(created_at), ''), going, not_going, invited
+		FROM group_events
+		WHERE id = ?
+	`, newID).Scan(
+		&out.ID,
+		&out.GroupID,
+		&out.CreatorID,
+		&out.Title,
+		&out.Description,
+		&out.EventDay,
+		&out.EventTime,
+		&out.CreatedAt,
+		&out.Going,
+		&out.NotGoing,
+		&out.Invited,
+	); err != nil {
+		return out, err
+	}
+
+	return out, nil
+}
+
+func GetGroupEventInviteableMembers(ctx context.Context, db *sql.DB, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error) {
+	active, err := isActiveGroupMember(ctx, db, groupID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !active {
+		return nil, ErrNotActiveGroupMember
+	}
+
+	inviterHasReaction, err := hasGroupEventReaction(ctx, db, eventID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !inviterHasReaction {
+		return nil, ErrNotInvitedToEvent
+	}
+
+	_, err := getGroupEventCreator(ctx, db, groupID, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, ''), gm.role
+		FROM group_members gm
+		JOIN users u ON u.id = gm.user_id
+		WHERE gm.group_id = ? AND gm.status = 'active'
+		  AND gm.user_id <> ?
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM group_events_reaction ger
+			WHERE ger.event_id = ? AND ger.reactor_id = gm.user_id
+		  )
+		ORDER BY CASE gm.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END,
+			u.first_name, u.last_name
+	`, groupID, actorID, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupMemberListItem, 0)
+	for rows.Next() {
+		var item models.GroupMemberListItem
+		if err := rows.Scan(&item.ID, &item.FirstName, &item.LastName, &item.ProfilePicture, &item.Role); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func InviteGroupEventMember(ctx context.Context, db *sql.DB, actorID, groupID, eventID, targetUserID int) error {
+	if actorID == targetUserID {
+		return ErrCannotInviteSelf
+	}
+
+	active, err := isActiveGroupMember(ctx, db, groupID, actorID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return ErrNotActiveGroupMember
+	}
+
+	inviterHasReaction, err := hasGroupEventReaction(ctx, db, eventID, actorID)
+	if err != nil {
+		return err
+	}
+	if !inviterHasReaction {
+		return ErrNotInvitedToEvent
+	}
+
+	creatorID, err := getGroupEventCreator(ctx, db, groupID, eventID)
+	if err != nil {
+		return err
+	}
+	targetActive, err := isActiveGroupMember(ctx, db, groupID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if !targetActive {
+		return ErrTargetNotActiveMember
+	}
+
+	var existing int
+	if err := db.QueryRowContext(ctx, `
+		SELECT 1
+		FROM group_events_reaction
+		WHERE event_id = ? AND reactor_id = ?
+		LIMIT 1
+	`, eventID, targetUserID).Scan(&existing); err == nil {
+		return ErrGroupEventAlreadyAnswered
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO group_events_reaction (event_id, group_id, creator_id, reactor_id, reaction_type)
+		VALUES (?, ?, ?, ?, 'invited')
+	`, eventID, groupID, creatorID, targetUserID); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE group_events
+		SET invited = invited + 1
+		WHERE id = ?
+	`, eventID); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func InviteAllGroupEventMembers(ctx context.Context, db *sql.DB, actorID, groupID, eventID int) (int, error) {
+	active, err := isActiveGroupMember(ctx, db, groupID, actorID)
+	if err != nil {
+		return 0, err
+	}
+	if !active {
+		return 0, ErrNotActiveGroupMember
+	}
+
+	inviterHasReaction, err := hasGroupEventReaction(ctx, db, eventID, actorID)
+	if err != nil {
+		return 0, err
+	}
+	if !inviterHasReaction {
+		return 0, ErrNotInvitedToEvent
+	}
+
+	creatorID, err := getGroupEventCreator(ctx, db, groupID, eventID)
+	if err != nil {
+		return 0, err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO group_events_reaction (event_id, group_id, creator_id, reactor_id, reaction_type)
+		SELECT ?, ?, ?, gm.user_id, 'invited'
+		FROM group_members gm
+		WHERE gm.group_id = ? AND gm.status = 'active'
+		  AND gm.user_id <> ?
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM group_events_reaction ger
+			WHERE ger.event_id = ? AND ger.reactor_id = gm.user_id
+		  )
+	`, eventID, groupID, creatorID, groupID, actorID, eventID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	if rows > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE group_events
+			SET invited = invited + ?
+			WHERE id = ?
+		`, rows, eventID); err != nil {
+			return 0, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return int(rows), nil
+}
+
+func RespondToGroupEventInvite(ctx context.Context, db *sql.DB, actorID, groupID, eventID int, reactionType string) error {
+	active, err := isActiveGroupMember(ctx, db, groupID, actorID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return ErrNotActiveGroupMember
+	}
+
+	if reactionType != "going" && reactionType != "not_going" {
+		return errors.New("invalid reaction type")
+	}
+
+	if _, err := getGroupEventCreator(ctx, db, groupID, eventID); err != nil {
+		return err
+	}
+
+	var current string
+	err = db.QueryRowContext(ctx, `
+		SELECT reaction_type
+		FROM group_events_reaction
+		WHERE event_id = ? AND reactor_id = ?
+	`, eventID, actorID).Scan(&current)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotInvitedToEvent
+		}
+		return err
+	}
+
+	if current != "invited" {
+		return ErrGroupEventAlreadyResponded
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE group_events_reaction
+		SET reaction_type = ?
+		WHERE event_id = ? AND reactor_id = ?
+	`, reactionType, eventID, actorID); err != nil {
+		return err
+	}
+
+	if reactionType == "going" {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE group_events
+			SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
+			    going = going + 1
+			WHERE id = ?
+		`, eventID); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE group_events
+			SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
+			    not_going = not_going + 1
+			WHERE id = ?
+		`, eventID); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ChangeGroupEventResponse(ctx context.Context, db *sql.DB, actorID, groupID, eventID int, reactionType string) error {
+	active, err := isActiveGroupMember(ctx, db, groupID, actorID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return ErrNotActiveGroupMember
+	}
+
+	if reactionType != "going" && reactionType != "not_going" {
+		return errors.New("invalid reaction type")
+	}
+
+	if _, err := getGroupEventCreator(ctx, db, groupID, eventID); err != nil {
+		return err
+	}
+
+	var current string
+	err = db.QueryRowContext(ctx, `
+		SELECT reaction_type
+		FROM group_events_reaction
+		WHERE event_id = ? AND reactor_id = ?
+	`, eventID, actorID).Scan(&current)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrGroupEventNoResponseToChange
+		}
+		return err
+	}
+
+	if current != "going" && current != "not_going" {
+		return ErrGroupEventNoResponseToChange
+	}
+	if current == reactionType {
+		return ErrGroupEventResponseUnchanged
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE group_events_reaction
+		SET reaction_type = ?
+		WHERE event_id = ? AND reactor_id = ?
+	`, reactionType, eventID, actorID); err != nil {
+		return err
+	}
+
+	if current == "going" {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE group_events
+			SET going = CASE WHEN going > 0 THEN going - 1 ELSE 0 END,
+			    not_going = not_going + 1
+			WHERE id = ?
+		`, eventID); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE group_events
+			SET not_going = CASE WHEN not_going > 0 THEN not_going - 1 ELSE 0 END,
+			    going = going + 1
+			WHERE id = ?
+		`, eventID); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeleteGroupEvent(ctx context.Context, db *sql.DB, actorID, groupID, eventID int) error {
+	allowed, err := isGroupModeratorOrOwner(ctx, db, groupID, actorID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrNotGroupModeratorOrOwner
+	}
+
+	res, err := db.ExecContext(ctx, `
+		DELETE FROM group_events
+		WHERE id = ? AND group_id = ?
+	`, eventID, groupID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrGroupEventNotFound
+	}
+
+	return nil
 }
 
 func GetUserPendingGroupRequests(ctx context.Context, db *sql.DB, userID int) ([]models.GroupUserPendingItem, error) {

@@ -188,6 +188,376 @@ func DiscoverGroupsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func CreateGroupEventHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	var in models.GroupEventCreateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	in.Title = strings.TrimSpace(in.Title)
+	in.Description = strings.TrimSpace(in.Description)
+	in.EventDay = strings.TrimSpace(in.EventDay)
+	in.EventTime = strings.TrimSpace(in.EventTime)
+
+	if in.Title == "" {
+		responses.SendError(w, http.StatusBadRequest, "title is required")
+		return
+	}
+	if in.EventDay == "" {
+		responses.SendError(w, http.StatusBadRequest, "event_day is required")
+		return
+	}
+	if in.EventTime == "" {
+		responses.SendError(w, http.StatusBadRequest, "event_time is required")
+		return
+	}
+
+	created, err := queries.CreateGroupEvent(r.Context(), database.DB, actorID, groupID, in)
+	if err != nil {
+		switch err {
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotGroupModeratorOrOwner:
+			responses.SendError(w, http.StatusForbidden, "only group owner or moderators can create events")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to create group event: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendCreated(w, "group event created", created)
+}
+
+func GroupEventInviteableMembersHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	items, err := queries.GetGroupEventInviteableMembers(r.Context(), database.DB, actorID, groupID, eventID)
+	if err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrNotActiveGroupMember:
+			responses.SendError(w, http.StatusForbidden, "only active group members can invite")
+			return
+		case queries.ErrNotInvitedToEvent:
+			responses.SendError(w, http.StatusForbidden, "only invited/responded members can invite")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to load inviteable members: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event inviteable members", items)
+}
+
+func InviteGroupEventMemberHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	targetUserID, err := strconv.Atoi(r.PathValue("user_id"))
+	if err != nil || targetUserID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid target user id")
+		return
+	}
+
+	if err := queries.InviteGroupEventMember(r.Context(), database.DB, actorID, groupID, eventID, targetUserID); err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotActiveGroupMember:
+			responses.SendError(w, http.StatusForbidden, "only active group members can invite")
+			return
+		case queries.ErrNotInvitedToEvent:
+			responses.SendError(w, http.StatusForbidden, "only invited/responded members can invite")
+			return
+		case queries.ErrTargetNotActiveMember:
+			responses.SendError(w, http.StatusNotFound, "target user is not an active group member")
+			return
+		case queries.ErrCannotInviteSelf:
+			responses.SendError(w, http.StatusBadRequest, "cannot invite yourself")
+			return
+		case queries.ErrGroupEventAlreadyAnswered:
+			responses.SendError(w, http.StatusConflict, "user already invited or responded")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to invite member: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event invite sent", map[string]int{
+		"group_id": groupID,
+		"event_id": eventID,
+		"user_id":  targetUserID,
+	})
+}
+
+func InviteAllGroupEventMembersHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	count, err := queries.InviteAllGroupEventMembers(r.Context(), database.DB, actorID, groupID, eventID)
+	if err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotActiveGroupMember:
+			responses.SendError(w, http.StatusForbidden, "only active group members can invite")
+			return
+		case queries.ErrNotInvitedToEvent:
+			responses.SendError(w, http.StatusForbidden, "only invited/responded members can invite")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to invite members: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event invites sent", map[string]int{
+		"group_id": groupID,
+		"event_id": eventID,
+		"invited":  count,
+	})
+}
+
+func RespondGroupEventInviteHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	var in models.GroupEventResponseInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	in.ReactionType = strings.TrimSpace(strings.ToLower(in.ReactionType))
+	if in.ReactionType != "going" && in.ReactionType != "not_going" {
+		responses.SendError(w, http.StatusBadRequest, "reaction_type must be going or not_going")
+		return
+	}
+
+	if err := queries.RespondToGroupEventInvite(r.Context(), database.DB, actorID, groupID, eventID, in.ReactionType); err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotActiveGroupMember:
+			responses.SendError(w, http.StatusForbidden, "only active group members can respond")
+			return
+		case queries.ErrNotInvitedToEvent:
+			responses.SendError(w, http.StatusForbidden, "user is not invited to this event")
+			return
+		case queries.ErrGroupEventAlreadyResponded:
+			responses.SendError(w, http.StatusConflict, "event response already recorded")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to respond to event: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event response recorded", map[string]interface{}{
+		"group_id":      groupID,
+		"event_id":      eventID,
+		"reaction_type": in.ReactionType,
+	})
+}
+
+func ChangeGroupEventResponseHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	var in models.GroupEventResponseInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	in.ReactionType = strings.TrimSpace(strings.ToLower(in.ReactionType))
+	if in.ReactionType != "going" && in.ReactionType != "not_going" {
+		responses.SendError(w, http.StatusBadRequest, "reaction_type must be going or not_going")
+		return
+	}
+
+	if err := queries.ChangeGroupEventResponse(r.Context(), database.DB, actorID, groupID, eventID, in.ReactionType); err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotActiveGroupMember:
+			responses.SendError(w, http.StatusForbidden, "only active group members can respond")
+			return
+		case queries.ErrGroupEventNoResponseToChange:
+			responses.SendError(w, http.StatusConflict, "no existing response to change")
+			return
+		case queries.ErrGroupEventResponseUnchanged:
+			responses.SendError(w, http.StatusConflict, "event response already set")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to change event response: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event response updated", map[string]interface{}{
+		"group_id":      groupID,
+		"event_id":      eventID,
+		"reaction_type": in.ReactionType,
+	})
+}
+
+func CancelGroupEventHandler(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	eventID, err := strconv.Atoi(r.PathValue("event_id"))
+	if err != nil || eventID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	if err := queries.DeleteGroupEvent(r.Context(), database.DB, actorID, groupID, eventID); err != nil {
+		switch err {
+		case queries.ErrGroupEventNotFound:
+			responses.SendError(w, http.StatusNotFound, "group event not found")
+			return
+		case queries.ErrGroupNotFound:
+			responses.SendError(w, http.StatusNotFound, "group not found")
+			return
+		case queries.ErrNotGroupModeratorOrOwner:
+			responses.SendError(w, http.StatusForbidden, "only group owner or moderators can cancel events")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to cancel group event: "+err.Error())
+			return
+		}
+	}
+
+	responses.SendSuccess(w, "group event cancelled", map[string]int{
+		"group_id": groupID,
+		"event_id": eventID,
+	})
+}
+
 func ActiveGroupsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
