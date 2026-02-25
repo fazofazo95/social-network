@@ -107,7 +107,7 @@ func CreateGroup(ctx context.Context, db *sql.DB, ownerID int, in models.CreateG
 
 	res, err := tx.ExecContext(ctx, `
 		INSERT INTO groups (name, description, owner_id, visibility, group_picture,join_mode, group_members)
-		VALUES (?, ?, ?, ?, ?, 1)
+		VALUES (?, ?, ?, ?, ?, ?, 1)
 	`, in.Name, in.Description, ownerID, in.Visibility, in.Picture, in.JoinMode)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "groups.name") {
