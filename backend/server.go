@@ -42,6 +42,7 @@ func runServer() {
 	handlers.PostRoutes(mux, database.DB)
 	handlers.CommentRoutes(mux, database.DB)
 	handlers.FeedRoutes(mux)
+	handlers.ReactionRoutes(mux)
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))

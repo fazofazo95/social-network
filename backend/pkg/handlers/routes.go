@@ -94,7 +94,7 @@ func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(DeleteGroupHandler, auth))
 }
 
-func ReactionRoutes(mux *http.ServeMux, db *sql.DB) {
+func ReactionRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/posts/{id}/reactions", middleware.Chain(AddReactionHandler, auth))
 	mux.Handle("DELETE /api/posts/{id}/reactions", middleware.Chain(RemoveReactionHandler, auth))
 }
