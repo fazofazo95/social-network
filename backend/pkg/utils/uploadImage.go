@@ -22,6 +22,10 @@ func AttachCover(r *http.Request) (string, error) {
 	return attachImageFromField(r, "cover", "AttachCover")
 }
 
+func AttachGroupImage(r *http.Request) (string, error) {
+	return attachImageFromField(r, "group_picture", "AttachGroupImage")
+}
+
 func attachImageFromField(r *http.Request, fieldName, logPrefix string) (string, error) {
 	log.Printf("[INFO] %s: Processing %s upload", logPrefix, fieldName)
 

@@ -7,11 +7,12 @@
 package handlers
 
 import (
+	"database/sql"
+	"net/http"
+
 	"backend/pkg/middleware"
 	"backend/pkg/ws"
 	websocket "backend/pkg/ws"
-	"database/sql"
-	"net/http"
 )
 
 var auth = middleware.WithAuth
@@ -84,7 +85,6 @@ func GroupRoutes(mux *http.ServeMux) {
 }
 
 func ChatRoutes(mux *http.ServeMux, hub *websocket.Hub) {
-	// Το WebSocket endpoint (Πρέπει να περνάει από το Auth middleware σου!)
 	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws.ServeWs(hub, w, r)
 	})), auth))

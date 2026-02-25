@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
+	"backend/pkg/utils"
 )
 
 func CreateGroupHandler(w http.ResponseWriter, r *http.Request) {
@@ -21,15 +23,29 @@ func CreateGroupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in models.CreateGroupInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		log.Printf("[ERROR] CreateGroupHandler: ParseMultipartForm failed: %v", err)
+		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
 		return
 	}
 
-	in.Name = strings.TrimSpace(in.Name)
-	in.Description = strings.TrimSpace(in.Description)
-	in.Visibility = strings.ToLower(strings.TrimSpace(in.Visibility))
-	in.JoinMode = strings.ToLower(strings.TrimSpace(in.JoinMode))
+	in.Name = r.FormValue("name")
+	in.Description = r.FormValue("description")
+	in.Visibility = r.FormValue("visibility")
+	in.JoinMode = r.FormValue("join_mode")
+
+	imageURL, err := utils.AttachGroupImage(r)
+	if err != nil {
+		log.Printf("[ERROR] CreateGroupHandler: File attachment failed: %v", err)
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if imageURL != "" {
+		log.Printf("[INFO] CreateGroupHandler: Image attached: %s", imageURL)
+		in.Picture = imageURL
+	}
 
 	if in.Name == "" {
 		responses.SendError(w, http.StatusBadRequest, "name is required")

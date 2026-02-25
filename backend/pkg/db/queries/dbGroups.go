@@ -9,21 +9,23 @@ import (
 	"backend/pkg/models"
 )
 
-var ErrGroupNameTaken = errors.New("group name already in use")
-var ErrGroupNotFound = errors.New("group not found")
-var ErrNotGroupOwner = errors.New("only the group owner can delete the group")
-var ErrPrivateGroup = errors.New("cannot join private group from this endpoint")
-var ErrInviteOnlyGroup = errors.New("group is invite-only")
-var ErrAlreadyGroupMember = errors.New("user is already a group member")
-var ErrAlreadyRequestedToJoin = errors.New("user has already requested to join")
-var ErrAlreadyInvitedToGroup = errors.New("user has already been invited")
-var ErrNotGroupModeratorOrOwner = errors.New("only group owner or moderators can approve requests")
-var ErrGroupJoinRequestNotFound = errors.New("group join request not found")
-var ErrGroupInviteNotFound = errors.New("group invite not found")
-var ErrGroupMemberNotFound = errors.New("group member not found")
-var ErrCannotKickGroupStaff = errors.New("cannot kick owner or moderator")
-var ErrGroupMemberRoleMismatch = errors.New("group member role mismatch")
-var ErrGroupMemberIsActive = errors.New("group member is active")
+var (
+	ErrGroupNameTaken           = errors.New("group name already in use")
+	ErrGroupNotFound            = errors.New("group not found")
+	ErrNotGroupOwner            = errors.New("only the group owner can delete the group")
+	ErrPrivateGroup             = errors.New("cannot join private group from this endpoint")
+	ErrInviteOnlyGroup          = errors.New("group is invite-only")
+	ErrAlreadyGroupMember       = errors.New("user is already a group member")
+	ErrAlreadyRequestedToJoin   = errors.New("user has already requested to join")
+	ErrAlreadyInvitedToGroup    = errors.New("user has already been invited")
+	ErrNotGroupModeratorOrOwner = errors.New("only group owner or moderators can approve requests")
+	ErrGroupJoinRequestNotFound = errors.New("group join request not found")
+	ErrGroupInviteNotFound      = errors.New("group invite not found")
+	ErrGroupMemberNotFound      = errors.New("group member not found")
+	ErrCannotKickGroupStaff     = errors.New("cannot kick owner or moderator")
+	ErrGroupMemberRoleMismatch  = errors.New("group member role mismatch")
+	ErrGroupMemberIsActive      = errors.New("group member is active")
+)
 
 func ensureGroupChatIDTx(ctx context.Context, tx *sql.Tx, groupID int) (int, error) {
 	var chatID int
@@ -104,9 +106,9 @@ func CreateGroup(ctx context.Context, db *sql.DB, ownerID int, in models.CreateG
 	defer tx.Rollback()
 
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO groups (name, description, owner_id, visibility, join_mode, group_members)
+		INSERT INTO groups (name, description, owner_id, visibility, group_picture,join_mode, group_members)
 		VALUES (?, ?, ?, ?, ?, 1)
-	`, in.Name, in.Description, ownerID, in.Visibility, in.JoinMode)
+	`, in.Name, in.Description, ownerID, in.Visibility, in.Picture, in.JoinMode)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "groups.name") {
 			return models.GroupResponse{}, ErrGroupNameTaken

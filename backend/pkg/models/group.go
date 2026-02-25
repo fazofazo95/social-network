@@ -5,6 +5,7 @@ type CreateGroupInput struct {
 	Description string `json:"description"`
 	Visibility  string `json:"visibility"`
 	JoinMode    string `json:"join_mode"`
+	Picture     string `json:"picture"`
 }
 
 type GroupResponse struct {
