@@ -188,6 +188,22 @@ func DiscoverGroupsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func ActiveGroupsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	items, err := queries.GetActiveGroupsForUser(r.Context(), database.DB, userID)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to load active groups: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "active groups", items)
+}
+
 func AcceptGroupRequestHandler(w http.ResponseWriter, r *http.Request) {
 	approverID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
