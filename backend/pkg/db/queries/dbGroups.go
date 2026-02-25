@@ -1378,6 +1378,94 @@ func GetActiveGroupsForUser(ctx context.Context, db *sql.DB, userID int) ([]mode
 	return out, nil
 }
 
+func GetUserPendingGroupRequests(ctx context.Context, db *sql.DB, userID int) ([]models.GroupUserPendingItem, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT g.id, g.name, COALESCE(g.description, ''), COALESCE(g.group_picture, ''), g.group_members,
+		       g.owner_id, COALESCE(u.first_name, ''), COALESCE(u.last_name, ''), g.join_mode,
+		       COALESCE(datetime(gjr.created_at), ''), 'requested' AS type
+		FROM group_join_requests gjr
+		JOIN groups g ON g.id = gjr.group_id
+		JOIN users u ON u.id = g.owner_id
+		WHERE gjr.user_id = ? AND gjr.request_type = 'request' AND gjr.status = 'request'
+		ORDER BY gjr.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupUserPendingItem, 0)
+	for rows.Next() {
+		var item models.GroupUserPendingItem
+		if err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Description,
+			&item.GroupPicture,
+			&item.GroupMembers,
+			&item.OwnerID,
+			&item.OwnerFirst,
+			&item.OwnerLast,
+			&item.JoinMode,
+			&item.RequestedAt,
+			&item.Type,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func GetUserPendingGroupInvites(ctx context.Context, db *sql.DB, userID int) ([]models.GroupUserPendingItem, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT g.id, g.name, COALESCE(g.description, ''), COALESCE(g.group_picture, ''), g.group_members,
+		       g.owner_id, COALESCE(u.first_name, ''), COALESCE(u.last_name, ''), g.join_mode,
+		       COALESCE(datetime(gjr.created_at), ''), 'invited' AS type
+		FROM group_join_requests gjr
+		JOIN groups g ON g.id = gjr.group_id
+		JOIN users u ON u.id = g.owner_id
+		WHERE gjr.user_id = ? AND gjr.request_type = 'invite' AND gjr.status = 'invite'
+		ORDER BY gjr.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupUserPendingItem, 0)
+	for rows.Next() {
+		var item models.GroupUserPendingItem
+		if err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Description,
+			&item.GroupPicture,
+			&item.GroupMembers,
+			&item.OwnerID,
+			&item.OwnerFirst,
+			&item.OwnerLast,
+			&item.JoinMode,
+			&item.RequestedAt,
+			&item.Type,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 func RemovePendingGroupInvite(ctx context.Context, db *sql.DB, actorID, groupID, targetUserID int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

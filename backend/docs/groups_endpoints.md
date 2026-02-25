@@ -49,6 +49,8 @@ All endpoints below:
 - `POST /api/groups`
 - `GET /api/groups/discover`
 - `GET /api/groups/active`
+- `GET /api/groups/requests/pending`
+- `GET /api/groups/invites/pending`
 - `GET /api/groups/{id}`
 - `GET /api/groups/{id}/members`
 - `GET /api/groups/{id}/requests/pending`
@@ -181,6 +183,66 @@ Returns groups where the current user has an active membership.
       "owner_last_name": "Lee",
       "role": "member",
       "created_at": "2026-02-19 10:08:56"
+    }
+  ]
+}
+```
+
+## 2c) Pending Group Requests (current user)
+
+### `GET /api/groups/requests/pending`
+**Who can use:** any authenticated user.
+
+Returns groups where the current user has a pending join request.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "pending group requests",
+  "data": [
+    {
+      "id": 12,
+      "name": "Board Games Club",
+      "description": "Weekly meetups",
+      "group_picture": "",
+      "group_members": 23,
+      "owner_id": 3,
+      "owner_first_name": "Alex",
+      "owner_last_name": "Lee",
+      "join_mode": "request",
+      "requested_at": "2026-02-19 10:08:56",
+      "type": "requested"
+    }
+  ]
+}
+```
+
+## 2d) Pending Group Invites (current user)
+
+### `GET /api/groups/invites/pending`
+**Who can use:** any authenticated user.
+
+Returns groups where the current user has a pending invite.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "pending group invites",
+  "data": [
+    {
+      "id": 14,
+      "name": "Hiking Crew",
+      "description": "Weekend trails",
+      "group_picture": "",
+      "group_members": 8,
+      "owner_id": 5,
+      "owner_first_name": "Maya",
+      "owner_last_name": "Ortiz",
+      "join_mode": "invite",
+      "requested_at": "2026-02-20 14:33:12",
+      "type": "invited"
     }
   ]
 }

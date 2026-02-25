@@ -204,6 +204,38 @@ func ActiveGroupsHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "active groups", items)
 }
 
+func PendingMyGroupRequestsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	items, err := queries.GetUserPendingGroupRequests(r.Context(), database.DB, userID)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to load pending group requests: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "pending group requests", items)
+}
+
+func PendingMyGroupInvitesHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	items, err := queries.GetUserPendingGroupInvites(r.Context(), database.DB, userID)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to load pending group invites: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "pending group invites", items)
+}
+
 func AcceptGroupRequestHandler(w http.ResponseWriter, r *http.Request) {
 	approverID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {

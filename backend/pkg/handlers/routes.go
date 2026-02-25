@@ -61,6 +61,8 @@ func FollowRoutes(mux *http.ServeMux) {
 func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups", middleware.Chain(CreateGroupHandler, auth))
 	mux.Handle("GET /api/groups/active", middleware.Chain(ActiveGroupsHandler, auth))
+	mux.Handle("GET /api/groups/requests/pending", middleware.Chain(PendingMyGroupRequestsHandler, auth))
+	mux.Handle("GET /api/groups/invites/pending", middleware.Chain(PendingMyGroupInvitesHandler, auth))
 	mux.Handle("GET /api/groups/discover", middleware.Chain(DiscoverGroupsHandler, auth))
 	mux.Handle("GET /api/groups/{id}", middleware.Chain(GetGroupPageHandler, auth))
 	mux.Handle("POST /api/groups/{id}/join", middleware.Chain(RequestToJoinGroupHandler, auth))
