@@ -12,7 +12,7 @@ import {
   updateVisibilitySettings,
 } from "src/lib/services/user";
 import { parseProfileImage } from "src/lib/utils/profileImage";
-import { getApiBaseUrl } from "src/lib/apiClient";
+import { toCoverUrl } from "src/lib/utils/mediaUrl";
 
 const visibilityKeys = [
   "email_vis",
@@ -80,17 +80,6 @@ export default function SettingsPage() {
   const [coverImage, setCoverImage] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
-
-  function toCoverUrl(path) {
-    if (!path) return "/example_cover.png";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
-      return path;
-    }
-    if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
-    }
-    return "/example_cover.png";
-  }
 
   async function loadSettings() {
     setIsLoading(true);
