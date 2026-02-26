@@ -4,15 +4,17 @@ import "time"
 
 // Post is a merged model preserving fields from both branches.
 type Post struct {
-	ID               int       `json:"id"`
-	UserID           int       `json:"user_id"`
-	Content          string    `json:"content"`
-	ExtraContent     string    `json:"extra_content,omitempty"`
-	Image            string    `json:"image,omitempty"`
-	Privacy          string    `json:"privacy,omitempty"`
-	WhitelistedUsers []int     `json:"whitelisted_users,omitempty"`
-	CreatedAt        time.Time `json:"created_at_time,omitempty"`
-	CreatedAtRaw     string    `json:"created_at,omitempty"`
+	ID                  int       `json:"id"`
+	UserID              int       `json:"user_id"`
+	Content             string    `json:"content"`
+	ExtraContent        string    `json:"extra_content,omitempty"`
+	Image               string    `json:"image,omitempty"`
+	Privacy             string    `json:"privacy,omitempty"`
+	WhitelistedUsers    []int     `json:"whitelisted_users,omitempty"`
+	CreatedAt           time.Time `json:"created_at_time,omitempty"`
+	CreatedAtRaw        string    `json:"created_at,omitempty"`
+	LikesCount          int       `json:"likes_count,omitempty"`
+	HasCurrentUserLiked bool      `json:"has_current_user_liked,omitempty"`
 	// Author info
 	AuthorFirstName      string `json:"author_first_name,omitempty"`
 	AuthorLastName       string `json:"author_last_name,omitempty"`

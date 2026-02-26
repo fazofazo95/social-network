@@ -10,7 +10,7 @@ import { getUserPosts } from "src/lib/services/post";
 import { blockUser, getFollowersByUser, getFollowingByUser, unblockUser } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
-import { toCoverUrl, toUploadUrl } from "src/lib/utils/mediaUrl";
+import { getApiBaseUrl } from "src/lib/apiClient";
 
 const UserProfilePage = () => {
   const params = useParams();
@@ -26,6 +26,28 @@ const UserProfilePage = () => {
   const [error, setError] = useState("");
   const [isBlockActionLoading, setIsBlockActionLoading] = useState(false);
   const [blockActionError, setBlockActionError] = useState("");
+
+  function toUploadUrl(path) {
+    if (!path) return "";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "";
+  }
+
+  function toCoverUrl(path) {
+    if (!path) return "/example_cover.png";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "/example_cover.png";
+  }
 
   async function loadProfilePageData() {
     if (!targetUserId) {

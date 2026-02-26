@@ -1519,7 +1519,7 @@ func GetGroupEventInviteableMembers(ctx context.Context, db *sql.DB, actorID, gr
 		return nil, ErrNotInvitedToEvent
 	}
 
-	_, err := getGroupEventCreator(ctx, db, groupID, eventID)
+	_, err = getGroupEventCreator(ctx, db, groupID, eventID)
 	if err != nil {
 		return nil, err
 	}

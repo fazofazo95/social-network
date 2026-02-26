@@ -93,7 +93,7 @@ func GetPostsByUserID(ctx context.Context, db *sql.DB, userID int) ([]models.Pos
 	query := `
         SELECT 
             p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
-            u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
+            u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy, p.likes_count, p.has_current_user_liked
         FROM posts p
         INNER JOIN users u ON p.user_id = u.id
         WHERE p.user_id = ?
@@ -173,32 +173,34 @@ func RestorePost(ctx context.Context, db *sql.DB, postID int) error {
 func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID int, limit int, offset int) ([]models.Post, error) {
 	log.Printf("[INFO] GetUserPosts: TargetUserID: %d, ViewerID: %d, Limit: %d, Offset: %d", targetUserID, viewerID, limit, offset)
 	query := `
-    SELECT 
-        p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
-        u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
-    FROM active_posts p
-    JOIN users u ON p.user_id = u.id
-    WHERE p.user_id = ? 
+	SELECT 
+		p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
+		u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy,
+		p.like_count,
+		EXISTS(SELECT 1 FROM reactions r WHERE r.user_id = ? AND r.target_type = 'post' AND r.target_id = p.id) as has_current_user_liked
+	FROM active_posts p
+	JOIN users u ON p.user_id = u.id
+	WHERE p.user_id = ? 
 	AND NOT EXISTS (
 		SELECT 1 FROM followers fb
 		WHERE fb.status = 'blocked'
 		  AND ((fb.follower_id = ? AND fb.followed_id = p.user_id)
 			   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
 	)
-    AND (
-        p.privacy = 'public'
-        OR (p.privacy = 'followers' AND EXISTS (
-            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'accepted'
-        ))
-        OR (p.privacy = 'custom' AND EXISTS (
-            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
-        ))
-        OR ? = ?
-    )
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?;`
+	AND (
+		p.privacy = 'public'
+		OR (p.privacy = 'followers' AND EXISTS (
+			SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'accepted'
+		))
+		OR (p.privacy = 'custom' AND EXISTS (
+			SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+		))
+		OR ? = ?
+	)
+	ORDER BY p.created_at DESC
+	LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, targetUserID, viewerID, viewerID, targetUserID, limit, offset)
+	rows, err := db.QueryContext(ctx, query, viewerID, targetUserID, viewerID, viewerID, viewerID, targetUserID, viewerID, viewerID, targetUserID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetUserPosts query failed: %v", err)
 		return nil, err
@@ -208,13 +210,16 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
 	var posts []models.Post
 	for rows.Next() {
 		var post models.Post
+		var hasLikedInt int
 		if err := rows.Scan(
 			&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
 			&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
+			&post.LikesCount, &hasLikedInt,
 		); err != nil {
 			log.Printf("[ERROR] GetUserPosts scan failed: %v", err)
 			return nil, err
 		}
+		post.HasCurrentUserLiked = hasLikedInt == 1
 		posts = append(posts, post)
 	}
 	log.Printf("[SUCCESS] GetUserPosts: Found %d posts", len(posts))
@@ -224,12 +229,14 @@ func GetUserPosts(ctx context.Context, db *sql.DB, targetUserID int, viewerID in
 func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset int) ([]models.Post, error) {
 	log.Printf("[INFO] GetFeedPosts: UserID: %d, Limit: %d, Offset: %d", userID, limit, offset)
 	query := `
-    SELECT 
-        p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
-        u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy
-    FROM active_posts p
-    JOIN users u ON p.user_id = u.id
-    WHERE 
+	SELECT 
+		p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
+		u.first_name, u.last_name, COALESCE(u.profile_picture, ''), p.privacy,
+		p.like_count,
+		EXISTS(SELECT 1 FROM reactions r WHERE r.user_id = ? AND r.target_type = 'post' AND r.target_id = p.id) as has_current_user_liked
+	FROM active_posts p
+	JOIN users u ON p.user_id = u.id
+	WHERE 
 		NOT EXISTS (
 			SELECT 1 FROM followers fb
 			WHERE fb.status = 'blocked'
@@ -237,19 +244,19 @@ func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset
 				   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
 		)
 		AND (
-        p.user_id = ? 
-        OR p.privacy = 'public'
-        OR (p.privacy = 'followers' AND EXISTS (
-            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id AND status = 'accepted'
-        ))
-        OR (p.privacy = 'custom' AND EXISTS (
-            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
-        ))
+		p.user_id = ? 
+		OR p.privacy = 'public'
+		OR (p.privacy = 'followers' AND EXISTS (
+			SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id AND status = 'accepted'
+		))
+		OR (p.privacy = 'custom' AND EXISTS (
+			SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+		))
 	)
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?;`
+	ORDER BY p.created_at DESC
+	LIMIT ? OFFSET ?;`
 
-	rows, err := db.QueryContext(ctx, query, userID, userID, userID, userID, userID, limit, offset)
+	rows, err := db.QueryContext(ctx, query, userID, userID, userID, userID, userID, userID, limit, offset)
 	if err != nil {
 		log.Printf("[ERROR] GetFeedPosts query failed: %v", err)
 		return nil, err
@@ -259,14 +266,17 @@ func GetFeedPosts(ctx context.Context, db *sql.DB, userID int, limit int, offset
 	var posts []models.Post
 	for rows.Next() {
 		var post models.Post
+		var hasLikedInt int
 		err := rows.Scan(
 			&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
 			&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
+			&post.LikesCount, &hasLikedInt,
 		)
 		if err != nil {
 			log.Printf("[ERROR] GetFeedPosts scan failed: %v", err)
 			return nil, err
 		}
+		post.HasCurrentUserLiked = hasLikedInt == 1
 		posts = append(posts, post)
 	}
 	log.Printf("[SUCCESS] GetFeedPosts: Found %d posts", len(posts))

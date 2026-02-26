@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
-import { getUserPosts } from "src/lib/services/post";
+import { deletePost, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
 import {
   acceptFollowRequest,
   getBlockedUsers,
@@ -18,12 +18,10 @@ import {
   unblockUser,
   unfollowUser,
 } from "src/lib/services/follow";
-import { getPostComments } from "src/lib/services/comment";
+import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
-import { usePostComments } from "src/lib/hooks/usePostComments";
-import { toCoverUrl, toUploadUrl } from "src/lib/utils/mediaUrl";
-import CommentThread from "src/components/posts/CommentThread";
+import { getApiBaseUrl } from "src/lib/apiClient";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("posts");
@@ -34,9 +32,22 @@ const Profile = () => {
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentsLoadingByPost, setCommentsLoadingByPost] = useState({});
+  const [commentInputByPost, setCommentInputByPost] = useState({});
+  const [commentImageByPost, setCommentImageByPost] = useState({});
+  const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
+  const [commentErrorByPost, setCommentErrorByPost] = useState({});
+  const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
+  const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
+  const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
   const [visibilitySettings, setVisibilitySettings] = useState(null);
   const [isSavingCover, setIsSavingCover] = useState(false);
   const [coverStatus, setCoverStatus] = useState("");
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editingPostContent, setEditingPostContent] = useState("");
+  const [postActionLoadingById, setPostActionLoadingById] = useState({});
+  const [postActionError, setPostActionError] = useState("");
   const [pendingRequests, setPendingRequests] = useState([]);
   const [acceptingByUserId, setAcceptingByUserId] = useState({});
   const [rejectingByUserId, setRejectingByUserId] = useState({});
@@ -46,36 +57,30 @@ const Profile = () => {
   const [followListActionError, setFollowListActionError] = useState("");
 
   const [coverImage, setCoverImage] = useState("/example_cover.png");
+  // Ripple state for all posts: { [postId]: { count, rippled } }
+  const [rippleStateByPost, setRippleStateByPost] = useState({});
 
-  const {
-    commentsByPost,
-    setCommentsByPost,
-    commentsLoadingByPost,
-    commentInputByPost,
-    setCommentInputByPost,
-    commentImageByPost,
-    setCommentImageByPost,
-    commentSubmittingByPost,
-    commentErrorByPost,
-    editingCommentIdByPost,
-    setEditingCommentIdByPost,
-    editingCommentContentByPost,
-    setEditingCommentContentByPost,
-    commentActionLoadingById,
-    editingPostId,
-    setEditingPostId,
-    editingPostContent,
-    setEditingPostContent,
-    postActionLoadingById,
-    postActionErrorById,
-    loadComments,
-    handleCommentSubmit,
-    handleDeleteComment,
-    handleSaveCommentEdit,
-    handleStartEditPost,
-    handleSavePostEdit,
-    handleDeletePost,
-  } = usePostComments({ setPosts: setUserPosts });
+  function toUploadUrl(path) {
+    if (!path) return "";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "";
+  }
+
+  function toCoverUrl(path) {
+    if (!path) return "/example_cover.png";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+      return path;
+    }
+    if (path.startsWith("/uploads/")) {
+      return `${getApiBaseUrl()}${path}`;
+    }
+    return "/example_cover.png";
+  }
 
   async function loadProfilePageData() {
     setIsLoading(true);
@@ -100,6 +105,15 @@ const Profile = () => {
       setCoverImage(toCoverUrl(profile?.cover_image));
       setVisibilitySettings(settings || null);
       setUserPosts(Array.isArray(postsData) ? postsData : []);
+      // Initialize ripple state for posts
+      const rippleInit = {};
+      (Array.isArray(postsData) ? postsData : []).forEach(post => {
+        rippleInit[post.id] = {
+          count: post.likes_count || 0,
+          rippled: !!post.has_current_user_liked
+        };
+      });
+      setRippleStateByPost(rippleInit);
       setFollowers(Array.isArray(followersData) ? followersData : []);
       setFollowing(Array.isArray(followingData) ? followingData : []);
       setBlockedUsers(Array.isArray(blockedData) ? blockedData : []);
@@ -160,6 +174,163 @@ const Profile = () => {
     }
   };
 
+  async function loadComments(postId) {
+    setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: true }));
+    setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+    try {
+      const comments = await getPostComments(postId);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: comments }));
+    } catch (loadError) {
+      console.error("Error loading profile comments:", loadError);
+      setCommentsByPost((prev) => ({ ...prev, [postId]: [] }));
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: loadError?.message || "Failed to load echoes.",
+      }));
+    } finally {
+      setCommentsLoadingByPost((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleCommentSubmit(event, postId) {
+    event.preventDefault();
+
+    const content = (commentInputByPost[postId] || "").trim();
+    const image = commentImageByPost[postId] || null;
+
+    if (!content) {
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+      return;
+    }
+
+    setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: true }));
+    setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+
+    const formData = new FormData();
+    formData.append("content", content);
+    formData.append("parent_type", "post");
+    formData.append("parent_id", String(postId));
+    if (image) {
+      formData.append("avatar", image);
+    }
+
+    try {
+      await createComment(formData);
+      setCommentInputByPost((prev) => ({ ...prev, [postId]: "" }));
+      setCommentImageByPost((prev) => ({ ...prev, [postId]: null }));
+      await loadComments(postId);
+    } catch (submitError) {
+      console.error("Error creating profile comment:", submitError);
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: submitError?.message || "Failed to create echo.",
+      }));
+    } finally {
+      setCommentSubmittingByPost((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleStartEditPost(postId) {
+    if (!postId) return;
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      const post = await getPostById(postId);
+      setEditingPostId(postId);
+      setEditingPostContent(post?.content || "");
+    } catch (editError) {
+      console.error("Failed to load post for editing:", editError);
+      setPostActionError(editError?.message || "Failed to load post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleSavePostEdit(postId) {
+    const content = editingPostContent.trim();
+    if (!content) {
+      setPostActionError("Post content is required.");
+      return;
+    }
+
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await updatePost(postId, content);
+      setUserPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, content } : post)));
+      setEditingPostId(null);
+      setEditingPostContent("");
+    } catch (saveError) {
+      console.error("Failed to update post:", saveError);
+      setPostActionError(saveError?.message || "Failed to update post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleDeletePost(postId) {
+    if (!postId) return;
+
+    setPostActionError("");
+    setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await deletePost(postId);
+      setUserPosts((prev) => prev.filter((post) => post.id !== postId));
+      if (editingPostId === postId) {
+        setEditingPostId(null);
+        setEditingPostContent("");
+      }
+    } catch (deleteError) {
+      console.error("Failed to delete post:", deleteError);
+      setPostActionError(deleteError?.message || "Failed to delete post.");
+    } finally {
+      setPostActionLoadingById((prev) => ({ ...prev, [postId]: false }));
+    }
+  }
+
+  async function handleDeleteComment(postId, commentId) {
+    if (!commentId) return;
+
+    setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
+    setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+    try {
+      await deleteComment(commentId);
+      await loadComments(postId);
+    } catch (error) {
+      console.error("Error deleting profile comment:", error);
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: error?.message || "Failed to delete echo.",
+      }));
+    } finally {
+      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
+    }
+  }
+
+  async function handleSaveCommentEdit(postId, commentId) {
+    const content = (editingCommentContentByPost[postId] || "").trim();
+    if (!content) {
+      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+      return;
+    }
+
+    setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: true }));
+    setCommentErrorByPost((prev) => ({ ...prev, [postId]: "" }));
+    try {
+      await updateComment(commentId, content);
+      setEditingCommentIdByPost((prev) => ({ ...prev, [postId]: null }));
+      setEditingCommentContentByPost((prev) => ({ ...prev, [postId]: "" }));
+      await loadComments(postId);
+    } catch (error) {
+      console.error("Error updating profile comment:", error);
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: error?.message || "Failed to update echo.",
+      }));
+    } finally {
+      setCommentActionLoadingById((prev) => ({ ...prev, [commentId]: false }));
+    }
+  }
 
   async function handleAcceptRequest(requestUserId) {
     if (!requestUserId) return;
@@ -402,6 +573,7 @@ const Profile = () => {
         ) : (
           userPosts.map((post) => {
             const echoSectionId = `profile-echo-section-${post.id}`;
+            const echoPhotoUploadId = `profile-echo-photo-upload-${post.id}`;
             const comments = commentsByPost[post.id] || [];
             const isCommentsLoading = commentsLoadingByPost[post.id];
             const commentValue = commentInputByPost[post.id] || "";
@@ -410,6 +582,15 @@ const Profile = () => {
             const isPostActionLoading = !!postActionLoadingById[post.id];
             const isEditingPost = editingPostId === post.id;
             const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
+            // Get ripple state for this post
+            const rippleCount = rippleStateByPost[post.id]?.count ?? post.likes_count ?? 0;
+            const rippled = rippleStateByPost[post.id]?.rippled ?? !!post.has_current_user_liked;
+            const handleRippleChange = (newCount, newRippled) => {
+              setRippleStateByPost(prev => ({
+                ...prev,
+                [post.id]: { count: newCount, rippled: newRippled }
+              }));
+            };
             return (
               <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -474,9 +655,7 @@ const Profile = () => {
                 ) : (
                   <p>{post.content}</p>
                 )}
-                {postActionErrorById[post.id] ? (
-                  <p className="text-red-600 text-sm mb-1">{postActionErrorById[post.id]}</p>
-                ) : null}
+                {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
                 {post.image ? (
                   <div className="mt-3">
                     <Image
@@ -489,11 +668,16 @@ const Profile = () => {
                   </div>
                 ) : null}
                 <div className="flex justify-end gap-4 mt-2 border-b border-gray-200 pb-1">
-                  <span className="text-gray-500 text-sm mr-auto">0 Ripples</span>
+                  <span className="text-gray-500 text-sm mr-auto">{rippleCount} Ripples</span>
                   <span className="text-gray-500 text-sm">{comments.length} Echoes</span>
                 </div>
                 <div className="flex justify-between gap-8 mt-2 mx-8">
-                  <Ripple_Button />
+                  <Ripple_Button 
+                    postId={post.id}
+                    initialRippled={rippled}
+                    initialCount={rippleCount}
+                    onChange={handleRippleChange}
+                  />
                   <Echo_Button
                     targetId={echoSectionId}
                     onToggle={(isOpen) => {
@@ -507,47 +691,167 @@ const Profile = () => {
                   id={echoSectionId}
                   className="border-t border-gray-200 rounded mt-2 pt-2 gap-2 hidden flex-col"
                 >
-                  <CommentThread
-                    postId={post.id}
-                    currentUserId={profileData.id}
-                    currentUserProfilePicture={profileData.profile_picture}
-                    commentValue={commentValue}
-                    onCommentChange={(value) =>
-                      setCommentInputByPost((prev) => ({ ...prev, [post.id]: value }))
-                    }
-                    onCommentImageChange={(file) =>
-                      setCommentImageByPost((prev) => ({ ...prev, [post.id]: file }))
-                    }
-                    onSubmit={(event) => handleCommentSubmit(event, post.id)}
-                    isCommentSubmitting={isCommentSubmitting}
-                    commentError={commentError}
-                    comments={comments}
-                    isCommentsLoading={isCommentsLoading}
-                    editingCommentId={editingCommentIdByPost[post.id]}
-                    editingCommentContent={editingCommentContentByPost[post.id] || ""}
-                    onStartEdit={(comment) => {
-                      setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
-                      setEditingCommentContentByPost((prev) => ({
-                        ...prev,
-                        [post.id]: comment.content || "",
-                      }));
-                    }}
-                    onEditContentChange={(value) =>
-                      setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: value }))
-                    }
-                    onSaveEdit={(commentId) => handleSaveCommentEdit(post.id, commentId)}
-                    onCancelEdit={() => {
-                      setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
-                      setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
-                    }}
-                    onDelete={(commentId) => handleDeleteComment(post.id, commentId)}
-                    commentActionLoadingById={commentActionLoadingById}
-                    buildAuthorLink={(userId) => {
-                      if (!userId) return "";
-                      return userId === profileData.id ? "/profile" : `/profile/${userId}`;
-                    }}
-                    toUploadUrl={toUploadUrl}
-                  />
+                  <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
+                    <Image
+                      src={parseProfileImage(profileData.profile_picture)}
+                      alt="Profile Icon"
+                      width={25}
+                      height={25}
+                    />
+                    <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
+                      <input
+                        type="text"
+                        placeholder="Write a comment..."
+                        className="focus:outline-none w-full pl-1 bg-transparent"
+                        value={commentValue}
+                        onChange={(event) =>
+                          setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                        }
+                        disabled={isCommentSubmitting}
+                      />
+
+                      <label
+                        htmlFor={echoPhotoUploadId}
+                        className="flex items-center gap-1 cursor-pointer px-1"
+                      >
+                        <Image
+                          src="/photo_icon.svg"
+                          alt="Share Icon"
+                          width={20}
+                          height={20}
+                        />
+                        <input
+                          id={echoPhotoUploadId}
+                          type="file"
+                          className="font-medium cursor-pointer text-black hidden"
+                          accept="image/*"
+                          onChange={(event) =>
+                            setCommentImageByPost((prev) => ({ ...prev, [post.id]: event.target.files?.[0] || null }))
+                          }
+                          disabled={isCommentSubmitting}
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="submit"
+                      className="text-sm px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                      disabled={isCommentSubmitting}
+                    >
+                      {isCommentSubmitting ? "Sending..." : "Send"}
+                    </button>
+                  </form>
+
+                  {commentError ? <p className="text-red-600 text-sm">{commentError}</p> : null}
+
+                  <div className="flex flex-col gap-2">
+                    {isCommentsLoading ? (
+                      <p className="text-sm text-gray-500">Loading echoes...</p>
+                    ) : comments.length === 0 ? (
+                      <p className="text-sm text-gray-500">No echoes yet.</p>
+                    ) : (
+                      comments.map((comment) => (
+                        <div key={comment.id} className="bg-gray-50 rounded p-2">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div className="flex items-start gap-2">
+                              <div className="pt-0.5">
+                                <Image
+                                  src={parseProfileImage(comment.author_profile_picture)}
+                                  alt="Comment author"
+                                  width={20}
+                                  height={20}
+                                />
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                {comment.user_id ? (
+                                  <Link
+                                    href={comment.user_id === profileData.id ? "/profile" : `/profile/${comment.user_id}`}
+                                    className="text-sm font-medium"
+                                  >
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                  </Link>
+                                ) : (
+                                  <span className="text-sm font-medium">
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                  </span>
+                                )}
+                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
+                                  <span className="text-xs text-gray-500 mt-0.5">
+                                    {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            {comment.user_id === profileData.id ? (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  onClick={() => {
+                                    setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
+                                    setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
+                                  }}
+                                  disabled={!!commentActionLoadingById[comment.id]}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  onClick={() => handleDeleteComment(post.id, comment.id)}
+                                  disabled={!!commentActionLoadingById[comment.id]}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                          {editingCommentIdByPost[post.id] === comment.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                className="border rounded px-2 py-1 text-sm flex-1"
+                                value={editingCommentContentByPost[post.id] || ""}
+                                onChange={(event) =>
+                                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                                onClick={() => handleSaveCommentEdit(post.id, comment.id)}
+                                disabled={!!commentActionLoadingById[comment.id]}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                                onClick={() => {
+                                  setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
+                                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-sm">{comment.content}</p>
+                          )}
+                          {comment.image ? (
+                            <div className="mt-2">
+                              <Image
+                                src={toUploadUrl(comment.image)}
+                                alt="Comment image"
+                                width={300}
+                                height={180}
+                                className="rounded w-full h-auto"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </article>
             );
