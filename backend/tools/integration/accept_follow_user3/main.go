@@ -19,7 +19,7 @@ func main() {
 	defer database.DB.Close()
 
 	// login as carol (user 3)
-	loginInput := models.LoginInput{Email: "carol@example.com", Password: "Password123!"}
+	loginInput := models.LoginRequest{Email: "carol@example.com", Password: "Password123!"}
 	userID, err := queries.LogIn(ctx, database.DB, loginInput)
 	if err != nil {
 		log.Fatalf("login failed: %v", err)

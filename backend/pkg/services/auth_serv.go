@@ -2,12 +2,14 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 
 	queries "backend/pkg/db/queries"
 	"backend/pkg/models"
+	"backend/pkg/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -18,18 +20,23 @@ var (
 	ErrLogoutFailed       = errors.New("failed to logout")
 )
 
-// AuthService handles authentication business logic
-type AuthService struct {
-	db *sql.DB
+type AuthService interface{
+	SignUp(ctx context.Context, req models.SignupFields) error
+	Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error)
+	Logout(ctx context.Context, sessionID string, userID int) error
+	AuthenticateSession(ctx context.Context, sessionID string) (int, error)
 }
 
-// NewAuthService creates a new AuthService instance
-func NewAuthService(db *sql.DB) *AuthService {
-	return &AuthService{db: db}
+type authService struct {
+	repo repository.AuthRepository
+}
+
+func NewAuthService(r repository.AuthRepository) AuthService {
+	return &authService{repo: r}
 }
 
 // SignUp registers a new user with email, username, and password
-func (s *AuthService) SignUp(ctx context.Context, req models.Signup_fields) error {
+func (s *authService) SignUp(ctx context.Context, req models.SignupFields) error {
 	log.Println("[INFO] AuthService.SignUp: Starting signup process")
 
 	// Validate input
@@ -38,8 +45,17 @@ func (s *AuthService) SignUp(ctx context.Context, req models.Signup_fields) erro
 		return errors.New("email, username, and password are required")
 	}
 
+	log.Printf("[INFO] SignUp: Hashing password for %s", req.Email)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("[ERROR] SignUp: Password hashing failed: %v", err)
+		return err
+	}
+
+	req.Password = string(hash)
+
 	// Execute signup query
-	if err := queries.SignUp(ctx, s.db, req); err != nil {
+	if err := s.repo.SignUp(ctx, req); err != nil {
 		// Map database errors to service errors
 		if err == queries.ErrEmailTaken {
 			log.Printf("[WARN] AuthService.SignUp: Email conflict for %s", req.Email)
@@ -58,7 +74,7 @@ func (s *AuthService) SignUp(ctx context.Context, req models.Signup_fields) erro
 }
 
 // Login authenticates a user and creates a session
-func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
+func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
 	log.Println("[INFO] AuthService.Login: Attempting login")
 
 	// Validate input
@@ -72,12 +88,12 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	}
 
 	// Query user credentials
-	input := models.LoginInput{
+	input := models.LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	}
 
-	userID, err := queries.LogIn(ctx, s.db, input)
+	userID, err := s.repo.LogIn(ctx, input)
 	if err != nil {
 		// Map database errors to service errors
 		if err == queries.ErrInvalidEmail || err == queries.ErrInvalidPassword {
@@ -90,7 +106,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 
 	// Create session
 	log.Printf("[INFO] AuthService.Login: Creating session for UserID: %d", userID)
-	sessionID, err := queries.CreateSession(ctx, s.db, userID)
+	sessionID, err := s.repo.CreateSession(ctx, userID)
 	if err != nil {
 		log.Printf("[ERROR] AuthService.Login: Session creation failed: %v", err)
 		return nil, ErrSessionFailed
@@ -104,14 +120,18 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 }
 
 // Logout removes a user's session
-func (s *AuthService) Logout(ctx context.Context, sessionID string, userID int) error {
+func (s *authService) Logout(ctx context.Context, sessionID string, userID int) error {
 	log.Printf("[INFO] AuthService.Logout: Attempting logout for UserID: %d", userID)
 
-	if err := queries.LogOut(ctx, s.db, sessionID, userID); err != nil {
+	if err := s.repo.LogOut(ctx, sessionID, userID); err != nil {
 		log.Printf("[ERROR] AuthService.Logout: LogOut query failed: %v", err)
 		return ErrLogoutFailed
 	}
 
 	log.Printf("[SUCCESS] AuthService.Logout: Session cleared for UserID: %d", userID)
 	return nil
+}
+
+func (s *authService) AuthenticateSession(ctx context.Context, sessionID string) (int, error) {
+	return s.repo.AuthenticateSession(ctx,sessionID)
 }

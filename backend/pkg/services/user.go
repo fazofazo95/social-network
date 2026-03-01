@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"time"
 
 	queries "backend/pkg/db/queries"
 	"backend/pkg/models"
@@ -28,39 +27,6 @@ func NewUserService(db *sql.DB) *UserService {
 	return &UserService{db: db}
 }
 
-// CreateProfile creates a new user profile
-func (s *UserService) CreateProfile(ctx context.Context, userID int, req models.UserProfileRequest) error {
-	log.Printf("[INFO] UserService.CreateProfile: Starting for UserID: %d", userID)
-
-	// Validate required fields
-	if req.FirstName == "" || req.LastName == "" || req.Level == "" {
-		log.Println("[WARN] UserService.CreateProfile: Validation failed - missing required fields")
-		return errors.New("first name, last name, and level are required")
-	}
-
-	// Create profile input for database query
-	input := models.UserProfileInput{
-		ID:                 userID,
-		FirstName:          req.FirstName,
-		LastName:           req.LastName,
-		Birthday:           req.Birthday,
-		RelationshipStatus: req.RelationshipStatus,
-		EmployedAt:         req.EmployedAt,
-		PhoneNumber:        req.PhoneNumber,
-		ProfilePicture:     req.ProfilePicture,
-		Pictures:           req.Pictures,
-		Level:              req.Level,
-	}
-
-	// Execute create profile query
-	if err := queries.CreateUserProfile(ctx, s.db, input); err != nil {
-		log.Printf("[ERROR] UserService.CreateProfile: Database error for UserID %d: %v", userID, err)
-		return ErrCreateProfileFailed
-	}
-
-	log.Printf("[SUCCESS] UserService.CreateProfile: Profile created for UserID: %d", userID)
-	return nil
-}
 
 // UpdateProfile updates an existing user profile
 func (s *UserService) UpdateProfile(ctx context.Context, userID int, req models.UserProfileRequest) error {
@@ -151,44 +117,6 @@ func (s *UserService) GetProfile(ctx context.Context, userID int) (*models.UserP
 
 	log.Printf("[SUCCESS] UserService.GetProfile: Profile retrieved for UserID: %d", userID)
 	return response, nil
-}
-
-// MarkProfileComplete marks a user's profile as complete
-func (s *UserService) MarkProfileComplete(ctx context.Context, userID int) error {
-	log.Printf("[INFO] UserService.MarkProfileComplete: Starting for UserID: %d", userID)
-
-	// Verify user profile exists first
-	_, err := queries.GetUserByID(ctx, s.db, userID)
-	if err == sql.ErrNoRows {
-		log.Printf("[WARN] UserService.MarkProfileComplete: Profile not found for UserID: %d", userID)
-		return ErrUserProfileNotFound
-	}
-	if err != nil {
-		log.Printf("[ERROR] UserService.MarkProfileComplete: Database check failed for UserID %d: %v", userID, err)
-		return err
-	}
-
-	if err := queries.MarkProfileComplete(ctx, s.db, userID); err != nil {
-		log.Printf("[ERROR] UserService.MarkProfileComplete: Database update failed for UserID %d: %v", userID, err)
-		return errors.New("failed to mark profile as complete")
-	}
-
-	log.Printf("[SUCCESS] UserService.MarkProfileComplete: UserID %d marked as complete", userID)
-	return nil
-}
-
-// CleanupStaleProfiles deletes incomplete user profiles older than the specified duration
-func (s *UserService) CleanupStaleProfiles(ctx context.Context, olderThan time.Duration) (int, error) {
-	log.Printf("[INFO] UserService.CleanupStaleProfiles: Starting cleanup (older than: %v)", olderThan)
-
-	deleted, err := queries.DeleteStaleIncompleteUsers(ctx, s.db, olderThan)
-	if err != nil {
-		log.Printf("[ERROR] UserService.CleanupStaleProfiles: Cleanup query failed: %v", err)
-		return 0, errors.New("failed to cleanup stale profiles")
-	}
-
-	log.Printf("[SUCCESS] UserService.CleanupStaleProfiles: Deleted %d stale profiles", deleted)
-	return int(deleted), nil
 }
 
 func (s *UserService) DiscoveredUser(ctx context.Context, currentUserID int, limit int) ([]models.DiscoveredUser, error) {

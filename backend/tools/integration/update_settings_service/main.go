@@ -20,7 +20,7 @@ func main() {
 
 	ctx := context.Background()
 	// login as alice
-	loginInput := models.LoginInput{Email: "alice@example.com", Password: "Password123!"}
+	loginInput := models.LoginRequest{Email: "alice@example.com", Password: "Password123!"}
 	userID, err := queries.LogIn(ctx, database.DB, loginInput)
 	if err != nil {
 		log.Fatalf("login failed: %v", err)

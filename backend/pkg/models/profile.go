@@ -46,7 +46,23 @@ type UserProfileResponse struct {
 	Level              string     `json:"level"`
 }
 
-type Signup_fields struct {
+// UserProfileInput is used to create or update a user's profile in the database
+// Required fields: ID, FirstName, LastName, Level
+// Other fields are optional and may be nil to leave NULL in the DB
+type UserProfileInput struct {
+	ID                 int
+	FirstName          string
+	LastName           string
+	Birthday           *time.Time
+	RelationshipStatus *string
+	EmployedAt         *string
+	PhoneNumber        *string
+	ProfilePicture     *string
+	Pictures           *string
+	Level              string
+}
+
+type SignupFields struct {
 	Email     string
 	Password  string
 	FirstName string

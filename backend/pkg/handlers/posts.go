@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
@@ -13,7 +12,27 @@ import (
 	"strconv"
 )
 
-func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
+type PostHandler struct {
+	Service services.PostService
+}
+
+func NewPostHandler(s services.PostService) *PostHandler {
+    return &PostHandler{Service: s}
+}
+
+func (h *PostHandler) RegisterRoutes(mux *http.ServeMux) {
+	auth := middleware.WithAuth
+	
+	mux.Handle("POST /api/posts", middleware.Chain(h.CreatePost, auth))
+
+	mux.Handle("PUT /api/posts/{id}", middleware.Chain(h.UpdatePost, auth))
+	mux.Handle("DELETE /api/posts/{id}", middleware.Chain(h.DeletePost, auth))
+	mux.Handle("PUT /api/posts/{id}/restore", middleware.Chain(h.RestorePost, auth))
+
+	mux.Handle("GET /api/posts/{id}", middleware.Chain(h.GetPostHandler, auth))
+}
+
+func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	log.Println("[INFO] CreatePostHandler: Received request")
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
@@ -26,12 +45,10 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[INFO] CreatePostHandler: Creating post for UserID: %d", userID)
 
 	privacy := r.FormValue("privacy")
+
 	var wlIDs []int
-
-	if privacy == "custom" {
+	if len(r.MultipartForm.Value["whitelisted_users"]) > 0 {
 		wl := r.MultipartForm.Value["whitelisted_users"]
-		log.Printf("[INFO] CreatePostHandler: Custom privacy detected, processing %d whitelisted users", len(wl))
-
 		for _, idStr := range wl {
 			id, err := strconv.Atoi(idStr)
 			if err != nil {
@@ -62,9 +79,7 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		post.Image = imageURL
 	}
 
-	postService := services.NewPostService(database.DB)
-
-	if err := postService.CreatePost(r.Context(), post); err != nil {
+	if _ , err := h.Service.CreatePost(r.Context(), userID, &post); err != nil {
 		log.Printf("[ERROR] CreatePostHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -74,9 +89,11 @@ func CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "user created successfully", nil)
 }
 
-func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	postID, _ := strconv.Atoi(r.PathValue("id"))
 	log.Printf("[INFO] UpdatePostHandler: Updating PostID: %d", postID)
+
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
 	var data struct {
 		Content string `json:"content"`
@@ -87,8 +104,7 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postService := services.NewPostService(database.DB)
-	if err := postService.UpdatePost(r.Context(), postID, data.Content); err != nil {
+	if err := h.Service.UpdatePost(r.Context(), postID, userID, data.Content); err != nil {
 		log.Printf("[ERROR] UpdatePostHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -98,10 +114,12 @@ func UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "post updated successfully", nil)
 }
 
-func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
 	log.Printf("[INFO] DeletePostHandler: Deleting PostID: %s", postIDStr)
+
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
 	if err != nil {
 		log.Printf("[ERROR] DeletePostHandler: Invalid PostID format: %v", err)
@@ -109,9 +127,7 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postService := services.NewPostService(database.DB)
-
-	err = postService.DeletePost(r.Context(), postIDInt)
+	err = h.Service.DeletePost(r.Context(), postIDInt, userID)
 	if err != nil {
 		log.Printf("[ERROR] DeletePostHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
@@ -122,10 +138,12 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "post deleted successfully", nil)
 }
 
-func RestorePostHandler(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) RestorePost(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
 	log.Printf("[INFO] RestorePostHandler: Restoring PostID: %s", postIDStr)
+
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
 	if err != nil {
 		log.Printf("[ERROR] RestorePostHandler: Invalid PostID format: %v", err)
@@ -133,9 +151,7 @@ func RestorePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postService := services.NewPostService(database.DB)
-
-	err = postService.RestorePost(r.Context(), postIDInt)
+	err = h.Service.RestorePost(r.Context(), postIDInt, userID)
 	if err != nil {
 		log.Printf("[ERROR] RestorePostHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
@@ -146,7 +162,7 @@ func RestorePostHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "post restored successfully", nil)
 }
 
-func GetPostHandler(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
 	log.Printf("[INFO] GetPostHandler: Fetching PostID: %s", postIDStr)
@@ -159,9 +175,7 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	postService := services.NewPostService(database.DB)
-
-	post, err := postService.GetPostByID(r.Context(), userID, postIDInt)
+	post, err := h.Service.GetPost(r.Context(), postIDInt, userID)
 	if err != nil {
 		log.Printf("[ERROR] GetPostHandler: Service failed to retrieve post %d: %v", postIDInt, err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())

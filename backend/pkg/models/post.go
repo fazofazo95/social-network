@@ -20,14 +20,3 @@ type Post struct {
 	AuthorLastName       string `json:"author_last_name,omitempty"`
 	AuthorProfilePicture string `json:"author_profile_picture,omitempty"`
 }
-
-type FeedResponse struct {
-	Posts           []Post           `json:"posts"`
-	DiscoveredUsers []DiscoveredUser `json:"discovered_users"`
-}
-
-type UpdateData struct {
-	UserID   int    `json:"user_id"`
-	ParentID int    `json:"parent_id"`
-	Content  string `json:"content"`
-}

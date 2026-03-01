@@ -143,36 +143,6 @@ func UnblockFollow(ctx context.Context, db *sql.DB, blockerID, targetID int) (in
 	return rows, nil
 }
 
-func GetRelationshipStatus(ctx context.Context, db *sql.DB, currentUserID, targetUserID int) (string, error) {
-	log.Printf("[INFO] GetRelationshipStatus: %d -> %d", currentUserID, targetUserID)
-	var status string
-	query := `SELECT status FROM followers WHERE follower_id = ? AND followed_id = ?`
-	err := db.QueryRowContext(ctx, query, currentUserID, targetUserID).Scan(&status)
-
-	if err == nil {
-		if status == "accepted" {
-			return "Following", nil
-		} else if status == "pending" {
-			return "Pending", nil
-		}
-	} else if err != sql.ErrNoRows {
-		log.Printf("[ERROR] GetRelationshipStatus (Outgoing) failed: %v", err)
-		return "", err
-	}
-
-	query = `SELECT status FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'accepted'`
-	err = db.QueryRowContext(ctx, query, targetUserID, currentUserID).Scan(&status)
-
-	if err == nil {
-		return "Follow Back", nil
-	} else if err != sql.ErrNoRows {
-		log.Printf("[ERROR] GetRelationshipStatus (Incoming) failed: %v", err)
-		return "", err
-	}
-
-	return "Follow", nil
-}
-
 func DiscoverUsers(ctx context.Context, db *sql.DB, currentUserID int, limit int) ([]models.DiscoveredUser, error) {
 	if limit <= 0 {
 		limit = 5

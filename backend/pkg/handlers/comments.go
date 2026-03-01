@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
@@ -13,7 +12,26 @@ import (
 	"strconv"
 )
 
-func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
+type CommentHandler struct {
+	Service services.CommentService
+}
+
+func NewCommentHandler(s services.CommentService) *CommentHandler {
+    return &CommentHandler{Service: s}
+}
+
+func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
+	auth := middleware.WithAuth
+	
+	mux.Handle("GET /api/posts/{id}/comments", middleware.Chain(h.GetPostCommentsHandler, auth))
+
+	mux.Handle("POST /api/comments", middleware.Chain(h.CreateCommentHandler, auth))
+	mux.Handle("PUT /api/comments/{id}", middleware.Chain(h.UpdateCommentHandler, auth))
+	mux.Handle("PUT /api/comments/{id}/delete", middleware.Chain(h.DeleteCommentHandler, auth))
+	mux.Handle("PUT /api/comments/{id}/restore", middleware.Chain(h.RestoreCommentHandler, auth))
+}
+
+func (h *CommentHandler)  CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[INFO] CreateCommentHandler: Received request")
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		log.Printf("[ERROR] CreateCommentHandler: ParseMultipartForm failed: %v", err)
@@ -51,9 +69,7 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 		comment.ExtraContent = imageURL
 	}
 
-	commentService := services.NewCommentService(database.DB)
-
-	if err := commentService.CreateComment(r.Context(), comment); err != nil {
+	if _, err := h.Service.CreateComment(r.Context(), userID, comment); err != nil {
 		log.Printf("[ERROR] CreateCommentHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -63,7 +79,7 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "comment created successfully", nil)
 }
 
-func UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler)  UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentID := r.PathValue("id")
 	log.Printf("[INFO] UpdateCommentHandler: Received request for ID: %s", commentID)
 
@@ -74,6 +90,8 @@ func UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, _ := middleware.UserIDFromContext(r.Context())
+
 	var updateData struct {
 		Content string `json:"content"`
 	}
@@ -83,9 +101,7 @@ func UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	commentService := services.NewCommentService(database.DB)
-
-	err = commentService.UpdateComment(r.Context(), commentIDInt, updateData.Content)
+	err = h.Service.UpdateComment(r.Context(), commentIDInt, userID, updateData.Content)
 	if err != nil {
 		log.Printf("[ERROR] UpdateCommentHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
@@ -96,14 +112,14 @@ func UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "comment updated successfully", nil)
 }
 
-func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler)  DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
 	log.Printf("[INFO] DeleteCommentHandler: Received request for ID: %d", commentID)
 
-	commentService := services.NewCommentService(database.DB)
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	if err := commentService.DeleteComment(r.Context(), commentID); err != nil {
+	if err := h.Service.DeleteComment(r.Context(), commentID, userID); err != nil {
 		log.Printf("[ERROR] DeleteCommentHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -113,14 +129,14 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "comment deleted successfully", nil)
 }
 
-func RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler)  RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
 	log.Printf("[INFO] RestoreCommentHandler: Received request for ID: %d", commentID)
 
-	commentService := services.NewCommentService(database.DB)
+	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	err := commentService.RestoreComment(r.Context(), commentID)
+	err := h.Service.RestoreComment(r.Context(), commentID, userID)
 	if err != nil {
 		log.Printf("[ERROR] RestoreCommentHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
@@ -131,7 +147,7 @@ func RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "comment restored successfully", nil)
 }
 
-func GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler)  GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.PathValue("id")
 	log.Printf("[INFO] GetPostCommentsHandler: Fetching for PostID: %s", postID)
 
@@ -144,9 +160,7 @@ func GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
-	commentService := services.NewCommentService(database.DB)
-
-	comments, err := commentService.GetPostComments(r.Context(), postIDInt, userID)
+	comments, err := h.Service.GetPostComments(r.Context(), postIDInt, userID)
 	if err != nil {
 		log.Printf("[ERROR] GetPostCommentsHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, "Failed to retrieve comments")

@@ -23,7 +23,7 @@ func main() {
 	// login as alice
 	email := "alice@example.com"
 	password := "Password123!"
-	loginInput := models.LoginInput{Email: email, Password: password}
+	loginInput := models.LoginRequest{Email: email, Password: password}
 	userID, err := queries.LogIn(ctx, database.DB, loginInput)
 	if err != nil {
 		log.Fatalf("login failed: %v", err)

@@ -5,46 +5,10 @@ import (
 	"database/sql"
 	"log"
 	"strings"
-	"time"
 
 	"backend/pkg/models"
 )
 
-func CreateUserProfile(ctx context.Context, db *sql.DB, in models.UserProfileInput) error {
-	log.Printf("[INFO] CreateUserProfile: Attempting to create profile for UserID: %d", in.ID)
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		log.Printf("[ERROR] CreateUserProfile: Failed to begin transaction: %v", err)
-		return err
-	}
-	defer tx.Rollback()
-
-	var birthday interface{}
-	if in.Birthday != nil {
-		birthday = in.Birthday
-	} else {
-		birthday = nil
-	}
-
-	_, err = tx.ExecContext(ctx, `
-        INSERT INTO users (
-            id, first_name, last_name, birthday_date, relationship_status,
-            employed_at, phone_number, profile_picture, pictures, level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    `, in.ID, in.FirstName, in.LastName, birthday, in.RelationshipStatus, in.EmployedAt, in.PhoneNumber, in.ProfilePicture, in.Pictures, in.Level)
-	if err != nil {
-		log.Printf("[ERROR] CreateUserProfile: Insert failed: %v", err)
-		return err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("[ERROR] CreateUserProfile: Commit failed: %v", err)
-		return err
-	}
-	log.Printf("[SUCCESS] CreateUserProfile: Profile created for UserID: %d", in.ID)
-	return nil
-}
 
 func UpdateUserProfile(ctx context.Context, db *sql.DB, in models.UserProfileInput) error {
 	log.Printf("[INFO] UpdateUserProfile: Updating profile for UserID: %d", in.ID)
@@ -113,53 +77,6 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int) (models.UserProfile, e
 	}
 	u.Birthday = birthday
 	return u, nil
-}
-
-func MockUserProfileInput(id int) models.UserProfileInput {
-	log.Printf("[DEBUG] Generating MockUserProfileInput for ID: %d", id)
-	now := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC)
-	rel := "single"
-	employed := "Acme Corp"
-	phone := "+1234567890"
-	profilePic := "profile.jpg"
-	pics := "[\"pic1.jpg\",\"pic2.jpg\"]"
-	return models.UserProfileInput{
-		ID:                 id,
-		FirstName:          "Test",
-		LastName:           "User",
-		Birthday:           &now,
-		RelationshipStatus: &rel,
-		EmployedAt:         &employed,
-		PhoneNumber:        &phone,
-		ProfilePicture:     &profilePic,
-		Pictures:           &pics,
-		Level:              "beginner",
-	}
-}
-
-func MarkProfileComplete(ctx context.Context, db *sql.DB, userID int) error {
-	log.Printf("[INFO] MarkProfileComplete: Setting completed flag for UserID: %d", userID)
-	res, err := db.ExecContext(ctx, `UPDATE login_users SET completed = 1 WHERE id = ?;`, userID)
-	if err != nil {
-		log.Printf("[ERROR] MarkProfileComplete failed: %v", err)
-		return err
-	}
-	rows, _ := res.RowsAffected()
-	log.Printf("[SUCCESS] MarkProfileComplete: Rows affected: %d", rows)
-	return nil
-}
-
-func DeleteStaleIncompleteUsers(ctx context.Context, db *sql.DB, olderThan time.Duration) (int64, error) {
-	cutoff := time.Now().Add(-olderThan)
-	log.Printf("[INFO] DeleteStaleIncompleteUsers: Deleting users incomplete since before: %v", cutoff)
-	res, err := db.ExecContext(ctx, `DELETE FROM login_users WHERE completed = 0 AND created_at < ?;`, cutoff)
-	if err != nil {
-		log.Printf("[ERROR] DeleteStaleIncompleteUsers failed: %v", err)
-		return 0, err
-	}
-	rows, _ := res.RowsAffected()
-	log.Printf("[SUCCESS] DeleteStaleIncompleteUsers: Deleted %d stale users", rows)
-	return rows, nil
 }
 
 func UserPrivacy(ctx context.Context, db *sql.DB, userID int, isPublic *bool) error {
@@ -321,13 +238,6 @@ func UpdateUserVisibilitySettings(ctx context.Context, db *sql.DB, userID int,
 
 	log.Printf("[SUCCESS] UpdateUserVisibilitySettings: updated user=%d", userID)
 	return nil
-}
-
-// InsertDefaultUserSettingsTx inserts a default user_settings row for userID using the provided transaction.
-// It is safe to call if a row already exists (uses ON CONFLICT DO NOTHING).
-func InsertDefaultUserSettingsTx(ctx context.Context, tx *sql.Tx, userID int) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO user_settings (id, email_vis, birthday_date_vis, relationship_status_vis, employed_at_vis, phone_number_vis, about_me_vis, nickname_vis, follow_vis) VALUES (?, 0, 1, 1, 1, 0, 1, 1, 0) ON CONFLICT(id) DO NOTHING;`, userID)
-	return err
 }
 
 // InsertDefaultUserSettings inserts a default user_settings row for userID using the DB connection.

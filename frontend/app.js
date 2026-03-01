@@ -12,7 +12,7 @@ form.addEventListener('submit', async (e) => {
   output.textContent = 'Sending...';
 
   try {
-    const res = await fetch('/api/signup', {
+    const res = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
