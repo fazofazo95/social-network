@@ -8,15 +8,6 @@ import (
 
 var auth = middleware.WithAuth
 
-func SettingsRoutes(mux *http.ServeMux) {
-	mux.Handle("GET /api/users/settings", middleware.Chain(GetVisibilitySettingsHandler, auth))
-	mux.Handle("PATCH /api/users/settings", middleware.Chain(UpdateVisibilitySettingsHandler, auth))
-	mux.Handle("PUT /api/users/settings", middleware.Chain(UpdateVisibilitySettingsHandler, auth))
-	mux.Handle("GET /api/users/settings/content", middleware.Chain(GetUserContentSettingsHandler, auth))
-	mux.Handle("PATCH /api/users/settings/content", middleware.Chain(UpdateUserContentSettingsHandler, auth))
-	mux.Handle("PUT /api/users/settings/content", middleware.Chain(UpdateUserContentSettingsHandler, auth))
-}
-
 func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups", middleware.Chain(CreateGroupHandler, auth))
 	mux.Handle("GET /api/groups/active", middleware.Chain(ActiveGroupsHandler, auth))
@@ -32,7 +23,6 @@ func GroupRoutes(mux *http.ServeMux) {
 	mux.Handle("PATCH /api/groups/{id}/events/{event_id}/respond", middleware.Chain(ChangeGroupEventResponseHandler, auth))
 	mux.Handle("DELETE /api/groups/{id}/events/{event_id}", middleware.Chain(CancelGroupEventHandler, auth))
 	mux.Handle("POST /api/groups/{id}/join", middleware.Chain(RequestToJoinGroupHandler, auth))
-	mux.Handle("POST /api/groups/{id}/chat/messages", middleware.Chain(SendGroupMessageHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/{user_id}", middleware.Chain(InviteToGroupHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/accept", middleware.Chain(AcceptInviteHandler, auth))
 	mux.Handle("POST /api/groups/{id}/invite/reject", middleware.Chain(RejectInviteHandler, auth))

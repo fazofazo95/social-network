@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"backend/pkg/db/queries"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/repository"
@@ -33,6 +32,7 @@ func (h *ChatHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /api/chats/{chat_id}/messages", middleware.Chain(h.GetChatMessagesHandler, auth))
 	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(h.SendDirectMessageHandler, auth))
 	mux.Handle("POST /api/chats/{chat_id}/read", middleware.Chain(h.MarkChatReadHandler, auth))
+	mux.Handle("POST /api/groups/{id}/chat/messages", middleware.Chain(h.SendGroupMessageHandler, auth))
 }
 
 func (h *ChatHandler)  SendDirectMessageHandler(w http.ResponseWriter, r *http.Request) {
@@ -188,10 +188,10 @@ func (h *ChatHandler) GetChatMessagesHandler(w http.ResponseWriter, r *http.Requ
 	items, err := h.Service.GetChatMessages(r.Context(), userID, chatID, beforeID, limit)
 	if err != nil {
 		switch {
-		case errors.Is(err, queries.ErrChatNotFound):
+		case errors.Is(err, repository.ErrChatNotFound):
 			responses.SendError(w, http.StatusNotFound, "chat not found")
 			return
-		case errors.Is(err, queries.ErrChatForbidden):
+		case errors.Is(err, repository.ErrChatForbidden):
 			responses.SendError(w, http.StatusForbidden, "chat access forbidden")
 			return
 		default:

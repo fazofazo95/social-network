@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type ProfileService interface {
@@ -13,6 +14,10 @@ type ProfileService interface {
 	GetSocialStatus(ctx context.Context, viewerID, targetID int) (string, error)
 	UpdateUserMedia(ctx context.Context, targetID int, imageURL, coverImageURL string) error
 	DiscoveredUser(ctx context.Context, userID, limit int) ([]*models.DiscoveredUser, error)
+	GetUserVisibilitySettings(ctx context.Context, userID int) (*models.VisibilitySettings, error)
+	UpdateVisibility(ctx context.Context, userID int, req models.UpdateVisibilityRequest) (*models.VisibilitySettings, error)
+	GetUserContentSettings(ctx context.Context, userID int) (*models.UserProfileDTO, error)
+	UpdateUserContent(ctx context.Context, userID int, req models.UserProfileRequest) (*models.UserProfileDTO, error)
 }
 
 type profileService struct {
@@ -173,4 +178,112 @@ func mapRawToDTO(raw *models.RawProfileData, viewerID, targetID int, currentStat
 
 func (s *profileService) DiscoveredUser(ctx context.Context, userID, limit int) ([]*models.DiscoveredUser, error) {
 	return s.repo.DiscoverUsers(ctx, userID, limit)
+}
+
+
+func (s *profileService) GetUserVisibilitySettings(ctx context.Context, userID int) (*models.VisibilitySettings, error) {
+    raw, err := s.repo.GetVisibilityRaw(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    mapVis := func(v int) string {
+        if v == 1 {
+            return "visible"
+        }
+        return "hidden"
+    }
+
+    settings := &models.VisibilitySettings{
+        EmailVis:              mapVis(raw.EmailVis),
+        BirthdayDateVis:       mapVis(raw.BirthdayVis),
+        RelationshipStatusVis: mapVis(raw.RelVis),
+        EmployedAtVis:         mapVis(raw.EmployedVis),
+        PhoneNumberVis:        mapVis(raw.PhoneVis),
+        AboutMeVis:            mapVis(raw.AboutVis),
+        NicknameVis:           mapVis(raw.NickVis),
+        FollowVis:             mapVis(raw.FollowVis),
+    }
+
+    if raw.ProfileType == 1 {
+        settings.ProfileType = "private"
+    } else {
+        settings.ProfileType = "public"
+    }
+
+    return settings, nil
+}
+
+func (s *profileService) UpdateVisibility(ctx context.Context, userID int, req models.UpdateVisibilityRequest) (*models.VisibilitySettings, error) {
+    
+    parse := func(s *string) *int {
+        if s == nil { return nil }
+        val := 0
+        str := strings.ToLower(*s)
+        if str == "visible" || str == "true" || str == "public" || str == "private" {
+            if str == "visible" || str == "true" || str == "private" {
+                val = 1
+            }
+            return &val
+        }
+        return &val
+    }
+
+    err := s.repo.UpdateUserVisibilitySettings(ctx, userID, 
+        parse(req.EmailVis), 
+        parse(req.BirthdayVis),
+        parse(req.RelationshipStatusVis),
+        parse(req.EmployedAtVis),
+        parse(req.PhoneNumberVis),
+        parse(req.AboutMeVis),
+        parse(req.NicknameVis),
+        parse(req.FollowVis),
+        parse(req.ProfileType),
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    return s.GetUserVisibilitySettings(ctx, userID)
+}
+
+func (s *profileService) GetUserContentSettings(ctx context.Context, userID int) (*models.UserProfileDTO, error) {
+    raw, err := s.repo.GetContentRaw(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    dto := &models.UserProfileDTO{
+        ID:                 raw.ID,
+        FirstName:          raw.FirstName,
+        LastName:           raw.LastName,
+        BirthdayDate:       raw.BirthdayDate,
+        RelationshipStatus: raw.RelationshipStatus,
+        EmployedAt:         raw.EmployedAt,
+        Location:           raw.Location,
+        PhoneNumber:        raw.PhoneNumber,
+        Nickname:           raw.Nickname,
+        AboutMe:            raw.AboutMe,
+    }
+
+    return dto, nil
+}
+
+func (s *profileService) UpdateUserContent(ctx context.Context, userID int, req models.UserProfileRequest) (*models.UserProfileDTO, error) {
+    if req.Level == "" {
+        req.Level = "user" 
+    }
+
+    var birthdayStr *string
+    if req.Birthday != nil {
+        s := req.Birthday.Format("2006-01-02")
+        birthdayStr = &s
+    }
+
+    err := s.repo.UpdateProfileContent(ctx, userID, req, birthdayStr)
+    if err != nil {
+        return nil, err
+    }
+
+    return s.GetUserContentSettings(ctx, userID)
 }

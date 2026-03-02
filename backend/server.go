@@ -64,6 +64,9 @@ func runServer() {
 	profileHandl := handlers.NewProfileHandler(profileServ, postServ)
 	profileHandl.RegisterRoutes(mux)
 
+	settingsHandl := handlers.NewSettingsHandler(profileServ)
+	settingsHandl.RegisterRoutes(mux)
+
 	followRepo := repository.NewFollowRepository(database.DB)
 	followServ := services.NewFollowService(followRepo, profileRepo)
 	followHandl := handlers.NewFollowHandler(followServ)
