@@ -8,6 +8,7 @@ import IconButton from "./IconButton";
 import SearchBar from "./SearchBar";
 import { logoutUser } from "src/lib/services/auth";
 import { listChats } from "src/lib/services/chat";
+import { getDiscoveredUsers } from "src/lib/services/discover";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 function toWebSocketUrl(path = "/ws") {
@@ -24,6 +25,10 @@ const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
   const menuRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -39,6 +44,66 @@ const NavBar = () => {
       document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, []);
+
+  // Load all users for search
+  useEffect(() => {
+    let disposed = false;
+
+    async function loadUsers() {
+      try {
+        setIsSearchLoading(true);
+        const users = await getDiscoveredUsers();
+        if (!disposed) {
+          setAllUsers(Array.isArray(users) ? users : []);
+        }
+      } catch (error) {
+        console.error("Failed to load users for search:", error);
+        if (!disposed) {
+          setAllUsers([]);
+        }
+      } finally {
+        if (!disposed) {
+          setIsSearchLoading(false);
+        }
+      }
+    }
+
+    loadUsers();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  // Handle search input changes
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const queryLower = query.toLowerCase();
+    const filtered = allUsers.filter((user) => {
+      const name = `${user.first_name || ""} ${user.last_name || ""}`.toLowerCase();
+      const username = (user.username || "").toLowerCase();
+      const displayName = (user.display_name || "").toLowerCase();
+      return (
+        name.includes(queryLower) ||
+        username.includes(queryLower) ||
+        displayName.includes(queryLower)
+      );
+    });
+
+    setSearchResults(filtered);
+  };
+
+  const handleSearchResultClick = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -161,7 +226,14 @@ const NavBar = () => {
           </h1>
         </div>
         
-        <SearchBar placeholder="Search..." />
+        <SearchBar
+          placeholder="Search users..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          results={searchResults}
+          onResultClick={handleSearchResultClick}
+          isLoading={isSearchLoading}
+        />
       </div>
 
       <div className="flex items-center gap-3 pr-4">
