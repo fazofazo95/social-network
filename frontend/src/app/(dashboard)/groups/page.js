@@ -4,6 +4,15 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { getDiscoveredGroups } from "src/lib/services/discoverGroups";
+import { 
+    createGroup,
+    getActiveGroups, 
+    getPendingGroupInvites, 
+    acceptGroupInvite, 
+    rejectGroupInvite,
+    requestToJoinGroup,
+    leaveGroup
+} from "src/lib/services/group";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import Link from "next/link";
 
@@ -12,76 +21,156 @@ const GroupsPage = () => {
     const [activeSection, setActiveSection] = useState("my-groups");
     const [searchQuery, setSearchQuery] = useState("");
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [groups, setGroups] = useState([
-        { id: 1, name: "Web Development", owner: "John Doe", content: "A community for web developers to share knowledge, resources, and collaborate on projects.", members: 15420, privacy: "public" },
-        { id: 2, name: "React Enthusiasts", owner: "Alison Johnson", content: "Everything about React, Next.js, and modern front end development. Share tips, ask questions, grow together!", members: 8932, privacy: "public" },
-    ]);
-
-    const [invitations, setInvitations] = useState([
-        { id: 3, name: "Photography Club", owner: "Bob Smith", content: "Share your best shots and learn photography techniques from professionals.", members: 5621, privacy: "private", from: "Bob Smith", status: "pending" },
-    ]);
-
-    const [discoverGroups, setDiscoverGroups] = useState([
-        { id: 4, name: "Tech Startups", owner: "Carol White", content: "Discuss startup ideas, funding, and entrepreneurship.", members: 3200, privacy: "public", hasPendingRequest: false, hasJoined: false },
-        { id: 5, name: "Gaming Community", owner: "Dave Brown", content: "Connect with gamers, share tips, and organize gaming sessions.", members: 1500, privacy: "private", hasPendingRequest: false, hasJoined: false },
-    ]);
-
-    const [groupsLoading, setGroupsLoading] = useState(false);
+    
+    // State for groups data
+    const [groups, setGroups] = useState([]);
+    const [groupsLoading, setGroupsLoading] = useState(true);
     const [groupsError, setGroupsError] = useState(null);
 
-    const myGroups = groups;
-    const pendingInvitations = invitations.filter(inv => inv.status === "pending");
+    // State for invitations data
+    const [invitations, setInvitations] = useState([]);
+    const [invitationsLoading, setInvitationsLoading] = useState(false);
+    const [invitationsError, setInvitationsError] = useState(null);
+
+    // State for discover groups
+    const [discoverGroups, setDiscoverGroups] = useState([]);
+    const [discoverLoading, setDiscoverLoading] = useState(false);
+    const [discoverError, setDiscoverError] = useState(null);
+
+    useEffect(() => {
+        // Fetch active groups and invitations when component mounts
+        setGroupsLoading(true);
+        setGroupsError(null);
+        getActiveGroups()
+            .then((res) => {
+                setGroups(Array.isArray(res) ? res : []);
+            })
+            .catch((err) => setGroupsError(err?.message || "Failed to load your groups"))
+            .finally(() => setGroupsLoading(false));
+        
+        // Fetch invitations immediately to show badge right away
+        getPendingGroupInvites()
+            .then((res) => {
+                setInvitations(Array.isArray(res) ? res : []);
+            })
+            .catch((err) => console.error("Failed to load invitations badge:", err));
+        
+        // Set up polling for new invitations every 3 seconds to show badge in real-time
+        const invitationInterval = setInterval(() => {
+            getPendingGroupInvites()
+                .then((res) => {
+                    setInvitations(Array.isArray(res) ? res : []);
+                })
+                .catch((err) => console.error("Failed to refresh invitations badge:", err));
+        }, 3000);
+        
+        return () => clearInterval(invitationInterval);
+    }, []);
+
+    useEffect(() => {
+        // Load full invitation list when user clicks on Invitations tab
+        if (activeSection === "invitations") {
+            setInvitationsLoading(true);
+            setInvitationsError(null);
+            getPendingGroupInvites()
+                .then((res) => {
+                    setInvitations(Array.isArray(res) ? res : []);
+                })
+                .catch((err) => setInvitationsError(err?.message || "Failed to load invitations"))
+                .finally(() => setInvitationsLoading(false));
+        }
+    }, [activeSection]);
 
     useEffect(() => {
         // Fetch discovered groups when user opens Discover tab
         if (activeSection === "discover") {
-            setGroupsLoading(true);
-            setGroupsError(null);
+            setDiscoverLoading(true);
+            setDiscoverError(null);
             getDiscoveredGroups()
                 .then((res) => {
-                    // prefer API result if available, otherwise keep local mock
                     if (Array.isArray(res) && res.length > 0) setDiscoverGroups(res);
                 })
-                .catch((err) => setGroupsError(err?.message || "Failed to load groups"))
-                .finally(() => setGroupsLoading(false));
+                .catch((err) => setDiscoverError(err?.message || "Failed to load groups"))
+                .finally(() => setDiscoverLoading(false));
         }
     }, [activeSection]);
 
-    const handleJoinRequest = (groupId) => {
+    const handleJoinRequest = async (groupId) => {
         const group = discoverGroups.find(g => g.id === groupId);
         if (!group) return;
-        if (group.privacy === "public") {
-            setDiscoverGroups(discoverGroups.map(g => 
-                g.id === groupId ? { ...g, hasJoined: true, members: (g.members || 0) + 1 } : g
-            ));
-        } else {
-            setDiscoverGroups(discoverGroups.map(g => 
-                g.id === groupId ? { ...g, hasPendingRequest: true } : g
-            ));
+
+        try {
+            await requestToJoinGroup(groupId);
+            // Update local state based on join_mode (stored in group.type)
+            // "auto" = direct join, anything else = pending request
+            if (group.type === "auto") {
+                setDiscoverGroups(discoverGroups.map(g => 
+                    g.id === groupId ? { ...g, hasJoined: true, members: (g.members || 0) + 1 } : g
+                ));
+                // Add to my groups
+                setGroups([...groups, group]);
+            } else {
+                setDiscoverGroups(discoverGroups.map(g => 
+                    g.id === groupId ? { ...g, hasPendingRequest: true } : g
+                ));
+            }
+        } catch (error) {
+            console.error("Failed to join group:", error);
+            alert(error?.message || "Failed to join group");
         }
     };
 
-    const handleAcceptInvitation = (groupId) => {
-        const invitation = invitations.find(inv => inv.id === groupId);
-        if (invitation) {
-            setGroups([...groups, { id: invitation.id, name: invitation.name, owner: invitation.owner, content: invitation.content, members: invitation.members || 0, privacy: invitation.privacy || 'private' }]);
+    const handleAcceptInvitation = async (groupId) => {
+        try {
+            await acceptGroupInvite(groupId);
+            const invitation = invitations.find(inv => inv.id === groupId);
+            if (invitation) {
+                // Add to groups
+                setGroups([...groups, { 
+                    id: invitation.id, 
+                    name: invitation.name, 
+                    owner: invitation.owner, 
+                    content: invitation.content || invitation.description,
+                    members: invitation.members || 0, 
+                    privacy: invitation.privacy || 'private' 
+                }]);
+                // Remove from invitations
+                setInvitations(invitations.filter(inv => inv.id !== groupId));
+            }
+        } catch (error) {
+            console.error("Failed to accept invitation:", error);
+            alert(error?.message || "Failed to accept invitation");
+        }
+    };
+
+    const handleDeclineInvitation = async (groupId) => {
+        try {
+            await rejectGroupInvite(groupId);
             setInvitations(invitations.filter(inv => inv.id !== groupId));
+        } catch (error) {
+            console.error("Failed to decline invitation:", error);
+            alert(error?.message || "Failed to decline invitation");
         }
     };
 
-    const handleDeclineInvitation = (groupId) => {
-        setInvitations(invitations.filter(inv => inv.id !== groupId));
-    };
-
-    const handleLeaveGroup = (groupId) => {
-        setGroups(groups.filter(g => g.id !== groupId));
+    const handleLeaveGroup = async (groupId) => {
+        try {
+            await leaveGroup(groupId);
+            setGroups(groups.filter(g => g.id !== groupId));
+            alert("You have left the group");
+        } catch (error) {
+            console.error("Failed to leave group:", error);
+            alert(error?.message || "Failed to leave group");
+        }
     };
 
     const filterGroups = (groupList) => {
         if (!searchQuery) return groupList;
+        const query = searchQuery.toLowerCase();
         return groupList.filter(g => 
-            (g.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (g.content || "").toLowerCase().includes(searchQuery.toLowerCase())
+            (g.name || "").toLowerCase().includes(query) ||
+            (g.content || "").toLowerCase().includes(query) ||
+            (g.description || "").toLowerCase().includes(query)
         );
     };
 
@@ -137,7 +226,7 @@ const GroupsPage = () => {
                             : "text-purple-400 hover:text-purple-200 hover:bg-purple-900/20 border border-transparent"
                     }`}
                 >
-                    My Groups ({myGroups.length})
+                    My Groups ({groups.length})
                 </button>
                 <button 
                     id="invitationsBtn" 
@@ -149,9 +238,9 @@ const GroupsPage = () => {
                     }`}
                 >
                     Invitations
-                    {pendingInvitations.length > 0 && (
+                    {invitations.length > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
-                            {pendingInvitations.length}
+                            {invitations.length}
                         </span>
                     )}
                 </button>
@@ -171,12 +260,14 @@ const GroupsPage = () => {
 
             {/* My Groups Section */}
             <section id="my-groups-section" className={activeSection === "my-groups" ? "flex flex-col gap-4" : "hidden"}>
-                {filterGroups(myGroups).length > 0 ? (
-                    filterGroups(myGroups).map(group => (
+                {groupsLoading && <p>Loading your groups...</p>}
+                {groupsError && <p className="text-red-500">{groupsError}</p>}
+                {!groupsLoading && filterGroups(groups).length > 0 ? (
+                    filterGroups(groups).map(group => (
                         <article key={group.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                             <div className="flex items-start gap-4">
                                 {/* Group Avatar */}
-                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
                                     {group.name[0]}
                                 </div>
                                 
@@ -192,18 +283,18 @@ const GroupsPage = () => {
                                             <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Creator</span>
                                         )}
                                     </div>
-                                    <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content}</p>
+                                    <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content || group.description}</p>
                                     <div className="flex items-center gap-4 text-xs text-purple-400 mt-2">
                                         <span className="flex items-center gap-1">
                                             <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
-                                            {formatMembers(group.members)} members
+                                            {formatMembers(group.members || group.group_members || 0)} members
                                         </span>
-                                        <span>Created by {group.owner}</span>
+                                        <span>Created by {group.owner_first_name} {group.owner_last_name}</span>
                                     </div>
                                 </div>
                                 
                                 {/* Action Buttons */}
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex gap-2 shrink-0">
                                     <Link href={`/groups/${group.id}`}>
                                         <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]">
                                             View group
@@ -222,7 +313,7 @@ const GroupsPage = () => {
                         </article>
                     ))
                 ) : (
-                    <EmptyState 
+                    !groupsLoading && <EmptyState 
                         message={searchQuery ? "No groups found" : "No groups joined yet"}
                         subMessage={searchQuery ? "Try a different search term" : "Join or create a group to get started"}
                     />
@@ -231,11 +322,13 @@ const GroupsPage = () => {
 
             {/* Invitations Section */}
             <section id="invitations-section" className={activeSection === "invitations" ? "flex flex-col gap-4" : "hidden"}>
-                {filterGroups(pendingInvitations).length > 0 ? (
-                    filterGroups(pendingInvitations).map(group => (
+                {invitationsLoading && <p>Loading invitations...</p>}
+                {invitationsError && <p className="text-red-500">{invitationsError}</p>}
+                {!invitationsLoading && filterGroups(invitations).length > 0 ? (
+                    filterGroups(invitations).map(group => (
                         <article key={group.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
                                     {group.name[0]}
                                 </div>
                                 
@@ -248,17 +341,17 @@ const GroupsPage = () => {
                                             <Image src="/globe_icon.svg" alt="Public" width={14} height={14} />
                                         )}
                                     </div>
-                                    <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content}</p>
+                                    <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content || group.description}</p>
                                     <div className="flex items-center gap-4 text-xs text-purple-400 mt-2">
                                         <span className="flex items-center gap-1">
                                             <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
-                                            {formatMembers(group.members)} members
+                                            {formatMembers(group.members || group.group_members || 0)} members
                                         </span>
-                                        <span>Invited by {group.from}</span>
+                                        <span>Invited by {group.owner_first_name} {group.owner_last_name}</span>
                                     </div>
                                 </div>
                                 
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex gap-2 shrink-0">
                                     <button
                                         onClick={() => handleAcceptInvitation(group.id)}
                                         className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
@@ -276,7 +369,7 @@ const GroupsPage = () => {
                         </article>
                     ))
                 ) : (
-                    <EmptyState 
+                    !invitationsLoading && <EmptyState 
                         message="No pending invitations"
                         subMessage="You have no pending group invitations"
                     />
@@ -285,13 +378,13 @@ const GroupsPage = () => {
 
             {/* Discover Section */}
             <section id="discover-section" className={activeSection === "discover" ? "flex flex-col gap-4" : "hidden"}>
-                {groupsLoading && <p>Loading groups...</p>}
-                {groupsError && <p className="text-red-500">{groupsError}</p>}
-                {filterGroups(discoverGroups).length > 0 ? (
+                {discoverLoading && <p>Loading groups...</p>}
+                {discoverError && <p className="text-red-500">{discoverError}</p>}
+                {!discoverLoading && filterGroups(discoverGroups).length > 0 ? (
                     filterGroups(discoverGroups).map(group => (
                         <article key={group.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)] overflow-hidden">
+                                <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold  shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)] overflow-hidden">
                                     {/* Prefer group picture when available */}
                                     {group.group_picture ? (
                                         <Image
@@ -322,11 +415,11 @@ const GroupsPage = () => {
                                             <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
                                             {formatMembers(group.members || group.members_count || 0)} members
                                         </span>
-                                        <span>Created by {group.owner_name || group.owner || "Unknown"}</span>
+                                        <span>Created by {group.owner_first_name} {group.owner_last_name}</span>
                                     </div>
                                 </div>
                                 
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex gap-2 shrink-0">
                                     {group.hasJoined ? (
                                         <Link href={`/groups/${group.id}`}>
                                             <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]">
@@ -345,7 +438,7 @@ const GroupsPage = () => {
                                             onClick={() => handleJoinRequest(group.id)}
                                             className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
                                         >
-                                            {group.privacy === "private" ? "Request" : "Join"}
+                                            {group.type === "auto" ? "Join" : "Request"}
                                         </button>
                                     )}
                                 </div>
@@ -353,7 +446,7 @@ const GroupsPage = () => {
                         </article>
                     ))
                 ) : (
-                    <EmptyState 
+                    !discoverLoading && <EmptyState 
                         message={searchQuery ? "No groups found" : "No groups to discover"}
                         subMessage={searchQuery ? "Try a different search term" : "Check back later for new groups"}
                     />
@@ -362,7 +455,15 @@ const GroupsPage = () => {
 
             {/* Create Group Modal */}
             {showCreateModal && (
-                <CreateGroupModal onClose={() => setShowCreateModal(false)} />
+                <CreateGroupModal 
+                    onClose={() => setShowCreateModal(false)}
+                    onGroupCreated={() => {
+                        // Refresh groups list
+                        getActiveGroups()
+                            .then((res) => setGroups(Array.isArray(res) ? res : []))
+                            .catch((err) => console.error("Failed to refresh groups:", err));
+                    }}
+                />
             )}
         </main>
     );
@@ -378,15 +479,17 @@ const EmptyState = ({ message, subMessage }) => (
 );
 
 // Create Group Modal Component
-const CreateGroupModal = ({ onClose }) => {
+const CreateGroupModal = ({ onClose, onGroupCreated }) => {
     const [formData, setFormData] = useState({
         title: "",
         description: "",
-        privacy: "public",
+        visibility: "public",
+        join_mode: "auto",
     });
     const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         
         const newErrors = {};
@@ -398,9 +501,25 @@ const CreateGroupModal = ({ onClose }) => {
             return;
         }
 
-        console.log("Creating group:", formData);
-        alert("Group created successfully!");
-        onClose();
+        // Prepare FormData for API
+        const formDataToSend = new FormData();
+        formDataToSend.append("name", formData.title);
+        formDataToSend.append("description", formData.description);
+        formDataToSend.append("visibility", formData.visibility);
+        formDataToSend.append("join_mode", formData.join_mode);
+
+        setIsSubmitting(true);
+        try {
+            await createGroup(formDataToSend);
+            alert("Group created successfully!");
+            onGroupCreated?.();
+            onClose();
+        } catch (error) {
+            console.error("Failed to create group:", error);
+            setErrors({ submit: error?.message || "Failed to create group" });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -449,19 +568,19 @@ const CreateGroupModal = ({ onClose }) => {
                         {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                     </div>
 
-                    {/* Privacy */}
+                    {/* Visibility */}
                     <div>
                         <label className="block text-sm font-medium text-purple-300 mb-2">
-                            Privacy
+                            Visibility
                         </label>
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="privacy"
+                                    name="visibility"
                                     value="public"
-                                    checked={formData.privacy === "public"}
-                                    onChange={() => setFormData({ ...formData, privacy: "public" })}
+                                    checked={formData.visibility === "public"}
+                                    onChange={() => setFormData({ ...formData, visibility: "public" })}
                                     className="w-4 h-4 text-purple-500 accent-purple-500"
                                 />
                                 <span className="text-sm text-purple-300">Public</span>
@@ -469,10 +588,10 @@ const CreateGroupModal = ({ onClose }) => {
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                     type="radio"
-                                    name="privacy"
+                                    name="visibility"
                                     value="private"
-                                    checked={formData.privacy === "private"}
-                                    onChange={() => setFormData({ ...formData, privacy: "private" })}
+                                    checked={formData.visibility === "private"}
+                                    onChange={() => setFormData({ ...formData, visibility: "private" })}
                                     className="w-4 h-4 text-purple-500 accent-purple-500"
                                 />
                                 <span className="text-sm text-purple-300">Private</span>
@@ -480,20 +599,82 @@ const CreateGroupModal = ({ onClose }) => {
                         </div>
                     </div>
 
+                    {/* Join Mode */}
+                    <div>
+                        <label className="block text-sm font-medium text-purple-300 mb-2">
+                            Join Mode
+                        </label>
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="join_mode"
+                                    value="auto"
+                                    checked={formData.join_mode === "auto"}
+                                    onChange={() => setFormData({ ...formData, join_mode: "auto" })}
+                                    className="w-4 h-4 text-purple-500 accent-purple-500"
+                                />
+                                <span className="text-sm text-purple-300">Auto (Anyone can join)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="join_mode"
+                                    value="request"
+                                    checked={formData.join_mode === "request"}
+                                    onChange={() => setFormData({ ...formData, join_mode: "request" })}
+                                    className="w-4 h-4 text-purple-500 accent-purple-500"
+                                />
+                                <span className="text-sm text-purple-300">Request (Needs approval)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="join_mode"
+                                    value="invite"
+                                    checked={formData.join_mode === "invite"}
+                                    onChange={() => setFormData({ ...formData, join_mode: "invite" })}
+                                    className="w-4 h-4 text-purple-500 accent-purple-500"
+                                />
+                                <span className="text-sm text-purple-300">Invite Only</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="join_mode"
+                                    value="request_and_invite"
+                                    checked={formData.join_mode === "request_and_invite"}
+                                    onChange={() => setFormData({ ...formData, join_mode: "request_and_invite" })}
+                                    className="w-4 h-4 text-purple-500 accent-purple-500"
+                                />
+                                <span className="text-sm text-purple-300">Both (Request or Invite)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Error message */}
+                    {errors.submit && (
+                        <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-md text-red-200 text-sm">
+                            {errors.submit}
+                        </div>
+                    )}
+
                     {/* Buttons */}
                     <div className="flex gap-3 justify-end pt-2">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                            disabled={isSubmitting}
+                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:shadow-[0_0_20px_rgba(168,85,247,0.6)]"
+                            disabled={isSubmitting}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:shadow-[0_0_20px_rgba(168,85,247,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Create Group
+                            {isSubmitting ? "Creating..." : "Create Group"}
                         </button>
                     </div>
                 </form>

@@ -1,9 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import {
+    getGroupPage,
+    getGroupMembers,
+    getGroupPendingRequests,
+    getGroupPendingInvites,
+    acceptJoinRequest,
+    rejectJoinRequest,
+    removeInvite,
+    kickMember,
+    promoteMember,
+    demoteMember,
+    deleteGroup,
+    inviteToGroup
+} from "src/lib/services/group";
+import { getDiscoveredUsers } from "src/lib/services/discover";
 
 const GroupDetailPage = () => {
     const params = useParams();
@@ -15,26 +30,18 @@ const GroupDetailPage = () => {
     const [showCreateEventModal, setShowCreateEventModal] = useState(false);
     const [showCreatePostModal, setShowCreatePostModal] = useState(false);
 
-    // Mock group data - in production, fetch based on groupId
-    const [group, setGroup] = useState({
-        id: parseInt(groupId),
-        name: "Web Development",
-        description: "A community for web developers to share knowledge, resources, and collaborate on projects. Join us to learn, teach, and grow together!",
-        owner: "John Doe",
-        members: 15420,
-        privacy: "public",
-        createdAt: "January 2024",
-        coverImage: null,
-    });
+    // Loading states
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [userRole, setUserRole] = useState(null); // owner, moderator, member, or null
 
-    const [members, setMembers] = useState([
-        { id: 1, name: "John Doe", role: "creator", avatar: null },
-        { id: 2, name: "Alice Johnson", role: "moderator", avatar: null },
-        { id: 3, name: "Bob Smith", role: "member", avatar: null },
-        { id: 4, name: "Carol White", role: "member", avatar: null },
-        { id: 5, name: "David Brown", role: "member", avatar: null },
-    ]);
+    // API data
+    const [group, setGroup] = useState(null);
+    const [members, setMembers] = useState([]);
+    const [pendingRequests, setPendingRequests] = useState([]);
+    const [pendingInvites, setPendingInvites] = useState([]);
 
+    // More UI state
     const [posts, setPosts] = useState([
         { id: 1, author: "Alice Johnson", content: "Just finished a great tutorial on React hooks! Anyone else working on React projects?", likes: 24, liked: false, comments: [], createdAt: "2 hours ago" },
         { id: 2, author: "Bob Smith", content: "Looking for collaborators on an open-source project. DM me if interested!", likes: 15, liked: false, comments: [], createdAt: "5 hours ago" },
@@ -49,13 +56,63 @@ const GroupDetailPage = () => {
         { id: 2, title: "React Workshop", date: "March 5, 2026", time: "2:00 PM", attendees: 45, going: false },
     ]);
 
-    const [joinRequests, setJoinRequests] = useState([
-        { id: 1, name: "Eve Wilson", requestedAt: "2 hours ago" },
-        { id: 2, name: "Frank Miller", requestedAt: "1 day ago" },
-    ]);
+    // Load group data on mount
+    useEffect(() => {
+        const loadGroupData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                // Fetch group page (includes user's role)
+                const groupData = await getGroupPage(groupId);
+                if (groupData) {
+                    setGroup(groupData);
+                    setUserRole(groupData.role || null); // owner, moderator, member, or null
+                }
+                
+                // If user is member, fetch members and moderator content
+                if (groupData?.role) {
+                    const membersData = await getGroupMembers(groupId);
+                    setMembers(membersData);
+                    
+                    // If moderator/owner, fetch pending requests and invites
+                    if (groupData.role === "owner" || groupData.role === "moderator") {
+                        const requestsData = await getGroupPendingRequests(groupId);
+                        setPendingRequests(requestsData);
+                        
+                        const invitesData = await getGroupPendingInvites(groupId);
+                        setPendingInvites(invitesData);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load group data:", err);
+                setError(err?.message || "Failed to load group data");
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const isCreator = group.owner === currentUser;
-    const isModerator = members.some(m => m.name === currentUser && (m.role === "moderator" || m.role === "creator"));
+        if (groupId) {
+            loadGroupData();
+            
+            // Set up polling to refresh pending requests and invites every 5 seconds
+            const interval = setInterval(async () => {
+                try {
+                    if (userRole === "owner" || userRole === "moderator") {
+                        const requestsData = await getGroupPendingRequests(groupId);
+                        setPendingRequests(requestsData);
+                        
+                        const invitesData = await getGroupPendingInvites(groupId);
+                        setPendingInvites(invitesData);
+                    }
+                } catch (err) {
+                    console.error("Failed to refresh pending data:", err);
+                }
+            }, 5000);
+            
+            return () => clearInterval(interval);
+        }
+    }, [groupId, userRole]);
 
     const formatMembers = (count) => {
         if (count >= 1000) {
@@ -64,12 +121,70 @@ const GroupDetailPage = () => {
         return count.toString();
     };
 
-    const handleAcceptRequest = (requestId) => {
-        setJoinRequests(joinRequests.filter(r => r.id !== requestId));
+    // Moderator/Owner handlers
+    const handleAcceptRequest = async (userId) => {
+        try {
+            await acceptJoinRequest(groupId, userId);
+            setPendingRequests(pendingRequests.filter(r => r.id !== userId));
+        } catch (error) {
+            console.error("Failed to accept request:", error);
+            alert(error?.message || "Failed to accept request");
+        }
     };
 
-    const handleDeclineRequest = (requestId) => {
-        setJoinRequests(joinRequests.filter(r => r.id !== requestId));
+    const handleDeclineRequest = async (userId) => {
+        try {
+            await rejectJoinRequest(groupId, userId);
+            setPendingRequests(pendingRequests.filter(r => r.id !== userId));
+        } catch (error) {
+            console.error("Failed to reject request:", error);
+            alert(error?.message || "Failed to reject request");
+        }
+    };
+
+    const handleRemoveInvite = async (userId) => {
+        try {
+            await removeInvite(groupId, userId);
+            setPendingInvites(pendingInvites.filter(i => i.id !== userId));
+        } catch (error) {
+            console.error("Failed to remove invite:", error);
+            alert(error?.message || "Failed to remove invite");
+        }
+    };
+
+    const handleKickMember = async (userId) => {
+        if (!confirm("Are you sure you want to kick this member?")) return;
+        try {
+            await kickMember(groupId, userId);
+            setMembers(members.filter(m => m.id !== userId));
+        } catch (error) {
+            console.error("Failed to kick member:", error);
+            alert(error?.message || "Failed to kick member");
+        }
+    };
+
+    const handlePromoteMember = async (userId) => {
+        try {
+            await promoteMember(groupId, userId);
+            setMembers(members.map(m => 
+                m.id === userId ? { ...m, role: "moderator" } : m
+            ));
+        } catch (error) {
+            console.error("Failed to promote member:", error);
+            alert(error?.message || "Failed to promote member");
+        }
+    };
+
+    const handleDemoteMember = async (userId) => {
+        try {
+            await demoteMember(groupId, userId);
+            setMembers(members.map(m => 
+                m.id === userId ? { ...m, role: "member" } : m
+            ));
+        } catch (error) {
+            console.error("Failed to demote member:", error);
+            alert(error?.message || "Failed to demote member");
+        }
     };
 
     const handleLike = (postId) => {
@@ -146,10 +261,17 @@ const GroupDetailPage = () => {
                 <span>Back to Groups</span>
             </Link>
 
+            {loading && <p className="text-center text-purple-300">Loading group...</p>}
+            {error && <p className="text-center text-red-500">{error}</p>}
+            
+            {!loading && !group && <p className="text-center text-purple-300">Group not found</p>}
+
+            {!loading && group && (
+            <>
             {/* Group Header */}
             <header className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 overflow-hidden">
                 {/* Cover Image */}
-                <div className="h-32 bg-gradient-to-r from-purple-900 via-purple-600 to-purple-900 relative">
+                <div className="h-32 bg-linear-to-r from-purple-900 via-purple-600 to-purple-900 relative">
                     <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-20"></div>
                 </div>
                 
@@ -158,33 +280,36 @@ const GroupDetailPage = () => {
                     <div className="flex items-end gap-4">
                         {/* Group Avatar */}
                         <div className="w-20 h-20 rounded-lg bg-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-[0_0_20px_rgba(168,85,247,0.4)] border-4 border-[#1a1a2e]">
-                            {group.name[0]}
+                            {group?.name?.[0]}
                         </div>
                         
                         <div className="flex-1 pb-2">
                             <div className="flex items-center gap-3">
                                 <h1 className="text-2xl font-bold text-purple-100">{group.name}</h1>
-                                {group.privacy === "private" ? (
+                                {group.visibility === "private" ? (
                                     <Image src="/lock_icon.svg" alt="Private" width={18} height={18} />
                                 ) : (
                                     <Image src="/globe_icon.svg" alt="Public" width={18} height={18} />
                                 )}
-                                {isCreator && (
-                                    <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Creator</span>
+                                {userRole === "owner" && (
+                                    <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Owner</span>
+                                )}
+                                {userRole === "moderator" && (
+                                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(59,130,246,0.4)]">Moderator</span>
                                 )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-purple-400 mt-1">
                                 <span className="flex items-center gap-1">
                                     <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
-                                    {formatMembers(group.members)} members
+                                    {formatMembers(group.group_members || group.members)} members
                                 </span>
-                                <span>Created {group.createdAt}</span>
+                                <span>Created {group.created_at || group.createdAt}</span>
                             </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex gap-2">
-                            {isCreator && (
+                            {(userRole === "owner" || userRole === "moderator") && (
                                 <button 
                                     onClick={() => setShowInviteModal(true)}
                                     className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition cursor-pointer text-sm flex items-center gap-2"
@@ -192,7 +317,7 @@ const GroupDetailPage = () => {
                                     <span>+</span> Invite
                                 </button>
                             )}
-                            {isCreator && (
+                            {userRole === "owner" && (
                                 <button className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm">
                                     <Image src="/settings_icon.svg" alt="Settings" width={16} height={16} />
                                 </button>
@@ -205,7 +330,7 @@ const GroupDetailPage = () => {
             </header>
 
             {/* Tabs */}
-            <div className="flex flex-row gap-3 w-full">
+            <div className="flex flex-row gap-3 w-full flex-wrap">
                 <button 
                     onClick={() => setActiveTab("posts")} 
                     className={`py-2 px-4 text-sm font-medium transition-all cursor-pointer rounded-md ${
@@ -236,22 +361,39 @@ const GroupDetailPage = () => {
                 >
                     Events ({events.length})
                 </button>
-                {isModerator && (
-                    <button 
-                        onClick={() => setActiveTab("requests")} 
-                        className={`py-2 px-4 text-sm font-medium transition-all cursor-pointer rounded-md relative ${
-                            activeTab === "requests"
-                                ? "bg-purple-900/40 text-purple-200 border border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
-                                : "text-purple-400 hover:text-purple-200 hover:bg-purple-900/20 border border-transparent"
-                        }`}
-                    >
-                        Requests
-                        {joinRequests.length > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
-                                {joinRequests.length}
-                            </span>
-                        )}
-                    </button>
+                {(userRole === "owner" || userRole === "moderator") && (
+                    <>
+                        <button 
+                            onClick={() => setActiveTab("requests")} 
+                            className={`py-2 px-4 text-sm font-medium transition-all cursor-pointer rounded-md relative ${
+                                activeTab === "requests"
+                                    ? "bg-purple-900/40 text-purple-200 border border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                    : "text-purple-400 hover:text-purple-200 hover:bg-purple-900/20 border border-transparent"
+                            }`}
+                        >
+                            Join Requests
+                            {pendingRequests.length > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                                    {pendingRequests.length}
+                                </span>
+                            )}
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab("invites")} 
+                            className={`py-2 px-4 text-sm font-medium transition-all cursor-pointer rounded-md relative ${
+                                activeTab === "invites"
+                                    ? "bg-purple-900/40 text-purple-200 border border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                    : "text-purple-400 hover:text-purple-200 hover:bg-purple-900/20 border border-transparent"
+                            }`}
+                        >
+                            Pending Invites
+                            {pendingInvites.length > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shadow-[0_0_8px_rgba(249,115,22,0.6)]">
+                                    {pendingInvites.length}
+                                </span>
+                            )}
+                        </button>
+                    </>
                 )}
             </div>
 
@@ -366,11 +508,11 @@ const GroupDetailPage = () => {
                         <article key={member.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                                    {member.name[0]}
+                                    {(member.first_name || "U")[0]}
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-purple-100">{member.name}</span>
+                                        <span className="font-semibold text-purple-100">{member.first_name} {member.last_name}</span>
                                         {member.role === "creator" && (
                                             <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Creator</span>
                                         )}
@@ -379,7 +521,7 @@ const GroupDetailPage = () => {
                                         )}
                                     </div>
                                 </div>
-                                {isCreator && member.name !== currentUser && (
+                                {userRole === "owner" && `${member.first_name} ${member.last_name}` !== currentUser && (
                                     <div className="flex gap-2">
                                         {member.role === "member" && (
                                             <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)]">
@@ -400,7 +542,7 @@ const GroupDetailPage = () => {
             {/* Events Section */}
             {activeTab === "events" && (
                 <section className="flex flex-col gap-4">
-                    {isModerator && (
+                    {(userRole === "moderator" || userRole === "owner") && (
                         <button 
                             onClick={() => setShowCreateEventModal(true)}
                             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition cursor-pointer text-sm flex items-center gap-2 w-fit"
@@ -437,18 +579,18 @@ const GroupDetailPage = () => {
             )}
 
             {/* Join Requests Section */}
-            {activeTab === "requests" && isModerator && (
+            {activeTab === "requests" && (userRole === "owner" || userRole === "moderator") && (
                 <section className="flex flex-col gap-4">
-                    {joinRequests.length > 0 ? (
-                        joinRequests.map(request => (
+                    {pendingRequests.length > 0 ? (
+                        pendingRequests.map(request => (
                             <article key={request.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                                        {request.name[0]}
+                                        {(request.first_name || "U")[0]}{(request.last_name || "")?.[0] || ""}
                                     </div>
                                     <div className="flex-1">
-                                        <span className="font-semibold text-purple-100">{request.name}</span>
-                                        <p className="text-purple-400/60 text-sm">Requested {request.requestedAt}</p>
+                                        <span className="font-semibold text-purple-100">{request.first_name} {request.last_name}</span>
+                                        <p className="text-purple-400/60 text-sm">Requested to join</p>
                                     </div>
                                     <div className="flex gap-2">
                                         <button 
@@ -476,9 +618,43 @@ const GroupDetailPage = () => {
                 </section>
             )}
 
+            {/* Pending Invites Section */}
+            {activeTab === "invites" && (userRole === "owner" || userRole === "moderator") && (
+                <section className="flex flex-col gap-4">
+                    {pendingInvites.length > 0 ? (
+                        pendingInvites.map(invite => (
+                            <article key={invite.id} className="bg-[#1a1a2e] rounded-lg border border-orange-500/30 p-4 hover:border-orange-500/50 hover:shadow-[0_0_15px_rgba(249,115,22,0.15)] transition-all">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold shadow-[0_0_10px_rgba(249,115,22,0.3)]">
+                                        {(invite.first_name || "U")[0]}{(invite.last_name || "")?.[0] || ""}
+                                    </div>
+                                    <div className="flex-1">
+                                        <span className="font-semibold text-purple-100">{invite.first_name} {invite.last_name}</span>
+                                        <p className="text-purple-400/60 text-sm">Pending invite</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => handleRemoveInvite(invite.id)}
+                                            className="px-3 py-1.5 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        ))
+                    ) : (
+                        <EmptyState 
+                            message="No pending invites"
+                            subMessage="All invites have been sent or accepted"
+                        />
+                    )}
+                </section>
+            )}
+
             {/* Invite Modal */}
             {showInviteModal && (
-                <InviteModal onClose={() => setShowInviteModal(false)} />
+                <InviteModal onClose={() => setShowInviteModal(false)} members={members} groupId={groupId} />
             )}
 
             {/* Create Post Modal */}
@@ -489,6 +665,8 @@ const GroupDetailPage = () => {
             {/* Create Event Modal */}
             {showCreateEventModal && (
                 <CreateEventModal onClose={() => setShowCreateEventModal(false)} />
+            )}
+            </>
             )}
         </main>
     );
@@ -504,8 +682,76 @@ const EmptyState = ({ message, subMessage }) => (
 );
 
 // Invite Modal Component
-const InviteModal = ({ onClose }) => {
+const InviteModal = ({ onClose, members = [], groupId }) => {
     const [searchQuery, setSearchQuery] = useState("");
+    const [invitedUsers, setInvitedUsers] = useState({});
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [sendingInvites, setSendingInvites] = useState(false);
+
+    // Fetch available users on mount
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const users = await getDiscoveredUsers();
+                
+                // Filter out members already in the group
+                const memberIds = new Set(members.map(m => m.id));
+                const filtered = users.filter(user => !memberIds.has(user.id));
+                
+                setAvailableUsers(filtered);
+            } catch (err) {
+                console.error("Failed to load users:", err);
+                setError(err?.message || "Failed to load users");
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchUsers();
+    }, [members]);
+
+    // Filter users based on search query
+    const filteredUsers = availableUsers.filter(user => {
+        const query = searchQuery.toLowerCase();
+        return (
+            user.first_name.toLowerCase().includes(query) ||
+            user.last_name.toLowerCase().includes(query)
+        );
+    });
+
+    const handleInviteUser = (userId) => {
+        setInvitedUsers(prev => ({
+            ...prev,
+            [userId]: !prev[userId]
+        }));
+    };
+
+    const handleSendInvites = async () => {
+        const selectedUserIds = Object.keys(invitedUsers).filter(id => invitedUsers[id]);
+        if (selectedUserIds.length === 0) {
+            alert("Please select at least one user to invite");
+            return;
+        }
+
+        setSendingInvites(true);
+        try {
+            // Send invites to each selected user
+            await Promise.all(
+                selectedUserIds.map(userId => inviteToGroup(groupId, userId))
+            );
+            alert(`Invitations sent to ${selectedUserIds.length} user(s)!`);
+            onClose();
+        } catch (err) {
+            console.error("Failed to send invites:", err);
+            alert(err?.message || "Failed to send invites");
+        } finally {
+            setSendingInvites(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -529,15 +775,52 @@ const InviteModal = ({ onClose }) => {
                     />
                 </div>
 
-                <p className="text-purple-400/60 text-sm text-center py-8">Search for users to invite them to your group</p>
+                {/* Users List */}
+                <div className="max-h-80 overflow-y-auto mb-4 space-y-2">
+                    {loading ? (
+                        <p className="text-purple-400/60 text-sm text-center py-8">Loading users...</p>
+                    ) : error ? (
+                        <p className="text-red-400 text-sm text-center py-8">{error}</p>
+                    ) : filteredUsers.length > 0 ? (
+                        filteredUsers.map(user => (
+                            <div key={user.id} className="flex items-center gap-3 p-3 bg-[#0d0d1a] border border-purple-500/20 rounded-md hover:border-purple-500/40 transition">
+                                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold shrink-0 shadow-[0_0_8px_rgba(168,85,247,0.3)]">
+                                    {(user.first_name || "U")[0]}{(user.last_name || "")[0]}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-purple-100 font-medium text-sm">{user.first_name} {user.last_name}</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={invitedUsers[user.id] || false}
+                                    onChange={() => handleInviteUser(user.id)}
+                                    disabled={sendingInvites}
+                                    className="w-5 h-5 accent-purple-500 cursor-pointer disabled:opacity-50"
+                                />
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-purple-400/60 text-sm text-center py-8">
+                            {searchQuery ? "No users found matching your search" : "All available users are already in the group"}
+                        </p>
+                    )}
+                </div>
 
                 <div className="flex gap-3 justify-end pt-2">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                        disabled={sendingInvites}
+                        className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50"
                     >
-                        Close
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSendInvites}
+                        disabled={Object.values(invitedUsers).every(v => !v) || sendingInvites}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {sendingInvites ? "Sending..." : "Send Invites"}
                     </button>
                 </div>
             </div>
