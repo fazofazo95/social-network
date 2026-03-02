@@ -1,21 +1,17 @@
 package handlers
 
 import (
-	"backend/pkg/db/queries"
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/responses"
 	"backend/pkg/services"
 	"backend/pkg/utils"
-	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 )
 
 type ProfileHandler struct {
 	profileService services.ProfileService
-	postService services.PostService
+	postService    services.PostService
 }
 
 func NewProfileHandler(profileServ services.ProfileService,
@@ -26,11 +22,9 @@ func NewProfileHandler(profileServ services.ProfileService,
 func (h *ProfileHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
 
-	//profile service
 	mux.Handle("GET /api/users/{id}", middleware.Chain(h.GetUserHandler, auth))
 	mux.Handle("PUT /api/users/{id}", middleware.Chain(h.UpdateUserHandler, auth))
 
-	//post service
 	mux.Handle("GET /api/users/{id}/posts", middleware.Chain(h.GetUserPostsHandler, auth))
 }
 
@@ -43,38 +37,11 @@ func (h *ProfileHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) 
 
 	targetID := r.PathValue("id")
 
-	data, err := h.profileService.GetUserProfileView(r.Context(), viewerID,targetID)
-
-	// if targetID == "me" {
-	// 	targetID := viewerID
-	// 	data, err := queries.GetUserProfileView(r.Context(), database.DB, viewerID, targetID)
-	// 	if err != nil {
-	// 		if err == sql.ErrNoRows {
-	// 			responses.SendError(w, http.StatusNotFound, "user not found")
-	// 			return
-	// 		}
-	// 		responses.SendError(w, http.StatusInternalServerError, "failed to fetch profile: "+err.Error())
-	// 		return
-	// 	}
-	// 	responses.SendSuccess(w, "profile", data)
-	// 	return
-	// }
-
-	// targetID, err := strconv.Atoi(r.PathValue("id"))
-	// if err != nil || targetID <= 0 {
-	// 	responses.SendError(w, http.StatusBadRequest, "invalid user id")
-	// 	return
-	// }
-
-	// data, err := queries.GetUserProfileView(r.Context(), database.DB, viewerID, targetID)
-	// if err != nil {
-	// 	if err == sql.ErrNoRows {
-	// 		responses.SendError(w, http.StatusNotFound, "user not found")
-	// 		return
-	// 	}
-	// 	responses.SendError(w, http.StatusInternalServerError, "failed to fetch profile: "+err.Error())
-	// 	return
-	// }
+	data, err := h.profileService.GetUserProfileView(r.Context(), viewerID, targetID)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "failed to fetch profile")
+		return
+	}
 
 	responses.SendSuccess(w, "profile", data)
 }
@@ -86,21 +53,14 @@ func (h *ProfileHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	targetParam := r.PathValue("id")
-	targetID := viewerID
-	if targetParam != "" && targetParam != "me" {
-		parsedID, parseErr := strconv.Atoi(targetParam)
-		if parseErr != nil || parsedID <= 0 {
-			responses.SendError(w, http.StatusBadRequest, "invalid user id")
-			return
-		}
-		targetID = parsedID
-	}
+	targetIDstr := r.PathValue("id")
 
-	if targetID != viewerID {
+	if targetIDstr != "me" {
 		responses.SendError(w, http.StatusForbidden, "forbidden")
 		return
 	}
+
+	targetID := viewerID
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		responses.SendError(w, http.StatusBadRequest, "invalid form")
@@ -119,41 +79,13 @@ func (h *ProfileHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if imageURL == "" && coverImageURL == "" {
-		responses.SendError(w, http.StatusBadRequest, "no avatar or cover file provided")
-		return
-	}
-
-	query := "UPDATE users SET "
-	args := make([]interface{}, 0, 3)
-	if imageURL != "" {
-		query += "profile_picture = ?"
-		args = append(args, imageURL)
-	}
-	if coverImageURL != "" {
-		if len(args) > 0 {
-			query += ", "
+	err = h.profileService.UpdateUserMedia(r.Context(), targetID, imageURL, coverImageURL)
+	if err != nil {
+		if err.Error() == "no avatar or cover file provided" {
+			responses.SendError(w, http.StatusBadRequest, err.Error())
+			return
 		}
-		query += "cover_image = ?"
-		args = append(args, coverImageURL)
-	}
-	query += " WHERE id = ?"
-	args = append(args, targetID)
-
-	res, err := database.DB.ExecContext(r.Context(), query, args...)
-	if err != nil {
 		responses.SendError(w, http.StatusInternalServerError, "failed to update profile media")
-		return
-	}
-
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, "failed to confirm profile update")
-		return
-	}
-
-	if rowsAffected == 0 {
-		responses.SendError(w, http.StatusNotFound, "user not found")
 		return
 	}
 
@@ -166,36 +98,23 @@ func (h *ProfileHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Reques
 
 func (h *ProfileHandler) GetUserPostsHandler(w http.ResponseWriter, r *http.Request) {
 	targetUserID := r.PathValue("id")
-	log.Printf("[INFO] GetUserPostsHandler: Fetching posts for TargetUserID: %s", targetUserID)
 
 	targetUserIDint, err := strconv.Atoi(targetUserID)
 	if err != nil {
-		log.Printf("[ERROR] GetUserPostsHandler: Invalid ID format: %v", err)
 		responses.SendError(w, http.StatusBadRequest, "Invalid post ID")
 		return
 	}
 
 	viewerID, _ := middleware.UserIDFromContext(r.Context())
-	log.Printf("[INFO] GetUserPostsHandler: ViewerID: %d fetching posts of TargetID: %d", viewerID, targetUserIDint)
 
 	pageStr := r.URL.Query().Get("page")
 	page, _ := strconv.Atoi(pageStr)
-	if page < 1 {
-		page = 1
-	}
 
-	limit := 10
-	offset := (page - 1) * limit
-	log.Printf("[INFO] GetUserPostsHandler: Pagination - Page: %d, Limit: %d, Offset: %d", page, limit, offset)
-
-	postService := services.NewPostService(database.DB)
-	posts, err := postService.GetUserPosts(r.Context(), targetUserIDint, viewerID, limit, offset)
+	posts, err := h.postService.GetProfilePosts(r.Context(), targetUserIDint, viewerID, page)
 	if err != nil {
-		log.Printf("[ERROR] GetUserPostsHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Printf("[SUCCESS] GetUserPostsHandler: Retrieved %d posts", len(posts))
 	responses.SendSuccess(w, "user posts retrieved successfully", posts)
 }

@@ -12,20 +12,20 @@ import (
 type PostService interface {
 	CreatePost(ctx context.Context, userID int, input *models.Post) (*models.Post, error)
 	GetPost(ctx context.Context, postID, viewerID int) (*models.Post, error)
-	GetUserFeed(ctx context.Context, userID, limit, offset int) ([]*models.Post, error)
-	GetProfilePosts(ctx context.Context, targetUserID, viewerID, limit, offset int) ([]*models.Post, error)
+	GetUserFeed(ctx context.Context, userID, page int) ([]*models.Post, error)
+	GetProfilePosts(ctx context.Context, targetUserID, viewerID, page int) ([]*models.Post, error)
 	UpdatePost(ctx context.Context, postID, userID int, content string) error
 	DeletePost(ctx context.Context, postID, userID int) error
 	RestorePost(ctx context.Context, postID, userID int) error
 }
 
 type postService struct {
-	repo     repository.PostRepository
+	repo repository.PostRepository
 }
 
 func NewPostService(r repository.PostRepository) PostService {
 	return &postService{
-		repo:     r,
+		repo: r,
 	}
 }
 
@@ -37,10 +37,10 @@ func (s *postService) CreatePost(ctx context.Context, userID int, input *models.
 	}
 
 	post := &models.Post{
-		UserID:  userID,
-		Content: content,
-		Image:   input.Image,
-		Privacy: input.Privacy,
+		UserID:           userID,
+		Content:          content,
+		Image:            input.Image,
+		Privacy:          input.Privacy,
 		WhitelistedUsers: input.WhitelistedUsers,
 	}
 
@@ -63,19 +63,30 @@ func (s *postService) CreatePost(ctx context.Context, userID int, input *models.
 func (s *postService) GetPost(ctx context.Context, postID, viewerID int) (*models.Post, error) {
 	post, err := s.repo.GetByID(ctx, postID, viewerID)
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 	return post, nil
 }
 
 // --- Feeds ---
-func (s *postService) GetUserFeed(ctx context.Context, userID, limit, offset int) ([]*models.Post, error) {
-	if limit <= 0 { limit = 10 }
+func (s *postService) GetUserFeed(ctx context.Context, userID, page int) ([]*models.Post, error) {
+	if page < 1 {
+		page = 1
+	}
+
+	limit := 10
+	offset := (page - 1) * limit
 	return s.repo.GetFeed(ctx, userID, limit, offset)
 }
 
-func (s *postService) GetProfilePosts(ctx context.Context, targetUserID, viewerID, limit, offset int) ([]*models.Post, error) {
-	if limit <= 0 { limit = 10 }
+func (s *postService) GetProfilePosts(ctx context.Context, targetUserID, viewerID, page int) ([]*models.Post, error) {
+	if page < 1 {
+		page = 1
+	}
+
+	limit := 10
+	offset := (page - 1) * limit
+
 	return s.repo.GetByUser(ctx, targetUserID, viewerID, limit, offset)
 }
 
@@ -88,7 +99,7 @@ func (s *postService) UpdatePost(ctx context.Context, postID, userID int, conten
 	if ownerID != userID {
 		return errors.New("dont have permissions")
 	}
-	
+
 	return s.repo.Update(ctx, postID, strings.TrimSpace(content))
 }
 
@@ -100,7 +111,7 @@ func (s *postService) DeletePost(ctx context.Context, postID, userID int) error 
 	if ownerID != userID {
 		return errors.New("dont have permissions")
 	}
-	
+
 	return s.repo.Delete(ctx, postID)
 }
 
@@ -112,6 +123,6 @@ func (s *postService) RestorePost(ctx context.Context, postID, userID int) error
 	if ownerID != userID {
 		return errors.New("dont have permissions")
 	}
-	
+
 	return s.repo.Restore(ctx, postID)
 }

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
@@ -11,48 +10,67 @@ import (
 	"strconv"
 )
 
-func GetFeedHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("[INFO] GetFeedHandler: Received request")
+type FeedHandler struct {
+	postService    services.PostService
+	profileService services.ProfileService
+}
+
+func NewFeedHandler(postServ services.PostService, profileServ services.ProfileService) *FeedHandler {
+	return &FeedHandler{postService: postServ, profileService: profileServ}
+}
+
+func (h *FeedHandler) RegisterRoutes(mux *http.ServeMux) {
+	auth := middleware.WithAuth
+
+	mux.Handle("GET /api/feed", middleware.Chain(h.GetFeedHandler, auth))
+	mux.Handle("GET /api/discover", middleware.Chain(h.DiscoverHandler, auth))
+}
+
+func (h *FeedHandler) GetFeedHandler(w http.ResponseWriter, r *http.Request) {
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
-	log.Printf("[INFO] GetFeedHandler: Fetching feed for UserID: %d", userID)
 
 	pageStr := r.URL.Query().Get("page")
 	page, _ := strconv.Atoi(pageStr)
-	if page < 1 {
-		page = 1
-	}
 
-	limit := 10
-	offset := (page - 1) * limit
-	log.Printf("[INFO] GetFeedHandler: Pagination - Page: %d, Limit: %d, Offset: %d", page, limit, offset)
-
-	postService := services.NewPostService(database.DB)
-	userService := services.NewUserService(database.DB)
-
-	posts, err := postService.GetFeedPosts(r.Context(), userID, limit, offset)
+	posts, err := h.postService.GetUserFeed(r.Context(), userID, page)
 	if err != nil {
-		log.Printf("[ERROR] GetFeedHandler: Failed to get feed posts for UserID %d: %v", userID, err)
 		responses.SendError(w, http.StatusInternalServerError, "Failed to load feed")
 		return
 	}
 
-	var suggestions []models.DiscoveredUser
+	var suggestions []*models.DiscoveredUser
 	if page == 1 {
-		log.Printf("[INFO] GetFeedHandler: Page 1 detected, fetching user suggestions for UserID: %d", userID)
-		suggestions, err = userService.DiscoveredUser(r.Context(), userID, 5)
+		suggestions, err = h.profileService.DiscoveredUser(r.Context(), userID, 5)
 		if err != nil {
-			log.Printf("[WARN] GetFeedHandler: Failed to fetch suggestions: %v", err)
-			suggestions = []models.DiscoveredUser{}
+			suggestions = nil
 		}
 	} else {
 		suggestions = nil
 	}
 
-	log.Printf("[SUCCESS] GetFeedHandler: Returning %d posts and %d suggestions", len(posts), len(suggestions))
 	responses.SendSuccess(w, "Feed loaded", map[string]interface{}{
 		"posts":       posts,
 		"suggestions": suggestions,
 		"page":        page,
 	})
+}
+
+func (h *FeedHandler) DiscoverHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		log.Printf("[ERROR] DiscoverHandler: Authentication failed: %v", err)
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	const defaultLimit = 5
+
+	users, err := h.profileService.DiscoveredUser(r.Context(), userID, defaultLimit)
+	if err != nil {
+		responses.SendError(w, http.StatusInternalServerError, "Failed to discover users: "+err.Error())
+		return
+	}
+
+	responses.SendSuccess(w, "Discovered users", users)
 }

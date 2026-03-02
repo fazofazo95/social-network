@@ -19,7 +19,6 @@ type AuthRepository interface {
 	LogIn(ctx context.Context, input models.LoginRequest) (int, error)
 	LogOut(ctx context.Context, sessionCookie string, userID int) error
 	CreateSession(ctx context.Context, userID int) (string, error)
-	AuthenticateSession(ctx context.Context, token string) (int, error)
 }
 
 type sqliteAuthRepo struct {
@@ -30,10 +29,9 @@ func NewAuthRepository(db *sql.DB) AuthRepository {
 	return &sqliteAuthRepo{db: db}
 }
 
-
 var (
-	ErrEmailTaken    = errors.New("email already in use")
-	ErrUsernameTaken = errors.New("username already in use")
+	ErrEmailTaken      = errors.New("email already in use")
+	ErrUsernameTaken   = errors.New("username already in use")
 	ErrInvalidEmail    = errors.New("invalid email")
 	ErrInvalidPassword = errors.New("invalid password")
 )
@@ -167,27 +165,6 @@ func (r *sqliteAuthRepo) CreateSession(ctx context.Context, userID int) (string,
 	log.Printf("[SUCCESS] CreateSession: Session created/updated for UserID: %d", userID)
 	return sessionID, nil
 }
-
-func (r *sqliteAuthRepo) AuthenticateSession(ctx context.Context, token string) (int, error) {
-	log.Printf("[INFO] AuthenticateSession: Validating token")
-
-	var userID int
-	query := `SELECT id FROM sessions WHERE session_id = ? LIMIT 1`
-
-	err := r.db.QueryRowContext(ctx, query, token).Scan(&userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("[WARN] AuthenticateSession: No session found for token")
-			return 0, fmt.Errorf("session not found or expired")
-		}
-		log.Printf("[ERROR] AuthenticateSession: Database query failed: %v", err)
-		return 0, err
-	}
-
-	log.Printf("[SUCCESS] AuthenticateSession: Token valid for UserID: %d", userID)
-	return userID, nil
-}
-
 
 func mapSignupError(err error) error {
 	msg := err.Error()

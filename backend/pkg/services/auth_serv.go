@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 
-	queries "backend/pkg/db/queries"
 	"backend/pkg/models"
 	"backend/pkg/repository"
 
@@ -20,11 +19,10 @@ var (
 	ErrLogoutFailed       = errors.New("failed to logout")
 )
 
-type AuthService interface{
+type AuthService interface {
 	SignUp(ctx context.Context, req models.SignupFields) error
 	Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error)
 	Logout(ctx context.Context, sessionID string, userID int) error
-	AuthenticateSession(ctx context.Context, sessionID string) (int, error)
 }
 
 type authService struct {
@@ -57,11 +55,11 @@ func (s *authService) SignUp(ctx context.Context, req models.SignupFields) error
 	// Execute signup query
 	if err := s.repo.SignUp(ctx, req); err != nil {
 		// Map database errors to service errors
-		if err == queries.ErrEmailTaken {
+		if err == repository.ErrEmailTaken {
 			log.Printf("[WARN] AuthService.SignUp: Email conflict for %s", req.Email)
 			return ErrEmailTaken
 		}
-		if err == queries.ErrUsernameTaken {
+		if err == repository.ErrUsernameTaken {
 			log.Printf("[WARN] AuthService.SignUp: Username conflict for %s", req.Username)
 			return ErrUsernameTaken
 		}
@@ -96,7 +94,7 @@ func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	userID, err := s.repo.LogIn(ctx, input)
 	if err != nil {
 		// Map database errors to service errors
-		if err == queries.ErrInvalidEmail || err == queries.ErrInvalidPassword {
+		if err == repository.ErrInvalidEmail || err == repository.ErrInvalidPassword {
 			log.Println("[WARN] AuthService.Login: Invalid credentials provided")
 			return nil, ErrInvalidCredentials
 		}
@@ -130,8 +128,4 @@ func (s *authService) Logout(ctx context.Context, sessionID string, userID int) 
 
 	log.Printf("[SUCCESS] AuthService.Logout: Session cleared for UserID: %d", userID)
 	return nil
-}
-
-func (s *authService) AuthenticateSession(ctx context.Context, sessionID string) (int, error) {
-	return s.repo.AuthenticateSession(ctx,sessionID)
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"backend/pkg/db/queries"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
 	"backend/pkg/responses"
@@ -21,7 +22,7 @@ func NewAuthHandler(s services.AuthService) *AuthHandler {
 
 func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
-	
+
 	mux.HandleFunc("POST /api/users", h.CreateUserHandler)
 	mux.HandleFunc("POST /api/login", h.LogInHandler)
 	mux.Handle("DELETE /api/logout", middleware.Chain(h.LogOutHandler, auth))
@@ -167,14 +168,14 @@ func (h *AuthHandler) LogOutHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "logout successful", nil)
 }
 
-func  (h *AuthHandler) VerifySession(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) VerifySession(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("session_id")
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	userID, err := h.Service.AuthenticateSession(r.Context(), c.Value)
+	userID, err := queries.AuthenticateSession(r.Context(), c.Value)
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 		return

@@ -9,7 +9,6 @@ import (
 	"backend/pkg/models"
 )
 
-
 func UpdateUserProfile(ctx context.Context, db *sql.DB, in models.UserProfileInput) error {
 	log.Printf("[INFO] UpdateUserProfile: Updating profile for UserID: %d", in.ID)
 	tx, err := db.BeginTx(ctx, nil)
@@ -80,16 +79,13 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int) (models.UserProfile, e
 }
 
 func UserPrivacy(ctx context.Context, db *sql.DB, userID int, isPublic *bool) error {
-	log.Printf("[INFO] UserPrivacy: Checking profile_type for UserID: %d", userID)
 	query := `
         SELECT profile_type FROM users 
         WHERE id = ?`
 	err := db.QueryRowContext(ctx, query, userID).Scan(isPublic)
 	if err != nil {
-		log.Printf("[ERROR] UserPrivacy failed: %v", err)
 		return err
 	}
-	log.Printf("[INFO] UserPrivacy: UserID: %d, isPublic: %v", userID, *isPublic)
 	return nil
 }
 

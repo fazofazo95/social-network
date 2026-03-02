@@ -35,18 +35,17 @@ func runServer() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(hub, w, r)
-	})), middleware.WithAuth))
-
-
 	authRepo := repository.NewAuthRepository(database.DB)
 	authServ := services.NewAuthService(authRepo)
 	authHandl := handlers.NewAuthHandler(authServ)
 	authHandl.RegisterRoutes(mux)
 
+	mux.Handle("/ws", middleware.Chain((http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWs(hub, w, r)
+	})), middleware.WithAuth))
+
 	chatRepo := repository.NewChatRepository(database.DB)
-	chatServ := services.NewChatService(chatRepo,hub)
+	chatServ := services.NewChatService(chatRepo, hub)
 	chatHandl := handlers.NewChatHandler(chatServ)
 	chatHandl.RegisterRoutes(mux)
 
@@ -56,24 +55,32 @@ func runServer() {
 	postHandl.RegisterRoutes(mux)
 
 	commentRepo := repository.NewCommentRepository(database.DB)
-	commentServ := services.NewCommentService(commentRepo,postRepo)
+	commentServ := services.NewCommentService(commentRepo, postRepo)
 	commentHandl := handlers.NewCommentHandler(commentServ)
 	commentHandl.RegisterRoutes(mux)
 
+	profileRepo := repository.NewProfileRepository(database.DB)
+	profileServ := services.NewProfileService(profileRepo)
+	profileHandl := handlers.NewProfileHandler(profileServ, postServ)
+	profileHandl.RegisterRoutes(mux)
 
+	followRepo := repository.NewFollowRepository(database.DB)
+	followServ := services.NewFollowService(followRepo, profileRepo)
+	followHandl := handlers.NewFollowHandler(followServ)
+	followHandl.RegisterRoutes(mux)
 
+	relationHandl := handlers.NewRelationsHandler(followServ)
+	relationHandl.RegisterRoutes(mux)
 
+	reactionRepo := repository.NewReactionRepository(database.DB)
+	reactionServ := services.NewReactionService(reactionRepo)
+	reactionHandl := handlers.NewReactionHandler(reactionServ)
+	reactionHandl.RegisterRoutes(mux)
 
-	// API route(s)
-	// handlers.UserRoutes(mux)
-	// handlers.AuthRoutes(mux)
-	handlers.FollowRoutes(mux)
+	feedHandl := handlers.NewFeedHandler(postServ, profileServ)
+	feedHandl.RegisterRoutes(mux)
+
 	handlers.GroupRoutes(mux)
-	// handlers.ChatRoutes(mux, hub)
-	// handlers.PostRoutes(mux, database.DB)
-	// handlers.CommentRoutes(mux, database.DB)
-	handlers.FeedRoutes(mux)
-	handlers.ReactionRoutes(mux)
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))

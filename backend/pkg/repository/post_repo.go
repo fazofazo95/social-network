@@ -13,15 +13,15 @@ type PostRepository interface {
 	Update(ctx context.Context, postID int, content string) error
 	Delete(ctx context.Context, postID int) error
 	Restore(ctx context.Context, postID int) error
-	
+
 	// --- Queries (Read Operations) ---
-	GetByID(ctx context.Context, postID,  viewerID int) (*models.Post, error)
+	GetByID(ctx context.Context, postID, viewerID int) (*models.Post, error)
 	GetOwnerID(ctx context.Context, postID int) (int, error)
-	
+
 	// --- Feed Queries ---
 	GetFeed(ctx context.Context, viewerID, limit, offset int) ([]*models.Post, error)
 	GetByUser(ctx context.Context, targetUserID, viewerID, limit, offset int) ([]*models.Post, error)
-	
+
 	// --- Helper ---
 	AddPermissions(ctx context.Context, postID int64, userIDs []int) error
 }
@@ -35,7 +35,6 @@ func NewPostRepository(db *sql.DB) PostRepository {
 }
 
 func (r *sqlitePostRepo) Create(ctx context.Context, post *models.Post) (int64, error) {
-	
 
 	query := "INSERT INTO posts (user_id, content, extra_content, privacy) VALUES (?,?,?,?)"
 	res, err := r.db.ExecContext(ctx, query, post.UserID, post.Content, post.Image, post.Privacy)
@@ -54,7 +53,7 @@ func (r *sqlitePostRepo) Create(ctx context.Context, post *models.Post) (int64, 
 func (r *sqlitePostRepo) AddPermissions(ctx context.Context, postID int64, userIDs []int) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return  err
+		return err
 	}
 	defer tx.Rollback()
 	addPermissionQuery := `INSERT INTO post_permissions (post_id, user_id) VALUES (?,?)`

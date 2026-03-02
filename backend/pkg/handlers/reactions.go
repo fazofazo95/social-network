@@ -4,13 +4,27 @@ import (
 	"net/http"
 	"strconv"
 
-	"backend/pkg/db/queries"
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/responses"
+	"backend/pkg/services"
 )
 
-func AddReactionHandler(w http.ResponseWriter, r *http.Request) {
+type ReactionHandler struct {
+	reactionService services.ReactionService
+}
+
+func NewReactionHandler(s services.ReactionService) *ReactionHandler {
+	return &ReactionHandler{reactionService: s}
+}
+
+func (h *ReactionHandler) RegisterRoutes(mux *http.ServeMux) {
+	auth := middleware.WithAuth
+
+	mux.Handle("POST /api/posts/{id}/like", middleware.Chain(h.AddReactionHandler, auth))
+	mux.Handle("DELETE /api/posts/{id}/like", middleware.Chain(h.RemoveReactionHandler, auth))
+}
+
+func (h *ReactionHandler) AddReactionHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -19,7 +33,7 @@ func AddReactionHandler(w http.ResponseWriter, r *http.Request) {
 
 	targetID, _ := strconv.Atoi(r.PathValue("id"))
 
-	likeCount, err := queries.AddReaction(r.Context(), database.DB, targetID, userID)
+	likeCount, err := h.reactionService.AddReaction(r.Context(), userID, targetID)
 	if err != nil {
 		responses.SendError(w, http.StatusInternalServerError, "failed to add reaction")
 		return
@@ -28,7 +42,7 @@ func AddReactionHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendSuccess(w, "reaction added successfully", map[string]interface{}{"like_count": likeCount})
 }
 
-func RemoveReactionHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ReactionHandler) RemoveReactionHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -36,7 +50,7 @@ func RemoveReactionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	targetID, _ := strconv.Atoi(r.PathValue("id"))
 
-	likeCount, err := queries.RemoveReaction(r.Context(), database.DB, targetID, userID)
+	likeCount, err := h.reactionService.RemoveReaction(r.Context(), userID, targetID)
 	if err != nil {
 		responses.SendError(w, http.StatusInternalServerError, "failed to remove reaction")
 		return

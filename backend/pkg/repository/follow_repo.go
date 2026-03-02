@@ -16,7 +16,7 @@ type FollowRepository interface {
 	RejectFollow(ctx context.Context, followerID, followedID int) (int64, error)
 	BlockFollow(ctx context.Context, blockerID, targetID int) (int64, error)
 	UnblockFollow(ctx context.Context, blockerID, targetID int) (int64, error)
-	
+
 	// Queries
 	DiscoverUsers(ctx context.Context, currentUserID int, limit int) ([]*models.DiscoveredUser, error)
 	GetFollowingUsers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error)
@@ -25,7 +25,7 @@ type FollowRepository interface {
 	GetFollowersForViewer(ctx context.Context, targetUserID, viewerID int) ([]*models.FollowListUser, error)
 	GetBlockedUsers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error)
 	GetPendingIncomingRequests(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error)
-	
+
 	// Maintenance
 	RebuildAllFollowCounts(ctx context.Context) error
 }
@@ -92,7 +92,7 @@ func (r *sqliteFollowRepo) CreateFollow(ctx context.Context, req models.FollowRe
 		log.Printf("[ERROR] CreateFollow failed: %v", err)
 		return err
 	}
-	
+
 	err = r.syncFollowCountsForPair(ctx, tx, req.FollowerID, req.FollowedID)
 	if err != nil {
 		return err
@@ -102,7 +102,6 @@ func (r *sqliteFollowRepo) CreateFollow(ctx context.Context, req models.FollowRe
 		return err
 	}
 
-	
 	log.Printf("[SUCCESS] CreateFollow: Follow relationship created")
 	return nil
 }
@@ -130,7 +129,7 @@ func (r *sqliteFollowRepo) DeleteFollow(ctx context.Context, followerID, followe
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-	
+
 	log.Printf("[INFO] DeleteFollow: Rows affected: %d", rows)
 	return rows, nil
 }
@@ -253,7 +252,7 @@ func (r *sqliteFollowRepo) UnblockFollow(ctx context.Context, blockerID, targetI
 		return 0, err
 	}
 	rows, _ := res.RowsAffected()
-	
+
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
@@ -378,20 +377,20 @@ func (r *sqliteFollowRepo) GetFollowers(ctx context.Context, currentUserID int) 
 }
 
 func (r *sqliteFollowRepo) GetFollowingUsersForViewer(ctx context.Context, targetUserID, viewerID int) ([]*models.FollowListUser, error) {
-    return r.fetchFollowListWithViewerStatus(ctx, targetUserID, viewerID, true)
+	return r.fetchFollowListWithViewerStatus(ctx, targetUserID, viewerID, true)
 }
 
 func (r *sqliteFollowRepo) GetFollowersForViewer(ctx context.Context, targetUserID, viewerID int) ([]*models.FollowListUser, error) {
-    return r.fetchFollowListWithViewerStatus(ctx, targetUserID, viewerID, false)
+	return r.fetchFollowListWithViewerStatus(ctx, targetUserID, viewerID, false)
 }
 
 func (r *sqliteFollowRepo) fetchFollowListWithViewerStatus(ctx context.Context, targetUserID, viewerID int, isFollowingList bool) ([]*models.FollowListUser, error) {
-    joinCondition := "u.id = t.follower_id AND t.followed_id = ?" // default: followers
-    if isFollowingList {
-        joinCondition = "u.id = t.followed_id AND t.follower_id = ?" // following
-    }
+	joinCondition := "u.id = t.follower_id AND t.followed_id = ?" // default: followers
+	if isFollowingList {
+		joinCondition = "u.id = t.followed_id AND t.follower_id = ?" // following
+	}
 
-    query := fmt.Sprintf(`
+	query := fmt.Sprintf(`
         SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, ''),
             CASE
                 WHEN fv.status = 'blocked' THEN 'Blocked'
@@ -414,21 +413,21 @@ func (r *sqliteFollowRepo) fetchFollowListWithViewerStatus(ctx context.Context, 
         ORDER BY u.first_name, u.last_name
     `, joinCondition)
 
-    rows, err := r.db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, viewerID)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := r.db.QueryContext(ctx, query, targetUserID, viewerID, viewerID, viewerID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
 	res := make([]*models.FollowListUser, 0)
-    for rows.Next() {
-        u := new(models.FollowListUser)
-        if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture, &u.Status); err != nil {
-            return nil, err
-        }
-        res = append(res, u)
-    }
-    return res, nil
+	for rows.Next() {
+		u := new(models.FollowListUser)
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture, &u.Status); err != nil {
+			return nil, err
+		}
+		res = append(res, u)
+	}
+	return res, nil
 }
 
 func (r *sqliteFollowRepo) GetBlockedUsers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error) {
@@ -475,7 +474,7 @@ func (r *sqliteFollowRepo) GetPendingIncomingRequests(ctx context.Context, curre
 	}
 	defer rows.Close()
 
-	res := make([]*models.FollowListUser,0)
+	res := make([]*models.FollowListUser, 0)
 	for rows.Next() {
 		u := new(models.FollowListUser)
 		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.ProfilePicture); err != nil {
