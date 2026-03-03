@@ -9,36 +9,105 @@ import (
 )
 
 var (
-	ErrGroupNameTaken           = errors.New("group name already in use")
-	ErrGroupNotFound            = errors.New("group not found")
-	ErrGroupEventNotFound       = errors.New("group event not found")
-	ErrNotGroupOwner            = errors.New("only the group owner can delete the group")
-	ErrPrivateGroup             = errors.New("cannot join private group from this endpoint")
-	ErrInviteOnlyGroup          = errors.New("group is invite-only")
-	ErrAlreadyGroupMember       = errors.New("user is already a group member")
-	ErrAlreadyRequestedToJoin   = errors.New("user has already requested to join")
-	ErrAlreadyInvitedToGroup    = errors.New("user has already been invited")
-	ErrNotGroupModeratorOrOwner = errors.New("only group owner or moderators can approve requests")
-	ErrGroupJoinRequestNotFound = errors.New("group join request not found")
-	ErrGroupInviteNotFound      = errors.New("group invite not found")
-	ErrGroupMemberNotFound      = errors.New("group member not found")
-	ErrCannotKickGroupStaff     = errors.New("cannot kick owner or moderator")
-	ErrGroupMemberRoleMismatch  = errors.New("group member role mismatch")
-	ErrGroupMemberIsActive      = errors.New("group member is active")
-	ErrNotActiveGroupMember     = errors.New("user is not an active group member")
-	ErrTargetNotActiveMember    = errors.New("target user is not an active group member")
-	ErrCannotInviteSelf         = errors.New("cannot invite yourself")
-	ErrGroupEventAlreadyAnswered = errors.New("user already invited or responded to event")
-	ErrNotInvitedToEvent        = errors.New("user is not invited or responded to event")
-	ErrGroupEventAlreadyResponded = errors.New("user already responded to event")
+	ErrGroupNameTaken               = errors.New("group name already in use")
+	ErrGroupNotFound                = errors.New("group not found")
+	ErrGroupEventNotFound           = errors.New("group event not found")
+	ErrNotGroupOwner                = errors.New("only the group owner can delete the group")
+	ErrPrivateGroup                 = errors.New("cannot join private group from this endpoint")
+	ErrInviteOnlyGroup              = errors.New("group is invite-only")
+	ErrAlreadyGroupMember           = errors.New("user is already a group member")
+	ErrAlreadyRequestedToJoin       = errors.New("user has already requested to join")
+	ErrAlreadyInvitedToGroup        = errors.New("user has already been invited")
+	ErrNotGroupModeratorOrOwner     = errors.New("only group owner or moderators can approve requests")
+	ErrGroupJoinRequestNotFound     = errors.New("group join request not found")
+	ErrGroupInviteNotFound          = errors.New("group invite not found")
+	ErrGroupMemberNotFound          = errors.New("group member not found")
+	ErrCannotKickGroupStaff         = errors.New("cannot kick owner or moderator")
+	ErrGroupMemberRoleMismatch      = errors.New("group member role mismatch")
+	ErrGroupMemberIsActive          = errors.New("group member is active")
+	ErrNotActiveGroupMember         = errors.New("user is not an active group member")
+	ErrTargetNotActiveMember        = errors.New("target user is not an active group member")
+	ErrCannotInviteSelf             = errors.New("cannot invite yourself")
+	ErrGroupEventAlreadyAnswered    = errors.New("user already invited or responded to event")
+	ErrNotInvitedToEvent            = errors.New("user is not invited or responded to event")
+	ErrGroupEventAlreadyResponded   = errors.New("user already responded to event")
 	ErrGroupEventNoResponseToChange = errors.New("no event response to change")
 	ErrGroupEventResponseUnchanged  = errors.New("event response already set")
 )
 
 type GroupRepository interface {
+	// Group CRUD
 	CreateGroup(ctx context.Context, ownerID int, in models.CreateGroupInput) (*models.GroupResponse, error)
 	DeleteGroup(ctx context.Context, requesterID, groupID int) error
+	GetGroupOwner(ctx context.Context, groupID int) (int, error)
+
+	// Join/Leave operations
 	RequestToJoinGroup(ctx context.Context, userID, groupID int) (string, error)
+	AcceptGroupJoinRequest(ctx context.Context, approverID, groupID, requesterID int) error
+	RejectGroupJoinRequest(ctx context.Context, approverID, groupID, requesterID int) error
+	InviteUserToGroup(ctx context.Context, inviterID, groupID, targetUserID int) (string, error)
+	AcceptGroupInvite(ctx context.Context, userID, groupID int) error
+	RejectGroupInvite(ctx context.Context, userID, groupID int) error
+	KickGroupMember(ctx context.Context, actorID, groupID, targetUserID int) error
+	LeaveGroup(ctx context.Context, userID, groupID int) (LeaveGroupResult, error)
+
+	// Member management
+	PromoteGroupModerator(ctx context.Context, ownerID, groupID, targetUserID int) error
+	DemoteGroupModerator(ctx context.Context, ownerID, groupID, targetUserID int) error
+	GetActiveGroupMembers(ctx context.Context, groupID int) ([]models.GroupMemberListItem, error)
+
+	// Settings
+	UpdateGroupSettings(ctx context.Context, ownerID, groupID int, visibility, joinMode *string) (GroupSettingsResult, error)
+	GetGroupSettings(ctx context.Context, ownerID, groupID int) (GroupSettingsResult, error)
+
+	// Pending requests/invites
+	GetPendingGroupJoinRequests(ctx context.Context, actorID, groupID int) ([]models.GroupPendingItem, error)
+	GetPendingGroupInvites(ctx context.Context, actorID, groupID int) ([]models.GroupPendingItem, error)
+	RemovePendingGroupInvite(ctx context.Context, actorID, groupID, targetUserID int) error
+	RemoveOwnPendingGroupRequest(ctx context.Context, userID, groupID int) error
+
+	// Group listing
+	GetGroupPageView(ctx context.Context, viewerID, groupID int) (GroupPageView, error)
+	DiscoverGroups(ctx context.Context, userID, limit, offset int) ([]models.GroupDiscoverItem, error)
+	GetActiveGroupsForUser(ctx context.Context, userID int) ([]models.GroupActiveItem, error)
+	GetUserPendingGroupRequests(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
+	GetUserPendingGroupInvites(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
+
+	// Events
+	CreateGroupEvent(ctx context.Context, actorID, groupID int, in models.GroupEventCreateInput) (*models.GroupEvent, error)
+	GetGroupEventInviteableMembers(ctx context.Context, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error)
+	InviteGroupEventMember(ctx context.Context, actorID, groupID, eventID, targetUserID int) error
+	InviteAllGroupEventMembers(ctx context.Context, actorID, groupID, eventID int) (int, error)
+	RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
+	ChangeGroupEventResponse(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
+	DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error
+}
+
+// Result types
+type LeaveGroupResult struct {
+	GroupDeleted     bool
+	OwnerTransferred bool
+	NewOwnerID       int
+}
+
+type GroupSettingsResult struct {
+	GroupID    int
+	Visibility string
+	JoinMode   string
+}
+
+type GroupPageView struct {
+	ID           int
+	Name         string
+	Description  string
+	Visibility   string
+	JoinMode     string
+	GroupPicture string
+	GroupMembers int
+	CreatedAt    string
+	IsActive     bool
+	Role         string
+	PendingType  string
 }
 
 type sqliteGroupRepo struct {
@@ -174,14 +243,14 @@ func (r *sqliteGroupRepo) CreateGroup(ctx context.Context, ownerID int, in model
 	}
 
 	out := &models.GroupResponse{
-        ID:           groupID,
-        Name:         in.Name,
-        Description:  in.Description,
-        OwnerID:      ownerID,
-        Visibility:   in.Visibility,
-        JoinMode:     in.JoinMode,
-        GroupMembers: 1,
-    }
+		ID:           groupID,
+		Name:         in.Name,
+		Description:  in.Description,
+		OwnerID:      ownerID,
+		Visibility:   in.Visibility,
+		JoinMode:     in.JoinMode,
+		GroupMembers: 1,
+	}
 
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(datetime(created_at), '') FROM groups WHERE id = ?`, groupID).Scan(&out.CreatedAt); err != nil {
 		return nil, err
@@ -200,18 +269,6 @@ func (r *sqliteGroupRepo) DeleteGroup(ctx context.Context, requesterID, groupID 
 		return err
 	}
 	defer tx.Rollback()
-
-	var ownerID int
-	if err := tx.QueryRowContext(ctx, `SELECT owner_id FROM groups WHERE id = ?`, groupID).Scan(&ownerID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrGroupNotFound
-		}
-		return err
-	}
-
-	if ownerID != requesterID {
-		return ErrNotGroupOwner
-	}
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM group_join_requests WHERE group_id = ?`, groupID); err != nil {
 		return err
@@ -241,13 +298,22 @@ func (r *sqliteGroupRepo) DeleteGroup(ctx context.Context, requesterID, groupID 
 	return nil
 }
 
-// func (r *sqliteGroupRepo) AddMemberDirectly(ctx context.Context, groupID, userID int) error {
-//     // Transaction: INSERT member -> UPDATE count -> INSERT chat_participant
-// }
+func (r *sqliteGroupRepo) GetGroupOwner(ctx context.Context, groupID int) (int, error) {
+	var ownerID int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT owner_id
+		FROM groups
+		WHERE id = ?
+	`, groupID).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrGroupNotFound
+		}
+		return 0, err
+	}
 
-// func (r *sqliteGroupRepo) CreateJoinRequest(ctx context.Context, groupID, userID int) error {
-//     // Transaction: INSERT member (status requested) -> INSERT group_join_requests
-// }
+	return ownerID, nil
+}
 
 func (r *sqliteGroupRepo) RequestToJoinGroup(ctx context.Context, userID, groupID int) (string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

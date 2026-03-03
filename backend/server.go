@@ -83,7 +83,10 @@ func runServer() {
 	feedHandl := handlers.NewFeedHandler(postServ, profileServ)
 	feedHandl.RegisterRoutes(mux)
 
-	handlers.GroupRoutes(mux)
+	groupRepo := repository.NewGroupRepository(database.DB)
+	groupServ := services.NewGroupService(groupRepo)
+	groupHandl := handlers.NewGroupHandler(groupServ)
+	handlers.GroupRoutes(mux, groupHandl)
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))
