@@ -86,7 +86,7 @@ func runServer() {
 	groupRepo := repository.NewGroupRepository(database.DB)
 	groupServ := services.NewGroupService(groupRepo)
 	groupHandl := handlers.NewGroupHandler(groupServ)
-	handlers.GroupRoutes(mux, groupHandl)
+	groupHandl.RegisterRoutes(mux)
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))
