@@ -57,12 +57,14 @@ type GroupService interface {
 }
 
 type groupService struct {
-	repo repository.GroupRepository
+	repo     repository.GroupRepository
+	notifSvc NotificationService
 }
 
-func NewGroupService(r repository.GroupRepository) GroupService {
+func NewGroupService(r repository.GroupRepository, ns NotificationService) GroupService {
 	return &groupService{
-		repo: r,
+		repo:     r,
+		notifSvc: ns,
 	}
 }
 
@@ -96,7 +98,19 @@ func (s *groupService) RequestToJoinGroup(ctx context.Context, userID, groupID i
 	if groupID <= 0 {
 		return "", errors.New("invalid group id")
 	}
-	return s.repo.RequestToJoinGroup(ctx, userID, groupID)
+
+	status, err := s.repo.RequestToJoinGroup(ctx, userID, groupID)
+	if err != nil {
+		return "", err
+	}
+
+	if status == "requested" && s.notifSvc != nil {
+		if err := s.notifSvc.NotifyGroupJoinRequest(ctx, userID, groupID); err != nil {
+			return "", err
+		}
+	}
+
+	return status, nil
 }
 
 func (s *groupService) AcceptGroupJoinRequest(ctx context.Context, approverID, groupID, requesterID int) error {
@@ -117,7 +131,19 @@ func (s *groupService) InviteUserToGroup(ctx context.Context, inviterID, groupID
 	if groupID <= 0 || targetUserID <= 0 {
 		return "", errors.New("invalid group or target user id")
 	}
-	return s.repo.InviteUserToGroup(ctx, inviterID, groupID, targetUserID)
+
+	status, err := s.repo.InviteUserToGroup(ctx, inviterID, groupID, targetUserID)
+	if err != nil {
+		return "", err
+	}
+
+	if status == "requested" && s.notifSvc != nil {
+		if err := s.notifSvc.NotifyGroupInvite(ctx, inviterID, groupID, targetUserID); err != nil {
+			return "", err
+		}
+	}
+
+	return status, nil
 }
 
 func (s *groupService) AcceptGroupInvite(ctx context.Context, userID, groupID int) error {
@@ -268,7 +294,18 @@ func (s *groupService) CreateGroupEvent(ctx context.Context, actorID, groupID in
 		return nil, errors.New("invalid group id")
 	}
 
-	return s.repo.CreateGroupEvent(ctx, actorID, groupID, in)
+	created, err := s.repo.CreateGroupEvent(ctx, actorID, groupID, in)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.notifSvc != nil {
+		if err := s.notifSvc.NotifyGroupEventCreated(ctx, actorID, groupID, created.ID, created.Title); err != nil {
+			return nil, err
+		}
+	}
+
+	return created, nil
 }
 
 func (s *groupService) GetGroupEventInviteableMembers(ctx context.Context, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error) {

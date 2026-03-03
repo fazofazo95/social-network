@@ -27,12 +27,14 @@ type FollowService interface {
 type followService struct {
 	repo        repository.FollowRepository
 	profileRepo repository.ProfileRepository
+	notifSvc    NotificationService
 }
 
-func NewFollowService(r repository.FollowRepository, pr repository.ProfileRepository) FollowService {
+func NewFollowService(r repository.FollowRepository, pr repository.ProfileRepository, ns NotificationService) FollowService {
 	return &followService{
 		repo:        r,
 		profileRepo: pr,
+		notifSvc:    ns,
 	}
 }
 
@@ -54,6 +56,12 @@ func (s *followService) FollowUser(ctx context.Context, req models.FollowRequest
 	err = s.repo.CreateFollow(ctx, req, status)
 	if err != nil {
 		return "", err
+	}
+
+	if status == "pending" && s.notifSvc != nil {
+		if err := s.notifSvc.NotifyFollowRequest(ctx, req.FollowerID, req.FollowedID); err != nil {
+			return "", err
+		}
 	}
 
 	return "nil", nil

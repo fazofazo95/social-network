@@ -11,6 +11,7 @@ import (
 	"backend/pkg/middleware"
 	"backend/pkg/repository"
 	"backend/pkg/services"
+	"backend/pkg/sse"
 	websocket "backend/pkg/ws"
 )
 
@@ -33,6 +34,7 @@ func runServer() {
 	mux := http.NewServeMux()
 
 	hub := websocket.NewHub()
+	notificationHub := sse.NewHub()
 	go hub.Run()
 
 	authRepo := repository.NewAuthRepository(database.DB)
@@ -68,7 +70,10 @@ func runServer() {
 	settingsHandl.RegisterRoutes(mux)
 
 	followRepo := repository.NewFollowRepository(database.DB)
-	followServ := services.NewFollowService(followRepo, profileRepo)
+	notificationRepo := repository.NewNotificationRepository(database.DB)
+	notificationServ := services.NewNotificationService(notificationRepo, notificationHub)
+
+	followServ := services.NewFollowService(followRepo, profileRepo, notificationServ)
 	followHandl := handlers.NewFollowHandler(followServ)
 	followHandl.RegisterRoutes(mux)
 
@@ -84,9 +89,12 @@ func runServer() {
 	feedHandl.RegisterRoutes(mux)
 
 	groupRepo := repository.NewGroupRepository(database.DB)
-	groupServ := services.NewGroupService(groupRepo)
+	groupServ := services.NewGroupService(groupRepo, notificationServ)
 	groupHandl := handlers.NewGroupHandler(groupServ)
 	groupHandl.RegisterRoutes(mux)
+
+	notificationHandl := handlers.NewNotificationHandler(notificationServ, followServ, groupServ, notificationHub)
+	notificationHandl.RegisterRoutes(mux)
 
 	fs := http.FileServer(http.Dir("./uploads"))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", fs))
