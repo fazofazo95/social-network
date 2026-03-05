@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import IconButton from "./IconButton";
 import SearchBar from "./SearchBar";
+import NotificationDropdown from "./NotificationDropdown";
 import { logoutUser } from "src/lib/services/auth";
 import { listChats } from "src/lib/services/chat";
 import { getDiscoveredUsers } from "src/lib/services/discover";
@@ -237,11 +238,7 @@ const NavBar = () => {
       </div>
 
       <div className="flex items-center gap-3 pr-4">
-        <IconButton 
-          icon="/notif-icon.svg" 
-          alt="Notification Icon" 
-          iconSize={17}
-        />
+        <NotificationDropdown />
 
         <Link href="/messages" className="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-white hover:bg-(--color-customPurple) transition" aria-label="Messages">
           <Image
