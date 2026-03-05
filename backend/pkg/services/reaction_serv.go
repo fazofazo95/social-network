@@ -3,6 +3,7 @@ package services
 import (
 	"backend/pkg/repository"
 	"context"
+	"log"
 )
 
 type ReactionService interface {
@@ -23,6 +24,7 @@ func NewReactionService(r repository.ReactionRepository) ReactionService {
 func (s *reactionService) AddReaction(ctx context.Context, userID, postID int) (int, error) {
 	likeCount, err := s.repo.AddReaction(ctx, userID, postID)
 	if err != nil {
+		log.Printf("error adding reaction: %v", err)
 		return 0, err
 	}
 

@@ -75,39 +75,39 @@ type SignupFields struct {
 }
 
 type RawVisibilityData struct {
-    ProfileType int
-    EmailVis    int
-    BirthdayVis int
-    RelVis      int
-    EmployedVis int
-    PhoneVis    int
-    AboutVis    int
-    NickVis     int
-    FollowVis   int
+	ProfileType int
+	EmailVis    int
+	BirthdayVis int
+	RelVis      int
+	EmployedVis int
+	PhoneVis    int
+	AboutVis    int
+	NickVis     int
+	FollowVis   int
 }
 
 type VisibilitySettings struct {
-    EmailVis              string `json:"email_vis"`
-    BirthdayDateVis       string `json:"birthday_date_vis"`
-    RelationshipStatusVis string `json:"relationship_status_vis"`
-    EmployedAtVis         string `json:"employed_at_vis"`
-    PhoneNumberVis        string `json:"phone_number_vis"`
-    AboutMeVis            string `json:"about_me_vis"`
-    NicknameVis           string `json:"nickname_vis"`
-    FollowVis             string `json:"follow_vis"`
-    ProfileType           string `json:"profile_type"` 
+	EmailVis              string `json:"email_vis"`
+	BirthdayDateVis       string `json:"birthday_date_vis"`
+	RelationshipStatusVis string `json:"relationship_status_vis"`
+	EmployedAtVis         string `json:"employed_at_vis"`
+	PhoneNumberVis        string `json:"phone_number_vis"`
+	AboutMeVis            string `json:"about_me_vis"`
+	NicknameVis           string `json:"nickname_vis"`
+	FollowVis             string `json:"follow_vis"`
+	ProfileType           string `json:"profile_type"`
 }
 
 type UpdateVisibilityRequest struct {
-    ProfileType           *string `json:"profile_type"`
-    EmailVis              *string `json:"email_vis"`
-    BirthdayVis           *string `json:"birthday_date_vis"`
-    RelationshipStatusVis *string `json:"relationship_status_vis"`
-    EmployedAtVis         *string `json:"employed_at_vis"`
-    PhoneNumberVis        *string `json:"phone_number_vis"`
-    AboutMeVis            *string `json:"about_me_vis"`
-    NicknameVis           *string `json:"nickname_vis"`
-    FollowVis             *string `json:"follow_vis"`
+	ProfileType           *string `json:"profile_type"`
+	EmailVis              *string `json:"email_vis"`
+	BirthdayVis           *string `json:"birthday_date_vis"`
+	RelationshipStatusVis *string `json:"relationship_status_vis"`
+	EmployedAtVis         *string `json:"employed_at_vis"`
+	PhoneNumberVis        *string `json:"phone_number_vis"`
+	AboutMeVis            *string `json:"about_me_vis"`
+	NicknameVis           *string `json:"nickname_vis"`
+	FollowVis             *string `json:"follow_vis"`
 }
 
 type RawProfileData struct {
@@ -126,7 +126,7 @@ type RawProfileData struct {
 	AboutMe            string
 	FollowersCount     int
 	FollowingCount     int
-	ProfileType        int // 0 for public, 1 for private
+	ProfileType        bool
 
 	// Visibility Flags
 	EmailVis        int

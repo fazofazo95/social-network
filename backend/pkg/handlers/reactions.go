@@ -20,8 +20,8 @@ func NewReactionHandler(s services.ReactionService) *ReactionHandler {
 func (h *ReactionHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
 
-	mux.Handle("POST /api/posts/{id}/like", middleware.Chain(h.AddReactionHandler, auth))
-	mux.Handle("DELETE /api/posts/{id}/like", middleware.Chain(h.RemoveReactionHandler, auth))
+	mux.Handle("POST /api/posts/{id}/reactions", middleware.Chain(h.AddReactionHandler, auth))
+	mux.Handle("DELETE /api/posts/{id}/reactions", middleware.Chain(h.RemoveReactionHandler, auth))
 }
 
 func (h *ReactionHandler) AddReactionHandler(w http.ResponseWriter, r *http.Request) {

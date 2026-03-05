@@ -2,11 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-
-	adminpkg "backend/tools/admin"
-	seedpkg "backend/tools/seed"
 )
 
 func usage() {
@@ -25,22 +21,22 @@ func main() {
 		return
 	}
 
-	switch os.Args[1] {
-	case "server", "run":
-		runServer()
-	case "reset":
-		fmt.Println("Resetting DB (destructive)...")
-		if err := adminpkg.ResetDB(true); err != nil {
-			log.Fatalf("reset failed: %v", err)
-		}
-	case "populate":
-		fmt.Println("Seeding DB...")
-		created, err := seedpkg.SeedFromJSON("tools/seed/signup_seed.json")
-		if err != nil {
-			log.Fatalf("seeding failed: %v", err)
-		}
-		fmt.Printf("done. created %d users\n", created)
-	default:
-		usage()
-	}
+	// switch os.Args[1] {
+	// case "server", "run":
+	// 	runServer()
+	// case "reset":
+	// 	fmt.Println("Resetting DB (destructive)...")
+	// 	if err := adminpkg.ResetDB(true); err != nil {
+	// 		log.Fatalf("reset failed: %v", err)
+	// 	}
+	// case "populate":
+	// 	fmt.Println("Seeding DB...")
+	// 	created, err := seedpkg.SeedFromJSON("tools/seed/signup_seed.json")
+	// 	if err != nil {
+	// 		log.Fatalf("seeding failed: %v", err)
+	// 	}
+	// 	fmt.Printf("done. created %d users\n", created)
+	// default:
+	// 	usage()
+	// }
 }
