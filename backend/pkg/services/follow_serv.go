@@ -68,7 +68,7 @@ func (s *followService) FollowUser(ctx context.Context, req models.FollowRequest
 		}
 	}
 
-	return "nil", nil
+	return status, nil
 }
 
 func (s *followService) DeleteFollow(ctx context.Context, followerID, targetID int) (int64, error) {
