@@ -125,10 +125,9 @@ func (r *sqlitePostRepo) GetByID(ctx context.Context, postID int, viewerID int) 
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("[WARN] GetPostByID: Post not found or access denied. PostID: %d, ViewerID: %d", postID, viewerID)
-		} else {
-			log.Printf("[ERROR] GetPostByID failed: %v", err)
+			return nil, err
 		}
+		log.Printf("[ERROR] GetPostByID failed: %v", err)
 		return nil, err
 	}
 	return &post, nil
@@ -145,7 +144,6 @@ func (r *sqlitePostRepo) GetOwnerID(ctx context.Context, postID int) (int, error
 }
 
 func (r *sqlitePostRepo) GetByUser(ctx context.Context, targetUserID int, viewerID int, limit int, offset int) ([]*models.Post, error) {
-	log.Printf("[INFO] GetUserPosts: TargetUserID: %d, ViewerID: %d, Limit: %d, Offset: %d", targetUserID, viewerID, limit, offset)
 	query := `
 	SELECT 
 		p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
@@ -196,12 +194,10 @@ func (r *sqlitePostRepo) GetByUser(ctx context.Context, targetUserID int, viewer
 		post.HasCurrentUserLiked = hasLikedInt == 1
 		posts = append(posts, post)
 	}
-	log.Printf("[SUCCESS] GetUserPosts: Found %d posts", len(posts))
 	return posts, nil
 }
 
 func (r *sqlitePostRepo) GetFeed(ctx context.Context, userID int, limit int, offset int) ([]*models.Post, error) {
-	log.Printf("[INFO] GetFeedPosts: UserID: %d, Limit: %d, Offset: %d", userID, limit, offset)
 	query := `
 	SELECT 
 		p.id, p.user_id, p.content, COALESCE(p.extra_content, ''), p.created_at,
@@ -253,6 +249,5 @@ func (r *sqlitePostRepo) GetFeed(ctx context.Context, userID int, limit int, off
 		post.HasCurrentUserLiked = hasLikedInt == 1
 		posts = append(posts, post)
 	}
-	log.Printf("[SUCCESS] GetFeedPosts: Found %d posts", len(posts))
 	return posts, nil
 }

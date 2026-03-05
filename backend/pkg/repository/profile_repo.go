@@ -155,7 +155,6 @@ func (r *sqliteProfileRepo) DiscoverUsers(ctx context.Context, currentUserID int
 	if limit <= 0 {
 		limit = 5
 	}
-	log.Printf("[INFO] DiscoverUsers: Fetching for user %d, limit %d", currentUserID, limit)
 
 	query := `
     SELECT 
@@ -196,7 +195,6 @@ func (r *sqliteProfileRepo) DiscoverUsers(ctx context.Context, currentUserID int
 		users = append(users, u)
 	}
 
-	log.Printf("[SUCCESS] DiscoverUsers: Found %d users", len(users))
 	return users, nil
 }
 
@@ -225,8 +223,6 @@ func (r *sqliteProfileRepo) GetVisibilityRaw(ctx context.Context, userID int) (*
 
 func (r *sqliteProfileRepo) UpdateUserVisibilitySettings(ctx context.Context, userID int,
 	emailVis, birthdayVis, relVis, employedVis, phoneVis, aboutVis, nickVis, followVis, profileType *int) error {
-
-	log.Printf("[INFO] UpdateUserVisibilitySettings: user=%d", userID)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

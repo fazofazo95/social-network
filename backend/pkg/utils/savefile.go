@@ -9,8 +9,6 @@ import (
 )
 
 func SaveFile(src multipart.File, filename string, uploadDir string) error {
-	log.Printf("[INFO] SaveFile: Starting save process for file: %s in directory: %s", filename, uploadDir)
-
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		log.Printf("[ERROR] SaveFile: Failed to create directory %s: %v", uploadDir, err)
 		return err
@@ -18,7 +16,6 @@ func SaveFile(src multipart.File, filename string, uploadDir string) error {
 
 	safeName := filepath.Base(filename)
 	dstPath := filepath.Join(uploadDir, safeName)
-	log.Printf("[INFO] SaveFile: Target destination path: %s", dstPath)
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -32,6 +29,5 @@ func SaveFile(src multipart.File, filename string, uploadDir string) error {
 		return err
 	}
 
-	log.Printf("[SUCCESS] SaveFile: File %s saved successfully to %s", filename, dstPath)
 	return nil
 }

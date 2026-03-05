@@ -52,11 +52,11 @@ func (r *sqliteFollowRepo) syncFollowCountsForUser(ctx context.Context, tx *sql.
 
 func (r *sqliteFollowRepo) syncFollowCountsForPair(ctx context.Context, tx *sql.Tx, userA, userB int) error {
 	if err := r.syncFollowCountsForUser(ctx, tx, userA); err != nil {
-		log.Printf("[WARN] syncFollowCountsForPair: failed syncing user %d: %v", userA, err)
+		log.Printf("[ERROR] syncFollowCountsForPair: failed syncing user %d: %v", userA, err)
 		return err
 	}
 	if err := r.syncFollowCountsForUser(ctx, tx, userB); err != nil {
-		log.Printf("[WARN] syncFollowCountsForPair: failed syncing user %d: %v", userB, err)
+		log.Printf("[ERROR] syncFollowCountsForPair: failed syncing user %d: %v", userB, err)
 		return err
 	}
 	return nil
@@ -74,7 +74,6 @@ func (r *sqliteFollowRepo) RebuildAllFollowCounts(ctx context.Context) error {
 		log.Printf("[ERROR] RebuildAllFollowCounts failed: %v", err)
 		return err
 	}
-	log.Printf("[SUCCESS] RebuildAllFollowCounts: counters rebuilt for all users")
 	return nil
 }
 
@@ -85,7 +84,6 @@ func (r *sqliteFollowRepo) CreateFollow(ctx context.Context, req models.FollowRe
 	}
 	defer tx.Rollback()
 
-	log.Printf("[INFO] CreateFollow: Attempting to create follow. Follower: %d, Followed: %d, Status: %s", req.FollowerID, req.FollowedID, status)
 	query := `INSERT INTO followers (follower_id, followed_id, status) VALUES (?, ?, ?)`
 	_, err = tx.ExecContext(ctx, query, req.FollowerID, req.FollowedID, status)
 	if err != nil {
@@ -102,7 +100,6 @@ func (r *sqliteFollowRepo) CreateFollow(ctx context.Context, req models.FollowRe
 		return err
 	}
 
-	log.Printf("[SUCCESS] CreateFollow: Follow relationship created")
 	return nil
 }
 
@@ -113,7 +110,6 @@ func (r *sqliteFollowRepo) DeleteFollow(ctx context.Context, followerID, followe
 	}
 	defer tx.Rollback()
 
-	log.Printf("[INFO] DeleteFollow: Deleting relationship. Follower: %d, Followed: %d", followerID, followedID)
 	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ?;`
 	res, err := tx.ExecContext(ctx, query, followerID, followedID)
 	if err != nil {
@@ -130,7 +126,6 @@ func (r *sqliteFollowRepo) DeleteFollow(ctx context.Context, followerID, followe
 		return 0, err
 	}
 
-	log.Printf("[INFO] DeleteFollow: Rows affected: %d", rows)
 	return rows, nil
 }
 
@@ -141,7 +136,6 @@ func (r *sqliteFollowRepo) RemoveFollower(ctx context.Context, currentUserID, ta
 	}
 	defer tx.Rollback()
 
-	log.Printf("[INFO] RemoveFollower: Removing follower. TargetFollower: %d, CurrentUser: %d", targetFollowerID, currentUserID)
 	query := `
 		DELETE FROM followers
 		WHERE follower_id = ? AND followed_id = ? AND status = 'accepted';
@@ -162,7 +156,6 @@ func (r *sqliteFollowRepo) RemoveFollower(ctx context.Context, currentUserID, ta
 		return 0, err
 	}
 
-	log.Printf("[INFO] RemoveFollower: Rows affected: %d", rows)
 	return rows, nil
 }
 
@@ -171,7 +164,6 @@ func (r *sqliteFollowRepo) AcceptFollow(ctx context.Context, followerID, followe
 	if err != nil {
 		return 0, err
 	}
-	log.Printf("[INFO] AcceptFollow: Accepting request. Follower: %d, Followed: %d", followerID, followedID)
 	query := `UPDATE followers SET status = 'accepted' WHERE follower_id = ? AND followed_id = ? AND status = 'pending';`
 	res, err := tx.ExecContext(ctx, query, followerID, followedID)
 	if err != nil {
@@ -190,13 +182,10 @@ func (r *sqliteFollowRepo) AcceptFollow(ctx context.Context, followerID, followe
 		return 0, err
 	}
 
-	log.Printf("[INFO] AcceptFollow: Rows affected: %d", rows)
-
 	return rows, nil
 }
 
 func (r *sqliteFollowRepo) RejectFollow(ctx context.Context, followerID, followedID int) (int64, error) {
-	log.Printf("[INFO] RejectFollow: Rejecting request. Follower: %d, Followed: %d", followerID, followedID)
 	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'pending';`
 	res, err := r.db.ExecContext(ctx, query, followerID, followedID)
 	if err != nil {
@@ -204,7 +193,6 @@ func (r *sqliteFollowRepo) RejectFollow(ctx context.Context, followerID, followe
 		return 0, err
 	}
 	rows, _ := res.RowsAffected()
-	log.Printf("[INFO] RejectFollow: Rows affected: %d", rows)
 	return rows, nil
 }
 
@@ -213,7 +201,6 @@ func (r *sqliteFollowRepo) BlockFollow(ctx context.Context, blockerID, targetID 
 	if err != nil {
 		return 0, err
 	}
-	log.Printf("[INFO] BlockFollow: Blocker: %d, Target: %d", blockerID, targetID)
 	query := `INSERT INTO followers (follower_id, followed_id, status) VALUES (?, ?, 'blocked')
         ON CONFLICT(follower_id, followed_id) DO UPDATE SET status = excluded.status;`
 	res, err := tx.ExecContext(ctx, query, blockerID, targetID)
@@ -231,7 +218,6 @@ func (r *sqliteFollowRepo) BlockFollow(ctx context.Context, blockerID, targetID 
 	}
 
 	rows, _ := res.RowsAffected()
-	log.Printf("[INFO] BlockFollow: Rows affected: %d", rows)
 	return rows, nil
 }
 
@@ -240,7 +226,6 @@ func (r *sqliteFollowRepo) UnblockFollow(ctx context.Context, blockerID, targetI
 	if err != nil {
 		return 0, err
 	}
-	log.Printf("[INFO] UnblockFollow: Blocker: %d, Target: %d", blockerID, targetID)
 	query := `DELETE FROM followers WHERE follower_id = ? AND followed_id = ? AND status = 'blocked';`
 	res, err := tx.ExecContext(ctx, query, blockerID, targetID)
 	if err != nil {
@@ -257,14 +242,12 @@ func (r *sqliteFollowRepo) UnblockFollow(ctx context.Context, blockerID, targetI
 		return 0, err
 	}
 
-	log.Printf("[INFO] UnblockFollow: Rows affected: %d", rows)
 	return rows, nil
 }
 
 // --- Queries (Returning Pointers) ---
 
 func (r *sqliteFollowRepo) DiscoverUsers(ctx context.Context, currentUserID int, limit int) ([]*models.DiscoveredUser, error) {
-	log.Printf("[INFO] DiscoverUsers: Fetching for user %d, limit %d", currentUserID, limit)
 	query := `
     SELECT 
         u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, ''),
@@ -304,12 +287,10 @@ func (r *sqliteFollowRepo) DiscoverUsers(ctx context.Context, currentUserID int,
 		users = append(users, u)
 	}
 
-	log.Printf("[SUCCESS] DiscoverUsers: Found %d users", len(users))
 	return users, nil
 }
 
 func (r *sqliteFollowRepo) GetFollowingUsers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error) {
-	log.Printf("[INFO] GetFollowingUsers: Fetching following for %d", currentUserID)
 	query := `
         SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
         FROM users u
@@ -343,7 +324,6 @@ func (r *sqliteFollowRepo) GetFollowingUsers(ctx context.Context, currentUserID 
 }
 
 func (r *sqliteFollowRepo) GetFollowers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error) {
-	log.Printf("[INFO] GetFollowers: Fetching followers for %d", currentUserID)
 	query := `
         SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
         FROM users u
@@ -431,7 +411,6 @@ func (r *sqliteFollowRepo) fetchFollowListWithViewerStatus(ctx context.Context, 
 }
 
 func (r *sqliteFollowRepo) GetBlockedUsers(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error) {
-	log.Printf("[INFO] GetBlockedUsers: Fetching blocked for %d", currentUserID)
 	query := `
         SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
         FROM users u
@@ -459,7 +438,6 @@ func (r *sqliteFollowRepo) GetBlockedUsers(ctx context.Context, currentUserID in
 }
 
 func (r *sqliteFollowRepo) GetPendingIncomingRequests(ctx context.Context, currentUserID int) ([]*models.FollowListUser, error) {
-	log.Printf("[INFO] GetPendingIncomingRequests: Fetching pending for %d", currentUserID)
 	query := `
         SELECT u.id, u.first_name, u.last_name, COALESCE(u.profile_picture, '')
         FROM users u

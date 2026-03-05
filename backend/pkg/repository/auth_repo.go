@@ -37,8 +37,6 @@ var (
 )
 
 func (r *sqliteAuthRepo) SignUp(ctx context.Context, input models.SignupFields) error {
-	log.Printf("[INFO] SignUp: Starting signup process for Email: %s, Username: %s", input.Email, input.Username)
-
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		log.Printf("[ERROR] SignUp: Failed to begin transaction: %v", err)
@@ -50,7 +48,6 @@ func (r *sqliteAuthRepo) SignUp(ctx context.Context, input models.SignupFields) 
         INSERT INTO login_users (email, username, password_hash)
         VALUES (?, ?, ?);
     `
-	log.Printf("[INFO] SignUp: Inserting into login_users")
 	_, err = tx.ExecContext(ctx, loginUserQuery, input.Email, input.Username, input.Password)
 	if err != nil {
 		log.Printf("[ERROR] SignUp: login_users insertion failed: %v", err)
@@ -64,7 +61,6 @@ func (r *sqliteAuthRepo) SignUp(ctx context.Context, input models.SignupFields) 
 		log.Printf("[ERROR] SignUp: Failed to retrieve new UserID: %v", err)
 		return err
 	}
-	log.Printf("[INFO] SignUp: Generated UserID: %d", userID)
 
 	userQuery := `
         INSERT INTO users (
@@ -72,7 +68,6 @@ func (r *sqliteAuthRepo) SignUp(ctx context.Context, input models.SignupFields) 
             employed_at, phone_number, profile_picture, pictures, nickname, about_me
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `
-	log.Printf("[INFO] SignUp: Inserting profile data into users table")
 	_, err = tx.ExecContext(ctx, userQuery, userID, input.FirstName, input.LastName, input.Birthday, nil, nil, nil, input.Avatar, nil, input.Nickname, input.AboutMe)
 	if err != nil {
 		log.Printf("[ERROR] SignUp: users table insertion failed: %v", err)
@@ -93,13 +88,10 @@ func (r *sqliteAuthRepo) SignUp(ctx context.Context, input models.SignupFields) 
 		return err
 	}
 
-	log.Printf("[SUCCESS] SignUp: User %d registered successfully", userID)
 	return nil
 }
 
 func (r *sqliteAuthRepo) LogIn(ctx context.Context, input models.LoginRequest) (int, error) {
-	log.Printf("[INFO] LogIn: Attempt for email: %s", input.Email)
-
 	var storedHash string
 	var userID int
 
@@ -110,7 +102,6 @@ func (r *sqliteAuthRepo) LogIn(ctx context.Context, input models.LoginRequest) (
 	err := r.db.QueryRowContext(ctx, query, input.Email).Scan(&userID, &storedHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("[WARN] LogIn: Email not found: %s", input.Email)
 			return 0, ErrInvalidEmail
 		}
 		log.Printf("[ERROR] LogIn: Database error for email %s: %v", input.Email, err)
@@ -119,32 +110,24 @@ func (r *sqliteAuthRepo) LogIn(ctx context.Context, input models.LoginRequest) (
 
 	err = bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(input.Password))
 	if err != nil {
-		log.Printf("[WARN] LogIn: Invalid password for email: %s", input.Email)
 		return 0, ErrInvalidPassword
 	}
 
-	log.Printf("[SUCCESS] LogIn: User authenticated. UserID: %d", userID)
 	return userID, nil
 }
 
 func (r *sqliteAuthRepo) LogOut(ctx context.Context, sessionCookie string, userID int) error {
-	log.Printf("[INFO] LogOut: Attempting to delete session for UserID: %d", userID)
-
 	query := `DELETE FROM sessions WHERE session_id = ? AND id = ?;`
-	res, err := r.db.ExecContext(ctx, query, sessionCookie, userID)
+	_, err := r.db.ExecContext(ctx, query, sessionCookie, userID)
 	if err != nil {
 		log.Printf("[ERROR] LogOut: Database error for UserID %d: %v", userID, err)
 		return err
 	}
 
-	rows, _ := res.RowsAffected()
-	log.Printf("[SUCCESS] LogOut: Session deleted for UserID: %d. Rows affected: %d", userID, rows)
 	return nil
 }
 
 func (r *sqliteAuthRepo) CreateSession(ctx context.Context, userID int) (string, error) {
-	log.Printf("[INFO] CreateSession: Generating session for UserID: %d", userID)
-
 	sessionIDBytes := make([]byte, 32)
 	if _, err := rand.Read(sessionIDBytes); err != nil {
 		log.Printf("[ERROR] CreateSession: Random bytes generation failed: %v", err)
@@ -162,7 +145,6 @@ func (r *sqliteAuthRepo) CreateSession(ctx context.Context, userID int) (string,
 		return "", fmt.Errorf("failed to insert session: %w", err)
 	}
 
-	log.Printf("[SUCCESS] CreateSession: Session created/updated for UserID: %d", userID)
 	return sessionID, nil
 }
 
@@ -171,11 +153,9 @@ func mapSignupError(err error) error {
 	lowMsg := strings.ToLower(msg)
 
 	if strings.Contains(lowMsg, "email") {
-		log.Printf("[WARN] SignUp: Email conflict detected")
 		return ErrEmailTaken
 	}
 	if strings.Contains(lowMsg, "username") {
-		log.Printf("[WARN] SignUp: Username conflict detected")
 		return ErrUsernameTaken
 	}
 

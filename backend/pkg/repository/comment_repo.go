@@ -26,8 +26,6 @@ func NewCommentRepository(db *sql.DB) CommentRepository {
 }
 
 func (r *sqliteCommentRepo) CreateComment(ctx context.Context, comment models.Comment) (int, error) {
-	log.Printf("[INFO] CreateComment: Creating new comment for %s ID: %d by User: %d", comment.ParentType, comment.ParentID, comment.UserID)
-
 	query := `
         INSERT INTO comments (user_id, parent_type, parent_id, content, extra_content)
         VALUES (?, ?, ?, ?, ?);`
@@ -47,13 +45,10 @@ func (r *sqliteCommentRepo) CreateComment(ctx context.Context, comment models.Co
 		return 0, err
 	}
 
-	log.Printf("[SUCCESS] CreateComment: Created comment with ID: %d", id)
 	return int(id), nil
 }
 
 func (r *sqliteCommentRepo) GetCommentByID(ctx context.Context, commentID int) (*models.Comment, error) {
-	log.Printf("[INFO] GetCommentByID: Fetching commentID: %d", commentID)
-
 	query := `
         SELECT 
             c.id, c.user_id, c.parent_type, c.parent_id, c.content, 
@@ -71,9 +66,7 @@ func (r *sqliteCommentRepo) GetCommentByID(ctx context.Context, commentID int) (
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("[WARN] GetCommentByID: No comment found with ID: %d", commentID)
-		} else {
+		if err != sql.ErrNoRows {
 			log.Printf("[ERROR] GetCommentByID failed: %v", err)
 		}
 		return nil, err
@@ -82,8 +75,6 @@ func (r *sqliteCommentRepo) GetCommentByID(ctx context.Context, commentID int) (
 }
 
 func (r *sqliteCommentRepo) GetPostComments(ctx context.Context, postID int, viewerID int) ([]*models.Comment, error) {
-	log.Printf("[INFO] GetPostComments: Fetching comments for postID: %d, viewerID: %d", postID, viewerID)
-
 	query := `
         SELECT 
             c.id, c.user_id, c.parent_type, c.parent_id, c.content, 
@@ -127,13 +118,10 @@ func (r *sqliteCommentRepo) GetPostComments(ctx context.Context, postID int, vie
 		comments = append(comments, c)
 	}
 
-	log.Printf("[SUCCESS] GetPostComments: Found %d comments", len(comments))
 	return comments, nil
 }
 
 func (r *sqliteCommentRepo) GetCommentOwnerID(ctx context.Context, commentID int) (int, error) {
-	log.Printf("[INFO] GetCommentOwnerID: Fetching owner for commentID: %d", commentID)
-
 	var ownerID int
 	query := "SELECT user_id FROM comments WHERE id = ?"
 	err := r.db.QueryRowContext(ctx, query, commentID).Scan(&ownerID)
@@ -145,23 +133,17 @@ func (r *sqliteCommentRepo) GetCommentOwnerID(ctx context.Context, commentID int
 }
 
 func (r *sqliteCommentRepo) UpdateComment(ctx context.Context, commentID int, content string) error {
-	log.Printf("[INFO] UpdateComment: Updating commentID: %d", commentID)
-
 	query := "UPDATE comments SET content = ? WHERE id = ? AND deleted_at IS NULL"
-	res, err := r.db.ExecContext(ctx, query, content, commentID)
+	_, err := r.db.ExecContext(ctx, query, content, commentID)
 	if err != nil {
 		log.Printf("[ERROR] UpdateComment failed: %v", err)
 		return err
 	}
 
-	rowsAffected, _ := res.RowsAffected()
-	log.Printf("[INFO] UpdateComment: Rows affected: %d", rowsAffected)
 	return nil
 }
 
 func (r *sqliteCommentRepo) DeleteComment(ctx context.Context, commentID int) error {
-	log.Printf("[INFO] DeleteComment: Deleting commentID: %d", commentID)
-
 	query := "UPDATE comments SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?"
 	_, err := r.db.ExecContext(ctx, query, commentID)
 	if err != nil {
@@ -171,8 +153,6 @@ func (r *sqliteCommentRepo) DeleteComment(ctx context.Context, commentID int) er
 }
 
 func (r *sqliteCommentRepo) RestoreComment(ctx context.Context, commentID int) error {
-	log.Printf("[INFO] RestoreComment: Restoring commentID: %d", commentID)
-
 	query := "UPDATE comments SET deleted_at = NULL WHERE id = ?"
 	_, err := r.db.ExecContext(ctx, query, commentID)
 	if err != nil {

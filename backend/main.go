@@ -16,27 +16,9 @@ func usage() {
 
 func main() {
 	if len(os.Args) < 2 {
-		// default: start server
 		runServer()
 		return
 	}
 
-	// switch os.Args[1] {
-	// case "server", "run":
-	// 	runServer()
-	// case "reset":
-	// 	fmt.Println("Resetting DB (destructive)...")
-	// 	if err := adminpkg.ResetDB(true); err != nil {
-	// 		log.Fatalf("reset failed: %v", err)
-	// 	}
-	// case "populate":
-	// 	fmt.Println("Seeding DB...")
-	// 	created, err := seedpkg.SeedFromJSON("tools/seed/signup_seed.json")
-	// 	if err != nil {
-	// 		log.Fatalf("seeding failed: %v", err)
-	// 	}
-	// 	fmt.Printf("done. created %d users\n", created)
-	// default:
-	// 	usage()
-	// }
+	usage()
 }

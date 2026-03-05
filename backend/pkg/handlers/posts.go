@@ -17,12 +17,12 @@ type PostHandler struct {
 }
 
 func NewPostHandler(s services.PostService) *PostHandler {
-    return &PostHandler{Service: s}
+	return &PostHandler{Service: s}
 }
 
 func (h *PostHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
-	
+
 	mux.Handle("POST /api/posts", middleware.Chain(h.CreatePost, auth))
 
 	mux.Handle("PUT /api/posts/{id}", middleware.Chain(h.UpdatePost, auth))
@@ -33,8 +33,6 @@ func (h *PostHandler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
-	log.Println("[INFO] CreatePostHandler: Received request")
-
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		log.Printf("[ERROR] CreatePostHandler: ParseMultipartForm failed: %v", err)
 		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
@@ -42,7 +40,6 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
-	log.Printf("[INFO] CreatePostHandler: Creating post for UserID: %d", userID)
 
 	privacy := r.FormValue("privacy")
 
@@ -75,24 +72,20 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if imageURL != "" {
-		log.Printf("[INFO] CreatePostHandler: Image attached: %s", imageURL)
 		post.Image = imageURL
 	}
 
-	if _ , err := h.Service.CreatePost(r.Context(), userID, &post); err != nil {
+	if _, err := h.Service.CreatePost(r.Context(), userID, &post); err != nil {
 		log.Printf("[ERROR] CreatePostHandler: Service call failed: %v", err)
 		responses.SendError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Printf("[SUCCESS] CreatePostHandler: Post created for UserID: %d", userID)
 	responses.SendCreated(w, "user created successfully", nil)
 }
 
 func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	postID, _ := strconv.Atoi(r.PathValue("id"))
-	log.Printf("[INFO] UpdatePostHandler: Updating PostID: %d", postID)
-
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
 	var data struct {
@@ -110,14 +103,12 @@ func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[SUCCESS] UpdatePostHandler: Post %d updated", postID)
 	responses.SendSuccess(w, "post updated successfully", nil)
 }
 
 func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
-	log.Printf("[INFO] DeletePostHandler: Deleting PostID: %s", postIDStr)
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
@@ -134,14 +125,12 @@ func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[SUCCESS] DeletePostHandler: Post %d marked as deleted", postIDInt)
 	responses.SendSuccess(w, "post deleted successfully", nil)
 }
 
 func (h *PostHandler) RestorePost(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
-	log.Printf("[INFO] RestorePostHandler: Restoring PostID: %s", postIDStr)
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
@@ -158,14 +147,12 @@ func (h *PostHandler) RestorePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[SUCCESS] RestorePostHandler: Post %d restored", postIDInt)
 	responses.SendSuccess(w, "post restored successfully", nil)
 }
 
 func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	postIDStr := r.PathValue("id")
 	postIDInt, err := strconv.Atoi(postIDStr)
-	log.Printf("[INFO] GetPostHandler: Fetching PostID: %s", postIDStr)
 
 	if err != nil {
 		log.Printf("[ERROR] GetPostHandler: Invalid PostID format: %v", err)
@@ -182,6 +169,5 @@ func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[SUCCESS] GetPostHandler: Post %d retrieved for UserID %d", postIDInt, userID)
 	responses.SendSuccess(w, "post retrieved successfully", post)
 }

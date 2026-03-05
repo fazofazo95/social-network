@@ -28,7 +28,6 @@ func runServer() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	fmt.Println("Database initialized successfully!")
 	defer database.DB.Close()
 
 	mux := http.NewServeMux()

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -18,7 +19,7 @@ type ChatHandler struct {
 }
 
 func NewChatHandler(s services.ChatService) *ChatHandler {
-    return &ChatHandler{Service: s}
+	return &ChatHandler{Service: s}
 }
 
 type markChatReadInput struct {
@@ -27,7 +28,7 @@ type markChatReadInput struct {
 
 func (h *ChatHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
-	
+
 	mux.Handle("GET /api/chats", middleware.Chain(h.ListChatsHandler, auth))
 	mux.Handle("GET /api/chats/{chat_id}/messages", middleware.Chain(h.GetChatMessagesHandler, auth))
 	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(h.SendDirectMessageHandler, auth))
@@ -35,7 +36,7 @@ func (h *ChatHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups/{id}/chat/messages", middleware.Chain(h.SendGroupMessageHandler, auth))
 }
 
-func (h *ChatHandler)  SendDirectMessageHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ChatHandler) SendDirectMessageHandler(w http.ResponseWriter, r *http.Request) {
 	senderID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -56,6 +57,7 @@ func (h *ChatHandler)  SendDirectMessageHandler(w http.ResponseWriter, r *http.R
 
 	message, err := h.Service.SendDirectMessage(r.Context(), senderID, targetID, in)
 	if err != nil {
+		log.Printf("error sending direct message: %v", err)
 		switch {
 		case errors.Is(err, repository.ErrInvalidChatMessage):
 			responses.SendError(w, http.StatusBadRequest, "invalid message payload")
@@ -64,13 +66,12 @@ func (h *ChatHandler)  SendDirectMessageHandler(w http.ResponseWriter, r *http.R
 			responses.SendError(w, http.StatusForbidden, "direct chat is not allowed for these users")
 			return
 		default:
-			responses.SendError(w, http.StatusInternalServerError, "failed to send direct message: "+err.Error())
+			responses.SendError(w, http.StatusInternalServerError, "failed to send direct message")
 			return
 		}
 	}
 	responses.SendCreated(w, "message sent", message)
 }
-
 
 func (h *ChatHandler) SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {
 	senderID, err := middleware.UserIDFromContext(r.Context())

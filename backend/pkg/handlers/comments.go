@@ -32,7 +32,6 @@ func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("[INFO] CreateCommentHandler: Received request")
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		log.Printf("[ERROR] CreateCommentHandler: ParseMultipartForm failed: %v", err)
 		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
@@ -40,7 +39,6 @@ func (h *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
-	log.Printf("[INFO] CreateCommentHandler: UserID from context: %d", userID)
 
 	comment := models.Comment{
 		UserID:     userID,
@@ -65,7 +63,6 @@ func (h *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	if imageURL != "" {
-		log.Printf("[INFO] CreateCommentHandler: Image attached: %s", imageURL)
 		comment.ExtraContent = imageURL
 	}
 
@@ -75,13 +72,11 @@ func (h *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	log.Println("[SUCCESS] CreateCommentHandler: Comment created")
 	responses.SendCreated(w, "comment created successfully", nil)
 }
 
 func (h *CommentHandler) UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentID := r.PathValue("id")
-	log.Printf("[INFO] UpdateCommentHandler: Received request for ID: %s", commentID)
 
 	commentIDInt, err := strconv.Atoi(commentID)
 	if err != nil {
@@ -108,14 +103,12 @@ func (h *CommentHandler) UpdateCommentHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	log.Printf("[SUCCESS] UpdateCommentHandler: Comment %d updated", commentIDInt)
 	responses.SendSuccess(w, "comment updated successfully", nil)
 }
 
 func (h *CommentHandler) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
-	log.Printf("[INFO] DeleteCommentHandler: Received request for ID: %d", commentID)
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
@@ -125,14 +118,12 @@ func (h *CommentHandler) DeleteCommentHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	log.Printf("[SUCCESS] DeleteCommentHandler: Comment %d deleted", commentID)
 	responses.SendSuccess(w, "comment deleted successfully", nil)
 }
 
 func (h *CommentHandler) RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
-	log.Printf("[INFO] RestoreCommentHandler: Received request for ID: %d", commentID)
 
 	userID, _ := middleware.UserIDFromContext(r.Context())
 
@@ -143,13 +134,11 @@ func (h *CommentHandler) RestoreCommentHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	log.Printf("[SUCCESS] RestoreCommentHandler: Comment %d restored", commentID)
 	responses.SendSuccess(w, "comment restored successfully", nil)
 }
 
 func (h *CommentHandler) GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.PathValue("id")
-	log.Printf("[INFO] GetPostCommentsHandler: Fetching for PostID: %s", postID)
 
 	postIDInt, err := strconv.Atoi(postID)
 	if err != nil {
@@ -167,6 +156,5 @@ func (h *CommentHandler) GetPostCommentsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	log.Printf("[SUCCESS] GetPostCommentsHandler: Retrieved %d comments", len(comments))
 	responses.SendSuccess(w, "comments retrieved successfully", comments)
 }
