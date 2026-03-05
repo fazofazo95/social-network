@@ -11,7 +11,7 @@ export async function loginUser(credentials) {
 }
 
 export async function signupUser(formData) {
-  return apiRequest("/api/userssr ", {
+  return apiRequest("/api/users", {
     method: "POST",
     body: formData,
   });
