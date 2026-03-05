@@ -5,6 +5,7 @@ import (
 	"backend/pkg/repository"
 	"context"
 	"errors"
+	"log"
 )
 
 type FollowService interface {
@@ -45,6 +46,7 @@ func (s *followService) FollowUser(ctx context.Context, req models.FollowRequest
 
 	isUserPrivate, err := s.profileRepo.UserPrivacy(ctx, req.FollowedID)
 	if err != nil {
+		log.Printf("error checking user privacy: %v", err)
 		return "", err
 	}
 
@@ -55,11 +57,13 @@ func (s *followService) FollowUser(ctx context.Context, req models.FollowRequest
 
 	err = s.repo.CreateFollow(ctx, req, status)
 	if err != nil {
+		log.Printf("error creating follow: %v", err)
 		return "", err
 	}
 
 	if status == "pending" && s.notifSvc != nil {
 		if err := s.notifSvc.NotifyFollowRequest(ctx, req.FollowerID, req.FollowedID); err != nil {
+			log.Printf("error sending follow request notification: %v", err)
 			return "", err
 		}
 	}

@@ -5,7 +5,6 @@ import (
 	"backend/pkg/responses"
 	"context"
 	"errors"
-	"log"
 	"net/http"
 )
 
@@ -35,12 +34,10 @@ func WithAuth(next http.Handler) http.Handler {
 
 		userID, err := queries.AuthenticateSession(r.Context(), c.Value)
 		if err != nil {
-			log.Printf("WithAuth: AuthenticateSession error: %v", err)
 			responses.SendError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
-		log.Printf("WithAuth: session valid for user %d", userID)
 		ctx := ContextWithUserID(r.Context(), userID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

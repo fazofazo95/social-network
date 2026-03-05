@@ -36,7 +36,8 @@ func (s *profileService) GetUserProfileView(ctx context.Context, viewerID int, t
 	if targetID == "me" {
 		targetIDInt = viewerID
 	} else {
-		targetIDInt, err := strconv.Atoi(targetID)
+		var err error
+		targetIDInt, err = strconv.Atoi(targetID)
 		if err != nil || targetIDInt <= 0 {
 			log.Printf("invalid targetID: %v", targetID)
 			return nil, fmt.Errorf("invalid user id")
@@ -208,7 +209,7 @@ func (s *profileService) GetUserVisibilitySettings(ctx context.Context, userID i
 		FollowVis:             mapVis(raw.FollowVis),
 	}
 
-	if raw.ProfileType == 1 {
+	if raw.ProfileType == true {
 		settings.ProfileType = "private"
 	} else {
 		settings.ProfileType = "public"

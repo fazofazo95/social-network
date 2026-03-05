@@ -52,7 +52,7 @@ func (h *FollowHandler) FollowUserHandler(w http.ResponseWriter, r *http.Request
 
 	status, err := h.Service.FollowUser(r.Context(), req)
 	if err != nil {
-		responses.SendError(w, http.StatusInternalServerError, "Failed to process follow request: "+err.Error())
+		responses.SendError(w, http.StatusInternalServerError, "Failed to process follow request")
 		return
 	}
 

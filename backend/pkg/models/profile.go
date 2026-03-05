@@ -75,7 +75,7 @@ type SignupFields struct {
 }
 
 type RawVisibilityData struct {
-	ProfileType int
+	ProfileType bool
 	EmailVis    int
 	BirthdayVis int
 	RelVis      int
