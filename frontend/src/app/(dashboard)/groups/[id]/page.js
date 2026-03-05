@@ -16,19 +16,23 @@ import {
     promoteMember,
     demoteMember,
     deleteGroup,
-    inviteToGroup
+    inviteToGroup,
+    getGroupSettings,
+    updateGroupSettings
 } from "src/lib/services/group";
 import { getDiscoveredUsers } from "src/lib/services/discover";
+import { fetchUserData } from "src/lib/services/user";
 
 const GroupDetailPage = () => {
     const params = useParams();
     const groupId = params.id;
-    const currentUser = "John Doe";
+    const [currentUser, setCurrentUser] = useState(null);
     
     const [activeTab, setActiveTab] = useState("posts");
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showCreateEventModal, setShowCreateEventModal] = useState(false);
     const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
 
     // Loading states
     const [loading, setLoading] = useState(true);
@@ -55,6 +59,11 @@ const GroupDetailPage = () => {
         { id: 1, title: "Weekly Code Review", date: "March 1, 2026", time: "3:00 PM", attendees: 28, going: true },
         { id: 2, title: "React Workshop", date: "March 5, 2026", time: "2:00 PM", attendees: 45, going: false },
     ]);
+
+    // Load current user
+    useEffect(() => {
+        fetchUserData("me").then(u => setCurrentUser(u)).catch(() => {});
+    }, []);
 
     // Load group data on mount
     useEffect(() => {
@@ -318,7 +327,10 @@ const GroupDetailPage = () => {
                                 </button>
                             )}
                             {userRole === "owner" && (
-                                <button className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm">
+                                <button 
+                                    onClick={() => setShowSettingsModal(true)}
+                                    className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                                >
                                     <Image src="/settings_icon.svg" alt="Settings" width={16} height={16} />
                                 </button>
                             )}
@@ -451,7 +463,7 @@ const GroupDetailPage = () => {
                                             {/* Comment Input */}
                                             <div className="flex gap-2 mb-4">
                                                 <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-[0_0_8px_rgba(168,85,247,0.3)]">
-                                                    {currentUser[0]}
+                                                    {(currentUser?.first_name || "U")[0]}
                                                 </div>
                                                 <div className="flex-1 flex gap-2">
                                                     <input
@@ -521,14 +533,28 @@ const GroupDetailPage = () => {
                                         )}
                                     </div>
                                 </div>
-                                {userRole === "owner" && `${member.first_name} ${member.last_name}` !== currentUser && (
+                                {userRole === "owner" && member.id !== currentUser?.id && (
                                     <div className="flex gap-2">
                                         {member.role === "member" && (
-                                            <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)]">
+                                            <button 
+                                                onClick={() => handlePromoteMember(member.id)}
+                                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                            >
                                                 Promote
                                             </button>
                                         )}
-                                        <button className="px-3 py-1.5 bg-purple-900/30 hover:bg-red-900/30 text-purple-300 hover:text-red-300 border border-purple-500/30 hover:border-red-500/30 rounded-md transition cursor-pointer text-sm">
+                                        {member.role === "moderator" && (
+                                            <button 
+                                                onClick={() => handleDemoteMember(member.id)}
+                                                className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-md transition cursor-pointer text-sm"
+                                            >
+                                                Demote
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => handleKickMember(member.id)}
+                                            className="px-3 py-1.5 bg-purple-900/30 hover:bg-red-900/30 text-purple-300 hover:text-red-300 border border-purple-500/30 hover:border-red-500/30 rounded-md transition cursor-pointer text-sm"
+                                        >
                                             Remove
                                         </button>
                                     </div>
@@ -665,6 +691,19 @@ const GroupDetailPage = () => {
             {/* Create Event Modal */}
             {showCreateEventModal && (
                 <CreateEventModal onClose={() => setShowCreateEventModal(false)} />
+            )}
+
+            {/* Settings Modal */}
+            {showSettingsModal && (
+                <GroupSettingsModal 
+                    groupId={groupId} 
+                    currentSettings={{ visibility: group?.visibility, join_mode: group?.join_mode }}
+                    onClose={() => setShowSettingsModal(false)}
+                    onSaved={(updated) => {
+                        setGroup(prev => ({ ...prev, visibility: updated.Visibility || updated.visibility, join_mode: updated.JoinMode || updated.join_mode }));
+                        setShowSettingsModal(false);
+                    }}
+                />
             )}
             </>
             )}
@@ -957,6 +996,136 @@ const CreateEventModal = ({ onClose }) => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+};
+
+// Group Settings Modal Component (Owner only)
+const GroupSettingsModal = ({ groupId, currentSettings, onClose, onSaved }) => {
+    const [visibility, setVisibility] = useState(currentSettings?.visibility || "public");
+    const [joinMode, setJoinMode] = useState(currentSettings?.join_mode || "auto");
+    const [saving, setSaving] = useState(false);
+    const [loadingSettings, setLoadingSettings] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setLoadingSettings(true);
+                const data = await getGroupSettings(groupId);
+                if (data) {
+                    setVisibility(data.Visibility || data.visibility || "public");
+                    setJoinMode(data.JoinMode || data.join_mode || "auto");
+                }
+            } catch (err) {
+                console.error("Failed to load group settings:", err);
+            } finally {
+                setLoadingSettings(false);
+            }
+        };
+        load();
+    }, [groupId]);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const result = await updateGroupSettings(groupId, {
+                visibility,
+                join_mode: joinMode,
+            });
+            onSaved(result || { visibility, join_mode: joinMode });
+        } catch (err) {
+            console.error("Failed to update group settings:", err);
+            alert(err?.message || "Failed to save settings");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#1a1a2e] rounded-lg max-w-md w-full p-6 border border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                <h2 className="text-xl font-bold mb-6 text-purple-100">Group Settings</h2>
+
+                {loadingSettings ? (
+                    <p className="text-purple-400 text-sm text-center py-8">Loading settings...</p>
+                ) : (
+                    <div className="space-y-5">
+                        {/* Visibility */}
+                        <div>
+                            <label className="block text-sm font-medium text-purple-300 mb-2">Visibility</label>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setVisibility("public")}
+                                    className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition cursor-pointer border ${
+                                        visibility === "public"
+                                            ? "bg-purple-600 text-white border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                            : "bg-[#0d0d1a] text-purple-400 border-purple-500/30 hover:border-purple-500/50"
+                                    }`}
+                                >
+                                    🌐 Public
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setVisibility("private")}
+                                    className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition cursor-pointer border ${
+                                        visibility === "private"
+                                            ? "bg-purple-600 text-white border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                            : "bg-[#0d0d1a] text-purple-400 border-purple-500/30 hover:border-purple-500/50"
+                                    }`}
+                                >
+                                    🔒 Private
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Join Mode */}
+                        <div>
+                            <label className="block text-sm font-medium text-purple-300 mb-2">Join Mode</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { value: "auto", label: "Auto" },
+                                    { value: "request", label: "Request" },
+                                    { value: "invite", label: "Invite Only" },
+                                    { value: "request_and_invite", label: "Request & Invite" },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        type="button"
+                                        onClick={() => setJoinMode(opt.value)}
+                                        className={`px-3 py-2 rounded-md text-sm font-medium transition cursor-pointer border ${
+                                            joinMode === opt.value
+                                                ? "bg-purple-600 text-white border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"
+                                                : "bg-[#0d0d1a] text-purple-400 border-purple-500/30 hover:border-purple-500/50"
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-3 justify-end pt-6">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={saving}
+                        className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving || loadingSettings}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] disabled:opacity-50"
+                    >
+                        {saving ? "Saving..." : "Save Settings"}
+                    </button>
+                </div>
             </div>
         </div>
     );

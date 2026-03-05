@@ -143,3 +143,21 @@ export async function inviteToGroup(groupId, userId) {
     method: "POST",
   });
 }
+
+// ===== GROUP SETTINGS (OWNER ONLY) =====
+
+export async function getGroupSettings(groupId) {
+  const payload = await apiRequest(`/api/groups/${groupId}/settings`, {
+    method: "GET",
+  });
+  return payload?.data || null;
+}
+
+export async function updateGroupSettings(groupId, data) {
+  const payload = await apiRequest(`/api/groups/${groupId}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return payload?.data || null;
+}
