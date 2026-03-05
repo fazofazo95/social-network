@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"backend/pkg/db/queries"
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/responses"
 	"context"
 	"errors"
@@ -34,8 +33,7 @@ func WithAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		log.Printf("WithAuth: found session cookie, validating")
-		userID, err := queries.AuthenticateSession(r.Context(), database.DB, c.Value)
+		userID, err := queries.AuthenticateSession(r.Context(), c.Value)
 		if err != nil {
 			log.Printf("WithAuth: AuthenticateSession error: %v", err)
 			responses.SendError(w, http.StatusUnauthorized, "unauthorized")

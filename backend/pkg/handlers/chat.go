@@ -6,58 +6,73 @@ import (
 	"net/http"
 	"strconv"
 
-	"backend/pkg/db/queries"
-	database "backend/pkg/db/sqlite"
 	"backend/pkg/middleware"
 	"backend/pkg/models"
+	"backend/pkg/repository"
 	"backend/pkg/responses"
-	websocket "backend/pkg/ws"
+	"backend/pkg/services"
 )
+
+type ChatHandler struct {
+	Service services.ChatService
+}
+
+func NewChatHandler(s services.ChatService) *ChatHandler {
+    return &ChatHandler{Service: s}
+}
 
 type markChatReadInput struct {
 	LastMessageID int `json:"last_message_id"`
 }
 
-func SendDirectMessageHandler(hub *websocket.Hub) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		senderID, err := middleware.UserIDFromContext(r.Context())
-		if err != nil {
-			responses.SendError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		targetID, err := strconv.Atoi(r.PathValue("user_id"))
-		if err != nil || targetID <= 0 {
-			responses.SendError(w, http.StatusBadRequest, "invalid target user id")
-			return
-		}
-
-		var in models.SendMessageInput
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			responses.SendError(w, http.StatusBadRequest, "invalid JSON")
-			return
-		}
-
-		message, err := queries.SendDirectMessage(r.Context(), database.DB, senderID, targetID, in)
-		if err != nil {
-			switch {
-			case errors.Is(err, queries.ErrInvalidChatMessage):
-				responses.SendError(w, http.StatusBadRequest, "invalid message payload")
-				return
-			case errors.Is(err, queries.ErrDirectChatNotAllowed):
-				responses.SendError(w, http.StatusForbidden, "direct chat is not allowed for these users")
-				return
-			default:
-				responses.SendError(w, http.StatusInternalServerError, "failed to send direct message: "+err.Error())
-				return
-			}
-		}
-		hub.Broadcast <- message
-		responses.SendCreated(w, "message sent", message)
-	}
+func (h *ChatHandler) RegisterRoutes(mux *http.ServeMux) {
+	auth := middleware.WithAuth
+	
+	mux.Handle("GET /api/chats", middleware.Chain(h.ListChatsHandler, auth))
+	mux.Handle("GET /api/chats/{chat_id}/messages", middleware.Chain(h.GetChatMessagesHandler, auth))
+	mux.Handle("POST /api/chats/direct/{user_id}/messages", middleware.Chain(h.SendDirectMessageHandler, auth))
+	mux.Handle("POST /api/chats/{chat_id}/read", middleware.Chain(h.MarkChatReadHandler, auth))
+	mux.Handle("POST /api/groups/{id}/chat/messages", middleware.Chain(h.SendGroupMessageHandler, auth))
 }
 
-func SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ChatHandler)  SendDirectMessageHandler(w http.ResponseWriter, r *http.Request) {
+	senderID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	targetID, err := strconv.Atoi(r.PathValue("user_id"))
+	if err != nil || targetID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid target user id")
+		return
+	}
+
+	var in models.SendMessageInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		responses.SendError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	message, err := h.Service.SendDirectMessage(r.Context(), senderID, targetID, in)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrInvalidChatMessage):
+			responses.SendError(w, http.StatusBadRequest, "invalid message payload")
+			return
+		case errors.Is(err, repository.ErrDirectChatNotAllowed):
+			responses.SendError(w, http.StatusForbidden, "direct chat is not allowed for these users")
+			return
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to send direct message: "+err.Error())
+			return
+		}
+	}
+	responses.SendCreated(w, "message sent", message)
+}
+
+
+func (h *ChatHandler) SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {
 	senderID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -76,16 +91,16 @@ func SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message, err := queries.SendGroupMessage(r.Context(), database.DB, senderID, groupID, in)
+	message, err := h.Service.SendGroupMessage(r.Context(), senderID, groupID, in)
 	if err != nil {
 		switch {
-		case errors.Is(err, queries.ErrInvalidChatMessage):
+		case errors.Is(err, repository.ErrInvalidChatMessage):
 			responses.SendError(w, http.StatusBadRequest, "invalid message payload")
 			return
-		case errors.Is(err, queries.ErrGroupChatNotFound), errors.Is(err, queries.ErrGroupNotFound):
+		case errors.Is(err, repository.ErrGroupChatNotFound), errors.Is(err, repository.ErrGroupNotFound):
 			responses.SendError(w, http.StatusNotFound, "group chat not found")
 			return
-		case errors.Is(err, queries.ErrChatForbidden):
+		case errors.Is(err, repository.ErrChatForbidden):
 			responses.SendError(w, http.StatusForbidden, "only active group members can send group chat messages")
 			return
 		default:
@@ -97,7 +112,7 @@ func SendGroupMessageHandler(w http.ResponseWriter, r *http.Request) {
 	responses.SendCreated(w, "message sent", message)
 }
 
-func ListChatsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ChatHandler) ListChatsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -124,7 +139,7 @@ func ListChatsHandler(w http.ResponseWriter, r *http.Request) {
 		offset = v
 	}
 
-	items, err := queries.ListChats(r.Context(), database.DB, userID, limit, offset)
+	items, err := h.Service.ListChats(r.Context(), userID, limit, offset)
 	if err != nil {
 		responses.SendError(w, http.StatusInternalServerError, "failed to list chats: "+err.Error())
 		return
@@ -137,7 +152,7 @@ func ListChatsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ChatHandler) GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -170,13 +185,13 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		beforeID = v
 	}
 
-	items, err := queries.GetChatMessages(r.Context(), database.DB, userID, chatID, beforeID, limit)
+	items, err := h.Service.GetChatMessages(r.Context(), userID, chatID, beforeID, limit)
 	if err != nil {
 		switch {
-		case errors.Is(err, queries.ErrChatNotFound):
+		case errors.Is(err, repository.ErrChatNotFound):
 			responses.SendError(w, http.StatusNotFound, "chat not found")
 			return
-		case errors.Is(err, queries.ErrChatForbidden):
+		case errors.Is(err, repository.ErrChatForbidden):
 			responses.SendError(w, http.StatusForbidden, "chat access forbidden")
 			return
 		default:
@@ -193,7 +208,7 @@ func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func MarkChatReadHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ChatHandler) MarkChatReadHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -211,15 +226,15 @@ func MarkChatReadHandler(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&in)
 	}
 
-	if err := queries.MarkChatRead(r.Context(), database.DB, userID, chatID, in.LastMessageID); err != nil {
+	if err := h.Service.MarkChatRead(r.Context(), userID, chatID, in.LastMessageID); err != nil {
 		switch {
-		case errors.Is(err, queries.ErrChatNotFound):
+		case errors.Is(err, repository.ErrChatNotFound):
 			responses.SendError(w, http.StatusNotFound, "chat not found")
 			return
-		case errors.Is(err, queries.ErrChatForbidden):
+		case errors.Is(err, repository.ErrChatForbidden):
 			responses.SendError(w, http.StatusForbidden, "chat access forbidden")
 			return
-		case errors.Is(err, queries.ErrInvalidChatMessage):
+		case errors.Is(err, repository.ErrInvalidChatMessage):
 			responses.SendError(w, http.StatusBadRequest, "invalid last_message_id")
 			return
 		default:

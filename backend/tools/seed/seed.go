@@ -85,7 +85,7 @@ func SeedFromJSON(path string) (int, error) {
 		nickname := u.Username
 		about := ""
 
-		input := models.Signup_fields{
+		input := models.SignupFields{
 			Email:     u.Email,
 			Username:  u.Username,
 			Password:  u.Password,

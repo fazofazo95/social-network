@@ -9,6 +9,7 @@ import (
 	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	models "backend/pkg/models"
+	repository "backend/pkg/repository"
 	services "backend/pkg/services"
 )
 
@@ -26,7 +27,7 @@ func main() {
 	email := "alice@example.com"
 	password := "Password123!"
 
-	loginInput := models.LoginInput{Email: email, Password: password}
+	loginInput := models.LoginRequest{Email: email, Password: password}
 	userID, err := queries.LogIn(ctx, database.DB, loginInput)
 	if err != nil {
 		log.Fatalf("login failed: %v", err)
@@ -49,7 +50,9 @@ func main() {
 	fmt.Printf("Discovered users:\n%s\n", string(b))
 
 	// 3) send follow requests to discovered ids
-	followSvc := services.NewFollowService(database.DB)
+	followRepo := repository.NewFollowRepository(database.DB)
+	profileRepo := repository.NewProfileRepository(database.DB)
+	followSvc := services.NewFollowService(followRepo, profileRepo, nil)
 	for _, u := range users {
 		req := models.FollowRequest{FollowerID: userID, FollowedID: u.ID}
 		status, err := followSvc.FollowUser(ctx, req)

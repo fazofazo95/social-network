@@ -8,6 +8,7 @@ import (
 	queries "backend/pkg/db/queries"
 	database "backend/pkg/db/sqlite"
 	models "backend/pkg/models"
+	repository "backend/pkg/repository"
 	services "backend/pkg/services"
 )
 
@@ -23,14 +24,16 @@ func main() {
 	// login as alice
 	email := "alice@example.com"
 	password := "Password123!"
-	loginInput := models.LoginInput{Email: email, Password: password}
+	loginInput := models.LoginRequest{Email: email, Password: password}
 	userID, err := queries.LogIn(ctx, database.DB, loginInput)
 	if err != nil {
 		log.Fatalf("login failed: %v", err)
 	}
 	fmt.Printf("Logged in: userID=%d\n", userID)
 
-	followSvc := services.NewFollowService(database.DB)
+	followRepo := repository.NewFollowRepository(database.DB)
+	profileRepo := repository.NewProfileRepository(database.DB)
+	followSvc := services.NewFollowService(followRepo, profileRepo, nil)
 	targets := []int{5, 6}
 	for _, t := range targets {
 		req := models.FollowRequest{FollowerID: userID, FollowedID: t}
