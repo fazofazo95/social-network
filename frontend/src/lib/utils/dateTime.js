@@ -3,7 +3,14 @@ export function formatFriendlyDateTime(value) {
     return "";
   }
 
-  const date = value instanceof Date ? value : new Date(value);
+  // Backend sends UTC timestamps without timezone marker (e.g. "2026-03-01 10:00:00").
+  // Append "Z" so JS Date parses them as UTC, making relative-time diffs correct.
+  let raw = value;
+  if (typeof raw === "string" && !raw.endsWith("Z") && !raw.includes("+") && !raw.includes("T")) {
+    raw = raw.replace(" ", "T") + "Z";
+  }
+
+  const date = raw instanceof Date ? raw : new Date(raw);
   if (Number.isNaN(date.getTime())) {
     return "";
   }

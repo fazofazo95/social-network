@@ -64,7 +64,7 @@ export default function NotificationDropdown() {
         });
         sseRef.current = es;
 
-        es.addEventListener("notification", (e) => {
+        es.addEventListener("notification:new", (e) => {
           try {
             const payload = JSON.parse(e.data);
             if (payload?.notification) {
