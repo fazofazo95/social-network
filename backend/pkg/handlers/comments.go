@@ -17,12 +17,12 @@ type CommentHandler struct {
 }
 
 func NewCommentHandler(s services.CommentService) *CommentHandler {
-    return &CommentHandler{Service: s}
+	return &CommentHandler{Service: s}
 }
 
 func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
 	auth := middleware.WithAuth
-	
+
 	mux.Handle("GET /api/posts/{id}/comments", middleware.Chain(h.GetPostCommentsHandler, auth))
 
 	mux.Handle("POST /api/comments", middleware.Chain(h.CreateCommentHandler, auth))
@@ -31,7 +31,7 @@ func (h *CommentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("PUT /api/comments/{id}/restore", middleware.Chain(h.RestoreCommentHandler, auth))
 }
 
-func (h *CommentHandler)  CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("[INFO] CreateCommentHandler: Received request")
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		log.Printf("[ERROR] CreateCommentHandler: ParseMultipartForm failed: %v", err)
@@ -79,7 +79,7 @@ func (h *CommentHandler)  CreateCommentHandler(w http.ResponseWriter, r *http.Re
 	responses.SendCreated(w, "comment created successfully", nil)
 }
 
-func (h *CommentHandler)  UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler) UpdateCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentID := r.PathValue("id")
 	log.Printf("[INFO] UpdateCommentHandler: Received request for ID: %s", commentID)
 
@@ -112,7 +112,7 @@ func (h *CommentHandler)  UpdateCommentHandler(w http.ResponseWriter, r *http.Re
 	responses.SendSuccess(w, "comment updated successfully", nil)
 }
 
-func (h *CommentHandler)  DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler) DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
 	log.Printf("[INFO] DeleteCommentHandler: Received request for ID: %d", commentID)
@@ -129,7 +129,7 @@ func (h *CommentHandler)  DeleteCommentHandler(w http.ResponseWriter, r *http.Re
 	responses.SendSuccess(w, "comment deleted successfully", nil)
 }
 
-func (h *CommentHandler)  RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler) RestoreCommentHandler(w http.ResponseWriter, r *http.Request) {
 	commentIDStr := r.PathValue("id")
 	commentID, _ := strconv.Atoi(commentIDStr)
 	log.Printf("[INFO] RestoreCommentHandler: Received request for ID: %d", commentID)
@@ -147,7 +147,7 @@ func (h *CommentHandler)  RestoreCommentHandler(w http.ResponseWriter, r *http.R
 	responses.SendSuccess(w, "comment restored successfully", nil)
 }
 
-func (h *CommentHandler)  GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *CommentHandler) GetPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	postID := r.PathValue("id")
 	log.Printf("[INFO] GetPostCommentsHandler: Fetching for PostID: %s", postID)
 

@@ -11,3 +11,16 @@ type LoginResponse struct {
 	UserID    int
 	SessionID string
 }
+
+// LoginInput represents login credentials for database queries
+type LoginInput struct {
+	Email    string
+	Password string
+}
+
+// // SignUpInput represents signup data for database queries
+type SignUpInput struct {
+	Username string
+	Email    string
+	Password string
+}
