@@ -394,6 +394,233 @@ Notes:
 
 ---
 
+## 7) Follow Action Endpoint: Follow User
+
+### 7.1 Follow a User
+`POST /users/{id}/follow`
+
+Purpose:
+- Creates a follow relationship from the authenticated user to `{id}`.
+- If target user has a public profile, the follow is immediately `accepted`.
+- If target user has a private profile, the follow is set to `pending` until the target accepts.
+
+#### Success (201)
+```json
+{
+  "status": "success",
+  "message": "follow request created successfully",
+  "data": {
+    "follower_id": 1,
+    "followed_id": 5,
+    "status": "accepted"
+  }
+}
+```
+
+Private profile example (pending):
+```json
+{
+  "status": "success",
+  "message": "follow request created successfully",
+  "data": {
+    "follower_id": 1,
+    "followed_id": 5,
+    "status": "pending"
+  }
+}
+```
+
+#### Errors
+- **400 Bad Request:** Invalid target user id.
+- **401 Unauthorized:** Missing or invalid session.
+- **500 Internal Server Error:** Database or service error.
+
+---
+
+## 8) Follow Action Endpoint: Unfollow User
+
+### 8.1 Unfollow a User
+`DELETE /users/{id}/unfollow`
+
+Purpose:
+- Removes the follow relationship from the authenticated user to `{id}`.
+- Deletes the outgoing follow row regardless of status (`accepted` or `pending`).
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "unfollowed successfully",
+  "data": {
+    "follower_id": 1,
+    "followed_id": 5
+  }
+}
+```
+
+#### Not Found (404)
+```json
+{
+  "status": "error",
+  "message": "no follow relationship found"
+}
+```
+
+#### Unauthorized (401)
+```json
+{
+  "status": "error",
+  "message": "unauthorized"
+}
+```
+
+---
+
+## 9) Follow Action Endpoint: Accept Follow Request
+
+### 9.1 Accept a Pending Incoming Follow Request
+`POST /users/{id}/follow/accept`
+
+Purpose:
+- Accepts a pending follow request from `{id}` to the authenticated user.
+- Updates the follow row status from `pending` to `accepted`.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "follow request accepted",
+  "data": {
+    "follower_id": 2,
+    "followed_id": 1
+  }
+}
+```
+
+#### Not Found (404)
+```json
+{
+  "status": "error",
+  "message": "no pending follow request found"
+}
+```
+
+#### Unauthorized (401)
+```json
+{
+  "status": "error",
+  "message": "unauthorized"
+}
+```
+
+---
+
+## 10) Follow Action Endpoint: Block User
+
+### 10.1 Block a User
+`POST /users/{id}/block`
+
+Purpose:
+- Blocks `{id}` from the authenticated user's perspective.
+- Removes any existing follow relationships (both directions) between the two users.
+- Creates a `blocked` row.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "user blocked",
+  "data": {
+    "blocker_id": 1,
+    "blocked_id": 5,
+    "rows": 1
+  }
+}
+```
+
+#### Errors
+- **400 Bad Request:** Invalid target user id.
+- **401 Unauthorized:** Missing or invalid session.
+- **500 Internal Server Error:** Database or service error.
+
+---
+
+## 11) Follow Action Endpoint: Unblock User
+
+### 11.1 Unblock a User
+`DELETE /users/{id}/unblock`
+
+Purpose:
+- Removes the block on `{id}` by the authenticated user.
+- Deletes the `blocked` row.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "user unblocked",
+  "data": {
+    "blocker_id": 1,
+    "unblocked_id": 5
+  }
+}
+```
+
+#### Not Found (404)
+```json
+{
+  "status": "error",
+  "message": "no blocked relationship found"
+}
+```
+
+#### Unauthorized (401)
+```json
+{
+  "status": "error",
+  "message": "unauthorized"
+}
+```
+
+---
+
+## 12) Update Profile Media
+
+### 12.1 Update Avatar or Cover Image
+`PUT /users/{id}`
+
+Purpose:
+- Updates the authenticated user's profile picture and/or cover image.
+- The `{id}` path parameter must be `me`.
+
+**Content-Type:** `multipart/form-data`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `avatar` | file | ❌ | New profile picture file. |
+| `cover` | file | ❌ | New cover image file. |
+
+At least one file must be provided.
+
+#### Success (200)
+```json
+{
+  "status": "success",
+  "message": "profile updated",
+  "data": {
+    "id": 1,
+    "profile_picture": "/uploads/avatars/abc.jpg",
+    "cover_image": "/uploads/covers/xyz.jpg"
+  }
+}
+```
+
+#### Errors
+- **400 Bad Request:** No avatar or cover file provided, or invalid form.
+- **401 Unauthorized:** Missing or invalid session.
+- **403 Forbidden:** `{id}` is not `me`.
+- **500 Internal Server Error:** Database or file upload error.---
+
 ## 6) Follow Action Endpoint: Reject Follow Request
 
 ### 6.1 Reject a Pending Incoming Follow Request

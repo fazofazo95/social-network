@@ -56,7 +56,7 @@ Updates the content of an existing post. Only the owner can perform this action.
 
 # Delete Post
 
-`PUT /api/posts/{id}/delete`
+`DELETE /api/posts/{id}`
 
 Soft deletes a post. Only the owner can perform this action.
 
@@ -92,7 +92,7 @@ Restores a previously deleted post. Only the owner can perform this action.
 ---
 
 # Get Single Post
-`GET /posts/{id}`
+`GET /api/posts/{id}`
 
 Retrieves detailed information about a specific post by its ID. 
 
@@ -187,7 +187,7 @@ Database error or the post does not exist (if the service returns an error).
 ---
 
 # Get User's Posts
-`GET /users/{id}/posts?page={page_number}&limit={items_per_page}`
+`GET /api/users/{id}/posts?page={page_number}&limit={items_per_page}`
 
 To retrieve a specific page of results, you must append the `page` and `limit` parameters to the URL using **Query String Parameters**.
 Retrieves a list of posts for a specific user. The results are filtered based on the privacy settings of each post and the relationship between the viewer and the author.
@@ -196,9 +196,9 @@ Retrieves a list of posts for a specific user. The results are filtered based on
 
 | Scenario | Example URL |
 | :--- | :--- |
-| **First Page** (10 posts) | `GET /users/42/posts?page=1&limit=10` |
-| **Second Page** (10 posts) | `GET /users/42/posts?page=2&limit=10` |
-| **Custom Limit** (20 posts) | `GET /users/42/posts?page=1&limit=20` |
+| **First Page** (10 posts) | `GET /api/users/42/posts?page=1&limit=10` |
+| **Second Page** (10 posts) | `GET /api/users/42/posts?page=2&limit=10` |
+| **Custom Limit** (20 posts) | `GET /api/users/42/posts?page=1&limit=20` |
 
 ---
 
