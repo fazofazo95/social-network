@@ -57,6 +57,11 @@ func (h *GroupHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/accept", middleware.Chain(h.AcceptGroupRequest, auth))
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/reject", middleware.Chain(h.RejectGroupRequest, auth))
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(h.DeleteGroup, auth))
+
+	// Group Posts
+	mux.Handle("POST /api/groups/{id}/posts", middleware.Chain(h.CreateGroupPost, auth))
+	mux.Handle("GET /api/groups/{id}/posts", middleware.Chain(h.GetGroupPosts, auth))
+	mux.Handle("DELETE /api/groups/{id}/posts/{post_id}", middleware.Chain(h.DeleteGroupPost, auth))
 }
 
 // CreateGroup creates a new group
@@ -1214,5 +1219,131 @@ func (h *GroupHandler) GetGroupPage(w http.ResponseWriter, r *http.Request) {
 		"visibility":    view.Visibility,
 		"join_mode":     view.JoinMode,
 		"group_picture": view.GroupPicture,
+	})
+}
+
+// CreateGroupPost creates a post within a group
+func (h *GroupHandler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		log.Printf("[ERROR] CreateGroupPost: ParseMultipartForm failed: %v", err)
+		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
+		return
+	}
+
+	content := r.FormValue("content")
+
+	imageURL, err := utils.AttachAvatar(r)
+	if err != nil {
+		log.Printf("[ERROR] CreateGroupPost: File attachment failed: %v", err)
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	post, err := h.Service.CreateGroupPost(r.Context(), actorID, groupID, content, imageURL)
+	if err != nil {
+		switch err.Error() {
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can post")
+		case "post content or image is required":
+			responses.SendError(w, http.StatusBadRequest, "post content or image is required")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to create group post: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendCreated(w, "group post created", post)
+}
+
+// GetGroupPosts returns posts for a group
+func (h *GroupHandler) GetGroupPosts(w http.ResponseWriter, r *http.Request) {
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	page := 1
+	if pageStr := strings.TrimSpace(r.URL.Query().Get("page")); pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err != nil || p <= 0 {
+			responses.SendError(w, http.StatusBadRequest, "page must be a positive integer")
+			return
+		}
+		page = p
+	}
+
+	posts, err := h.Service.GetGroupPosts(r.Context(), viewerID, groupID, page)
+	if err != nil {
+		switch err.Error() {
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can view posts")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to get group posts: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendSuccess(w, "group posts", map[string]interface{}{
+		"page":  page,
+		"posts": posts,
+	})
+}
+
+// DeleteGroupPost deletes a post from a group
+func (h *GroupHandler) DeleteGroupPost(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	postID, err := strconv.Atoi(r.PathValue("post_id"))
+	if err != nil || postID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+
+	if err := h.Service.DeleteGroupPost(r.Context(), actorID, groupID, postID); err != nil {
+		switch err.Error() {
+		case "group post not found":
+			responses.SendError(w, http.StatusNotFound, "group post not found")
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can manage posts")
+		case "dont have permissions":
+			responses.SendError(w, http.StatusForbidden, "only post author, group owner, or moderators can delete")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to delete group post: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendSuccess(w, "group post deleted", map[string]int{
+		"group_id": groupID,
+		"post_id":  postID,
 	})
 }

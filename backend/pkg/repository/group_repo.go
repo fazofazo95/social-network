@@ -81,6 +81,11 @@ type GroupRepository interface {
 	RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	ChangeGroupEventResponse(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error
+
+	// Group Posts
+	CreateGroupPost(ctx context.Context, actorID, groupID int, content, image string) (*models.Post, error)
+	GetGroupPosts(ctx context.Context, viewerID, groupID, limit, offset int) ([]*models.Post, error)
+	DeleteGroupPost(ctx context.Context, actorID, groupID, postID int) error
 }
 
 // Result types

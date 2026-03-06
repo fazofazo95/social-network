@@ -102,6 +102,7 @@ func (r *sqlitePostRepo) GetByID(ctx context.Context, postID int, viewerID int) 
     FROM active_posts p
     JOIN users u ON p.user_id = u.id
     WHERE p.id = ? 
+	AND p.group_id IS NULL
 	AND NOT EXISTS (
 		SELECT 1 FROM followers fb
 		WHERE fb.status = 'blocked'
@@ -153,6 +154,7 @@ func (r *sqlitePostRepo) GetByUser(ctx context.Context, targetUserID int, viewer
 	FROM active_posts p
 	JOIN users u ON p.user_id = u.id
 	WHERE p.user_id = ? 
+	AND p.group_id IS NULL
 	AND NOT EXISTS (
 		SELECT 1 FROM followers fb
 		WHERE fb.status = 'blocked'
@@ -207,7 +209,8 @@ func (r *sqlitePostRepo) GetFeed(ctx context.Context, userID int, limit int, off
 	FROM active_posts p
 	JOIN users u ON p.user_id = u.id
 	WHERE 
-		NOT EXISTS (
+		p.group_id IS NULL
+		AND NOT EXISTS (
 			SELECT 1 FROM followers fb
 			WHERE fb.status = 'blocked'
 			  AND ((fb.follower_id = ? AND fb.followed_id = p.user_id)

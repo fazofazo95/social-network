@@ -6,6 +6,7 @@ import "time"
 type Post struct {
 	ID                  int       `json:"id"`
 	UserID              int       `json:"user_id"`
+	GroupID             *int      `json:"group_id,omitempty"`
 	Content             string    `json:"content"`
 	ExtraContent        string    `json:"extra_content,omitempty"`
 	Image               string    `json:"image,omitempty"`

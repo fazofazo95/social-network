@@ -78,6 +78,9 @@ All endpoints below:
 - `PUT /api/groups/{id}/settings`
 - `POST /api/groups/{id}/leave`
 - `DELETE /api/groups/{id}`
+- `POST /api/groups/{id}/posts`
+- `GET /api/groups/{id}/posts`
+- `DELETE /api/groups/{id}/posts/{post_id}`
 
 ---
 
@@ -977,6 +980,111 @@ Deletes:
   }
 }
 ```
+
+---
+
+## 10) Group Posts
+
+### 10.1) Create Group Post
+
+### `POST /api/groups/{id}/posts`
+**Who can use:** active group members only.
+
+### Request
+Multipart form:
+- `content` (string) — post text content
+- `avatar` (file, optional) — image attachment
+
+At least one of `content` or image must be provided.
+
+### Success (201)
+```json
+{
+  "status": "success",
+  "message": "group post created",
+  "data": {
+    "id": 42,
+    "user_id": 3,
+    "group_id": 1,
+    "content": "Hello everyone!",
+    "extra_content": "",
+    "created_at_time": "2026-03-06T10:00:00Z",
+    "author_first_name": "Alice",
+    "author_last_name": "Johnson",
+    "author_profile_picture": "/uploads/abc.jpg"
+  }
+}
+```
+
+### Errors
+- `400` — missing content and image (`"post content or image is required"`)
+- `403` — not an active group member (`"only active group members can post"`)
+
+---
+
+### 10.2) Get Group Posts (paginated)
+
+### `GET /api/groups/{id}/posts?page=1`
+**Who can use:** active group members only.
+
+### Query Parameters
+- `page` (int, optional, default `1`) — page number
+
+Returns 10 posts per page, ordered by newest first.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group posts",
+  "data": {
+    "page": 1,
+    "posts": [
+      {
+        "id": 42,
+        "user_id": 3,
+        "group_id": 1,
+        "content": "Hello everyone!",
+        "extra_content": "",
+        "created_at_time": "2026-03-06T10:00:00Z",
+        "likes_count": 5,
+        "has_current_user_liked": true,
+        "author_first_name": "Alice",
+        "author_last_name": "Johnson",
+        "author_profile_picture": "/uploads/abc.jpg"
+      }
+    ]
+  }
+}
+```
+
+### Errors
+- `403` — not an active group member (`"only active group members can view posts"`)
+
+---
+
+### 10.3) Delete Group Post
+
+### `DELETE /api/groups/{id}/posts/{post_id}`
+**Who can use:** post author, group owner, or group moderator.
+
+Soft-deletes the post (sets `deleted_at`).
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group post deleted",
+  "data": {
+    "group_id": 1,
+    "post_id": 42
+  }
+}
+```
+
+### Errors
+- `403` — not post author, owner, or moderator (`"only post author, group owner, or moderators can delete"`)
+- `404` — post not found in this group (`"group post not found"`)
 
 ---
 

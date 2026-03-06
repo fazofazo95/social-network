@@ -54,6 +54,11 @@ type GroupService interface {
 	RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	ChangeGroupEventResponse(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error
+
+	// Group Posts
+	CreateGroupPost(ctx context.Context, actorID, groupID int, content, image string) (*models.Post, error)
+	GetGroupPosts(ctx context.Context, viewerID, groupID, page int) ([]*models.Post, error)
+	DeleteGroupPost(ctx context.Context, actorID, groupID, postID int) error
 }
 
 type groupService struct {
@@ -356,4 +361,35 @@ func (s *groupService) DeleteGroupEvent(ctx context.Context, actorID, groupID, e
 		return errors.New("invalid group or event id")
 	}
 	return s.repo.DeleteGroupEvent(ctx, actorID, groupID, eventID)
+}
+
+// --- Group Posts ---
+func (s *groupService) CreateGroupPost(ctx context.Context, actorID, groupID int, content, image string) (*models.Post, error) {
+	content = strings.TrimSpace(content)
+	if content == "" && image == "" {
+		return nil, errors.New("post content or image is required")
+	}
+	if groupID <= 0 {
+		return nil, errors.New("invalid group id")
+	}
+	return s.repo.CreateGroupPost(ctx, actorID, groupID, content, image)
+}
+
+func (s *groupService) GetGroupPosts(ctx context.Context, viewerID, groupID, page int) ([]*models.Post, error) {
+	if groupID <= 0 {
+		return nil, errors.New("invalid group id")
+	}
+	if page < 1 {
+		page = 1
+	}
+	limit := 10
+	offset := (page - 1) * limit
+	return s.repo.GetGroupPosts(ctx, viewerID, groupID, limit, offset)
+}
+
+func (s *groupService) DeleteGroupPost(ctx context.Context, actorID, groupID, postID int) error {
+	if groupID <= 0 || postID <= 0 {
+		return errors.New("invalid group or post id")
+	}
+	return s.repo.DeleteGroupPost(ctx, actorID, groupID, postID)
 }
