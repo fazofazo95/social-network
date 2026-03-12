@@ -1,30 +1,10 @@
-import { EB_Garamond } from "next/font/google";
-import "../globals.css";
 import AuthGate from "../../components/auth/AuthGate";
 import { ToastProvider } from "../../components/ui/Toast";
 
-
-
-const ebGaramond = EB_Garamond({
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-});
-
-
-export const metadata = {
-  title: "Pulse",
-  description: "A simple social networking app built with Next.js",
-};
-
-export default function RootLayout({ children }) {
+export default function AuthLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${ebGaramond.className} bg-(--color-customPurple) font-medium text-white`}>
-        <ToastProvider>
-        <AuthGate requireAuth={false}>{children}</AuthGate>
-        </ToastProvider>
-      </body>
-    </html>
+    <ToastProvider>
+      <AuthGate requireAuth={false}>{children}</AuthGate>
+    </ToastProvider>
   );
 }
