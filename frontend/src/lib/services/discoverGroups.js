@@ -14,9 +14,8 @@ export async function getDiscoveredGroups(page = 1) {
     description: group.description,
     group_picture: group.group_picture || null,
     members_count: group.group_members,
-    owner_name: group.owner_first_name && group.owner_last_name
-      ? `${group.owner_first_name} ${group.owner_last_name}`
-      : undefined,
+    owner_first_name: group.owner_first_name || "",
+    owner_last_name: group.owner_last_name || "",
     type: group.type,
   }));
 }
