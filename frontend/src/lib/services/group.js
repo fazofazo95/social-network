@@ -161,3 +161,29 @@ export async function updateGroupSettings(groupId, data) {
   });
   return payload?.data || null;
 }
+
+// ===== GROUP POSTS =====
+
+export async function createGroupPost(groupId, formData) {
+  return apiRequest(`/api/groups/${groupId}/posts`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function getGroupPosts(groupId, page = 1) {
+  const payload = await apiRequest(`/api/groups/${groupId}/posts?page=${page}`, {
+    method: "GET",
+  });
+
+  return {
+    page: payload?.data?.page ?? page,
+    posts: Array.isArray(payload?.data?.posts) ? payload.data.posts : [],
+  };
+}
+
+export async function deleteGroupPost(groupId, postId) {
+  return apiRequest(`/api/groups/${groupId}/posts/${postId}`, {
+    method: "DELETE",
+  });
+}

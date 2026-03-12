@@ -102,7 +102,6 @@ func (r *sqlitePostRepo) GetByID(ctx context.Context, postID int, viewerID int) 
     FROM active_posts p
     JOIN users u ON p.user_id = u.id
     WHERE p.id = ? 
-	AND p.group_id IS NULL
 	AND NOT EXISTS (
 		SELECT 1 FROM followers fb
 		WHERE fb.status = 'blocked'
@@ -110,17 +109,26 @@ func (r *sqlitePostRepo) GetByID(ctx context.Context, postID int, viewerID int) 
 			   OR (fb.follower_id = p.user_id AND fb.followed_id = ?))
 	)
     AND (
-        p.user_id = ? 
-        OR p.privacy = 'public'
-        OR (p.privacy = 'followers' AND EXISTS (
-            SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id
+        -- Group posts: viewer must be active member of the group
+        (p.group_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM group_members gm
+            WHERE gm.group_id = p.group_id AND gm.user_id = ? AND gm.status = 'active'
         ))
-        OR (p.privacy = 'custom' AND EXISTS (
-            SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+        OR
+        -- Regular posts: existing privacy rules
+        (p.group_id IS NULL AND (
+            p.user_id = ? 
+            OR p.privacy = 'public'
+            OR (p.privacy = 'followers' AND EXISTS (
+                SELECT 1 FROM followers WHERE follower_id = ? AND followed_id = p.user_id
+            ))
+            OR (p.privacy = 'custom' AND EXISTS (
+                SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
+            ))
         ))
     );`
 
-	err := r.db.QueryRowContext(ctx, query, postID, viewerID, viewerID, viewerID, viewerID, viewerID).Scan(
+	err := r.db.QueryRowContext(ctx, query, postID, viewerID, viewerID, viewerID, viewerID, viewerID, viewerID).Scan(
 		&post.ID, &post.UserID, &post.Content, &post.ExtraContent, &post.CreatedAt,
 		&post.AuthorFirstName, &post.AuthorLastName, &post.AuthorProfilePicture, &post.Privacy,
 	)

@@ -18,10 +18,19 @@ import {
     deleteGroup,
     inviteToGroup,
     getGroupSettings,
-    updateGroupSettings
+    updateGroupSettings,
+    createGroupPost,
+    getGroupPosts,
+    deleteGroupPost,
 } from "src/lib/services/group";
 import { getDiscoveredUsers } from "src/lib/services/discover";
 import { fetchUserData } from "src/lib/services/user";
+import { getPostComments, createComment, deleteComment, updateComment } from "src/lib/services/comment";
+import { parseProfileImage } from "src/lib/utils/profileImage";
+import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
+import { getApiBaseUrl } from "src/lib/apiClient";
+import Ripple_Button from "src/components/ui/Ripple_Button";
+import Echo_Button from "src/components/ui/Echo_Button";
 
 const GroupDetailPage = () => {
     const params = useParams();
@@ -46,14 +55,26 @@ const GroupDetailPage = () => {
     const [pendingInvites, setPendingInvites] = useState([]);
 
     // More UI state
-    const [posts, setPosts] = useState([
-        { id: 1, author: "Alice Johnson", content: "Just finished a great tutorial on React hooks! Anyone else working on React projects?", likes: 24, liked: false, comments: [], createdAt: "2 hours ago" },
-        { id: 2, author: "Bob Smith", content: "Looking for collaborators on an open-source project. DM me if interested!", likes: 15, liked: false, comments: [], createdAt: "5 hours ago" },
-        { id: 3, author: "John Doe", content: "Welcome to our new members! Feel free to introduce yourselves and share what you're working on.", likes: 42, liked: true, comments: [], createdAt: "1 day ago" },
-    ]);
+    const [posts, setPosts] = useState([]);
+    const [postsLoading, setPostsLoading] = useState(false);
+    const [postsPage, setPostsPage] = useState(1);
+    const [hasMorePosts, setHasMorePosts] = useState(true);
+
+    // Comments state (keyed by post id, same pattern as dashboard)
+    const [commentsByPost, setCommentsByPost] = useState({});
+    const [commentsLoadingByPost, setCommentsLoadingByPost] = useState({});
+    const [commentInputByPost, setCommentInputByPost] = useState({});
+    const [commentImageByPost, setCommentImageByPost] = useState({});
+    const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
+    const [commentErrorByPost, setCommentErrorByPost] = useState({});
+    const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
+    const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
+    const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
+
+    // Ripple state for group posts: { [postId]: { count, rippled } }
+    const [rippleStateByPost, setRippleStateByPost] = useState({});
 
     const [expandedComments, setExpandedComments] = useState({});
-    const [commentInputs, setCommentInputs] = useState({});
 
     const [events, setEvents] = useState([
         { id: 1, title: "Weekly Code Review", date: "March 1, 2026", time: "3:00 PM", attendees: 28, going: true },
@@ -64,6 +85,57 @@ const GroupDetailPage = () => {
     useEffect(() => {
         fetchUserData("me").then(u => setCurrentUser(u)).catch(() => {});
     }, []);
+
+    function toUploadUrl(path) {
+        if (!path) return "";
+        if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
+        if (path.startsWith("/uploads/")) return `${getApiBaseUrl()}${path}`;
+        return "";
+    }
+
+    // Load group posts
+    async function loadGroupPosts(page = 1, append = false) {
+        setPostsLoading(true);
+        try {
+            const result = await getGroupPosts(groupId, page);
+            const newPosts = result.posts || [];
+            if (append) {
+                setPosts(prev => [...prev, ...newPosts]);
+            } else {
+                setPosts(newPosts);
+            }
+            setPostsPage(page);
+            setHasMorePosts(newPosts.length >= 10);
+
+            // Initialize ripple state
+            const rippleInit = {};
+            newPosts.forEach(post => {
+                rippleInit[post.id] = {
+                    count: post.likes_count || post.like_count || 0,
+                    rippled: !!post.has_current_user_liked
+                };
+            });
+            setRippleStateByPost(prev => append ? { ...prev, ...rippleInit } : rippleInit);
+
+            // Load comments for new posts
+            const commentsEntries = await Promise.all(
+                newPosts.map(async (post) => {
+                    try {
+                        const comments = await getPostComments(post.id);
+                        return [post.id, comments];
+                    } catch {
+                        return [post.id, []];
+                    }
+                })
+            );
+            const newComments = Object.fromEntries(commentsEntries);
+            setCommentsByPost(prev => append ? { ...prev, ...newComments } : newComments);
+        } catch (err) {
+            console.error("Failed to load group posts:", err);
+        } finally {
+            setPostsLoading(false);
+        }
+    }
 
     // Load group data on mount
     useEffect(() => {
@@ -83,6 +155,9 @@ const GroupDetailPage = () => {
                 if (groupData?.role) {
                     const membersData = await getGroupMembers(groupId);
                     setMembers(membersData);
+
+                    // Load group posts
+                    await loadGroupPosts(1);
                     
                     // If moderator/owner, fetch pending requests and invites
                     if (groupData.role === "owner" || groupData.role === "moderator") {
@@ -196,58 +271,100 @@ const GroupDetailPage = () => {
         }
     };
 
-    const handleLike = (postId) => {
-        setPosts(posts.map(post => {
-            if (post.id === postId) {
-                return {
-                    ...post,
-                    liked: !post.liked,
-                    likes: post.liked ? post.likes - 1 : post.likes + 1
-                };
-            }
-            return post;
-        }));
+    const handleDeleteGroupPost = async (postId) => {
+        try {
+            await deleteGroupPost(groupId, postId);
+            setPosts(prev => prev.filter(p => p.id !== postId));
+        } catch (error) {
+            console.error("Failed to delete group post:", error);
+            alert(error?.message || "Failed to delete post");
+        }
     };
+
+    // Comments
+    async function loadComments(postId) {
+        setCommentsLoadingByPost(prev => ({ ...prev, [postId]: true }));
+        setCommentErrorByPost(prev => ({ ...prev, [postId]: "" }));
+        try {
+            const comments = await getPostComments(postId);
+            setCommentsByPost(prev => ({ ...prev, [postId]: comments }));
+        } catch (error) {
+            console.error("Error loading comments:", error);
+            setCommentsByPost(prev => ({ ...prev, [postId]: [] }));
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: error?.message || "Failed to load echoes." }));
+        } finally {
+            setCommentsLoadingByPost(prev => ({ ...prev, [postId]: false }));
+        }
+    }
+
+    async function handleCommentSubmit(event, postId) {
+        event.preventDefault();
+        const content = (commentInputByPost[postId] || "").trim();
+        const image = commentImageByPost[postId] || null;
+        if (!content) {
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: "Comment content is required." }));
+            return;
+        }
+        setCommentSubmittingByPost(prev => ({ ...prev, [postId]: true }));
+        setCommentErrorByPost(prev => ({ ...prev, [postId]: "" }));
+        const formData = new FormData();
+        formData.append("content", content);
+        formData.append("parent_type", "post");
+        formData.append("parent_id", String(postId));
+        if (image) formData.append("avatar", image);
+        try {
+            await createComment(formData);
+            setCommentInputByPost(prev => ({ ...prev, [postId]: "" }));
+            setCommentImageByPost(prev => ({ ...prev, [postId]: null }));
+            await loadComments(postId);
+        } catch (error) {
+            console.error("Error creating comment:", error);
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: error?.message || "Failed to create echo." }));
+        } finally {
+            setCommentSubmittingByPost(prev => ({ ...prev, [postId]: false }));
+        }
+    }
+
+    async function handleDeleteComment(postId, commentId) {
+        if (!commentId) return;
+        setCommentActionLoadingById(prev => ({ ...prev, [commentId]: true }));
+        setCommentErrorByPost(prev => ({ ...prev, [postId]: "" }));
+        try {
+            await deleteComment(commentId);
+            await loadComments(postId);
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: error?.message || "Failed to delete echo." }));
+        } finally {
+            setCommentActionLoadingById(prev => ({ ...prev, [commentId]: false }));
+        }
+    }
+
+    async function handleSaveCommentEdit(postId, commentId) {
+        const content = (editingCommentContentByPost[postId] || "").trim();
+        if (!content) {
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: "Comment content is required." }));
+            return;
+        }
+        setCommentActionLoadingById(prev => ({ ...prev, [commentId]: true }));
+        setCommentErrorByPost(prev => ({ ...prev, [postId]: "" }));
+        try {
+            await updateComment(commentId, content);
+            setEditingCommentIdByPost(prev => ({ ...prev, [postId]: null }));
+            setEditingCommentContentByPost(prev => ({ ...prev, [postId]: "" }));
+            await loadComments(postId);
+        } catch (error) {
+            console.error("Error updating comment:", error);
+            setCommentErrorByPost(prev => ({ ...prev, [postId]: error?.message || "Failed to update echo." }));
+        } finally {
+            setCommentActionLoadingById(prev => ({ ...prev, [commentId]: false }));
+        }
+    }
 
     const toggleComments = (postId) => {
         setExpandedComments(prev => ({
             ...prev,
             [postId]: !prev[postId]
-        }));
-    };
-
-    const handleCommentInput = (postId, value) => {
-        setCommentInputs(prev => ({
-            ...prev,
-            [postId]: value
-        }));
-    };
-
-    const handleAddComment = (postId) => {
-        const commentText = commentInputs[postId]?.trim();
-        if (!commentText) return;
-
-        setPosts(posts.map(post => {
-            if (post.id === postId) {
-                return {
-                    ...post,
-                    comments: [
-                        ...post.comments,
-                        {
-                            id: Date.now(),
-                            author: currentUser,
-                            content: commentText,
-                            createdAt: "Just now"
-                        }
-                    ]
-                };
-            }
-            return post;
-        }));
-
-        setCommentInputs(prev => ({
-            ...prev,
-            [postId]: ""
         }));
     };
 
@@ -423,93 +540,265 @@ const GroupDetailPage = () => {
                     </div>
 
                     {/* Posts List */}
-                    {posts.map(post => (
-                        <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
-                            <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                                    {post.author[0]}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-purple-100">{post.author}</span>
-                                        <span className="text-purple-400/60 text-sm">{post.createdAt}</span>
-                                    </div>
-                                    <p className="text-purple-300/80 mt-2">{post.content}</p>
-                                    <div className="flex items-center gap-6 mt-4 text-sm text-purple-400">
-                                        <button 
-                                            onClick={() => handleLike(post.id)}
-                                            className={`flex items-center gap-2 transition cursor-pointer ${post.liked ? 'text-purple-300' : 'hover:text-purple-300'}`}
-                                        >
-                                            <Image 
-                                                src={post.liked ? "/ripples/Ripple_icon.svg" : "/ripples/Unripple_icon.svg"} 
-                                                alt="Like" 
-                                                width={18} 
-                                                height={18} 
-                                            />
-                                            <span>{post.likes}</span>
-                                        </button>
-                                        <button 
-                                            onClick={() => toggleComments(post.id)}
-                                            className={`flex items-center gap-2 transition cursor-pointer ${expandedComments[post.id] ? 'text-purple-300' : 'hover:text-purple-300'}`}
-                                        >
-                                            <Image src="/echo_icon.svg" alt="Comment" width={18} height={18} />
-                                            <span>{post.comments.length}</span>
-                                        </button>
-                                    </div>
+                    {postsLoading && posts.length === 0 ? (
+                        <p className="text-center text-purple-300">Loading posts...</p>
+                    ) : posts.length === 0 ? (
+                        <EmptyState message="No posts yet" subMessage="Be the first to post in this group!" />
+                    ) : (
+                        posts.map(post => {
+                            const echoSectionId = `echo-section-${post.id}`;
+                            const echoPhotoUploadId = `echo-photo-upload-${post.id}`;
+                            const comments = commentsByPost[post.id] || [];
+                            const isCommentsLoading = commentsLoadingByPost[post.id];
+                            const commentValue = commentInputByPost[post.id] || "";
+                            const isCommentSubmitting = commentSubmittingByPost[post.id];
+                            const commentError = commentErrorByPost[post.id] || "";
+                            const isOwnPost = post.user_id === currentUser?.id;
+                            const canDelete = isOwnPost || userRole === "owner" || userRole === "moderator";
+                            const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
+                            const rippleCount = rippleStateByPost[post.id]?.count ?? post.likes_count ?? post.like_count ?? 0;
+                            const rippled = rippleStateByPost[post.id]?.rippled ?? !!post.has_current_user_liked;
+                            const handleRippleChange = (newCount, newRippled) => {
+                                setRippleStateByPost(prev => ({
+                                    ...prev,
+                                    [post.id]: { count: newCount, rippled: newRippled }
+                                }));
+                            };
 
-                                    {/* Comments Section */}
-                                    {expandedComments[post.id] && (
-                                        <div className="mt-4 pt-4 border-t border-purple-500/20">
-                                            {/* Comment Input */}
-                                            <div className="flex gap-2 mb-4">
-                                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-[0_0_8px_rgba(168,85,247,0.3)]">
-                                                    {(currentUser?.first_name || "U")[0]}
+                            return (
+                                <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
+                                    <div className="flex items-start gap-3">
+                                        <Image
+                                            src={parseProfileImage(post.author_profile_picture)}
+                                            alt="Profile"
+                                            width={40}
+                                            height={40}
+                                            className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    {post.user_id ? (
+                                                        <Link href={`/profile/${post.user_id}`} className="font-semibold text-purple-100 hover:underline">
+                                                            {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="font-semibold text-purple-100">
+                                                            {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
+                                                        </span>
+                                                    )}
+                                                    <span className="text-purple-400/60 text-sm">{postDateLabel}</span>
                                                 </div>
-                                                <div className="flex-1 flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={commentInputs[post.id] || ""}
-                                                        onChange={(e) => handleCommentInput(post.id, e.target.value)}
-                                                        onKeyDown={(e) => e.key === "Enter" && handleAddComment(post.id)}
-                                                        placeholder="Write a comment..."
-                                                        className="flex-1 px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-400/50 text-sm"
-                                                    />
+                                                {canDelete && (
                                                     <button
-                                                        onClick={() => handleAddComment(post.id)}
-                                                        className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                                        onClick={() => handleDeleteGroupPost(post.id)}
+                                                        className="text-xs bg-purple-900/30 hover:bg-red-900/30 text-purple-300 hover:text-red-300 border border-purple-500/30 hover:border-red-500/30 rounded-md px-3 py-1 transition cursor-pointer"
                                                     >
-                                                        Echo
+                                                        Delete
                                                     </button>
+                                                )}
+                                            </div>
+                                            <p className="text-purple-300/80 mt-2">{post.content}</p>
+                                            {(post.extra_content || post.image) ? (
+                                                <div className="mt-3">
+                                                    <Image
+                                                        src={toUploadUrl(post.extra_content || post.image)}
+                                                        alt="Post image"
+                                                        width={500}
+                                                        height={300}
+                                                        className="rounded-lg w-full h-auto"
+                                                    />
                                                 </div>
+                                            ) : null}
+                                            <div className="flex items-center gap-6 mt-4 text-sm text-purple-400">
+                                                <span>{rippleCount} Ripples</span>
+                                                <span>{comments.length} Echoes</span>
+                                            </div>
+                                            <div className="flex items-center gap-6 mt-2 pt-2 border-t border-purple-500/20">
+                                                <Ripple_Button
+                                                    postId={post.id}
+                                                    initialRippled={rippled}
+                                                    initialCount={rippleCount}
+                                                    onChange={handleRippleChange}
+                                                />
+                                                <Echo_Button
+                                                    targetId={echoSectionId}
+                                                    onToggle={(isOpen) => {
+                                                        if (isOpen && commentsByPost[post.id] === undefined) {
+                                                            loadComments(post.id);
+                                                        }
+                                                    }}
+                                                />
                                             </div>
 
-                                            {/* Comments List */}
-                                            {post.comments.length > 0 ? (
-                                                <div className="space-y-3">
-                                                    {post.comments.map(comment => (
-                                                        <div key={comment.id} className="flex gap-2">
-                                                            <div className="w-8 h-8 rounded-full bg-purple-700 flex items-center justify-center text-white text-sm font-bold">
-                                                                {comment.author[0]}
-                                                            </div>
-                                                            <div className="flex-1 bg-[#0d0d1a] rounded-md p-3 border border-purple-500/20">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-semibold text-purple-100 text-sm">{comment.author}</span>
-                                                                    <span className="text-purple-400/50 text-xs">{comment.createdAt}</span>
-                                                                </div>
-                                                                <p className="text-purple-300/80 text-sm mt-1">{comment.content}</p>
-                                                            </div>
+                                            {/* Comments Section */}
+                                            <div
+                                                id={echoSectionId}
+                                                className="mt-4 pt-4 border-t border-purple-500/20 hidden flex-col gap-2"
+                                            >
+                                                {/* Comment Input */}
+                                                <form onSubmit={(e) => handleCommentSubmit(e, post.id)} className="flex gap-2 mb-2">
+                                                    <Image
+                                                        src={parseProfileImage(currentUser?.profile_picture)}
+                                                        alt="Profile"
+                                                        width={32}
+                                                        height={32}
+                                                        className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                                                    />
+                                                    <div className="flex-1 flex gap-2">
+                                                        <div className="flex-1 flex bg-[#0d0d1a] border border-purple-500/30 rounded-md">
+                                                            <input
+                                                                type="text"
+                                                                value={commentValue}
+                                                                onChange={(e) => setCommentInputByPost(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                                                placeholder="Write a comment..."
+                                                                className="flex-1 px-3 py-2 bg-transparent focus:outline-none text-purple-100 placeholder-purple-400/50 text-sm"
+                                                                disabled={isCommentSubmitting}
+                                                            />
+                                                            <label htmlFor={echoPhotoUploadId} className="flex items-center px-2 cursor-pointer">
+                                                                <Image src="/photo_icon.svg" alt="Photo" width={18} height={18} className="opacity-60" />
+                                                                <input
+                                                                    id={echoPhotoUploadId}
+                                                                    type="file"
+                                                                    className="hidden"
+                                                                    accept="image/*"
+                                                                    onChange={(e) => setCommentImageByPost(prev => ({ ...prev, [post.id]: e.target.files?.[0] || null }))}
+                                                                    disabled={isCommentSubmitting}
+                                                                />
+                                                            </label>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-purple-400/50 text-sm text-center py-2">No echoes yet. Be the first to comment!</p>
-                                            )}
+                                                        <button
+                                                            type="submit"
+                                                            disabled={isCommentSubmitting}
+                                                            className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] disabled:opacity-50"
+                                                        >
+                                                            {isCommentSubmitting ? "..." : "Echo"}
+                                                        </button>
+                                                    </div>
+                                                </form>
+
+                                                {commentError && <p className="text-red-400 text-sm">{commentError}</p>}
+
+                                                {/* Comments List */}
+                                                {isCommentsLoading ? (
+                                                    <p className="text-purple-400/50 text-sm text-center py-2">Loading echoes...</p>
+                                                ) : comments.length > 0 ? (
+                                                    <div className="space-y-3">
+                                                        {comments.map(comment => (
+                                                            <div key={comment.id} className="flex gap-2">
+                                                                <Image
+                                                                    src={parseProfileImage(comment.author_profile_picture)}
+                                                                    alt="Comment author"
+                                                                    width={32}
+                                                                    height={32}
+                                                                    className="rounded-full"
+                                                                />
+                                                                <div className="flex-1 bg-[#0d0d1a] rounded-md p-3 border border-purple-500/20">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            {comment.user_id ? (
+                                                                                <Link href={`/profile/${comment.user_id}`} className="font-semibold text-purple-100 text-sm hover:underline">
+                                                                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                                                                </Link>
+                                                                            ) : (
+                                                                                <span className="font-semibold text-purple-100 text-sm">
+                                                                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                                                                </span>
+                                                                            )}
+                                                                            <span className="text-purple-400/50 text-xs">
+                                                                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
+                                                                            </span>
+                                                                        </div>
+                                                                        {comment.user_id === currentUser?.id && (
+                                                                            <div className="flex gap-2">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="text-xs text-purple-400 hover:text-purple-200 transition"
+                                                                                    onClick={() => {
+                                                                                        setEditingCommentIdByPost(prev => ({ ...prev, [post.id]: comment.id }));
+                                                                                        setEditingCommentContentByPost(prev => ({ ...prev, [post.id]: comment.content || "" }));
+                                                                                    }}
+                                                                                    disabled={!!commentActionLoadingById[comment.id]}
+                                                                                >
+                                                                                    Edit
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="text-xs text-purple-400 hover:text-red-300 transition"
+                                                                                    onClick={() => handleDeleteComment(post.id, comment.id)}
+                                                                                    disabled={!!commentActionLoadingById[comment.id]}
+                                                                                >
+                                                                                    Delete
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    {editingCommentIdByPost[post.id] === comment.id ? (
+                                                                        <div className="flex items-center gap-2 mt-1">
+                                                                            <input
+                                                                                type="text"
+                                                                                className="flex-1 px-2 py-1 bg-[#1a1a2e] border border-purple-500/30 rounded text-purple-100 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                                                value={editingCommentContentByPost[post.id] || ""}
+                                                                                onChange={(e) => setEditingCommentContentByPost(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                                                            />
+                                                                            <button
+                                                                                type="button"
+                                                                                className="text-xs px-2 py-1 rounded bg-purple-600 text-white disabled:opacity-50"
+                                                                                onClick={() => handleSaveCommentEdit(post.id, comment.id)}
+                                                                                disabled={!!commentActionLoadingById[comment.id]}
+                                                                            >
+                                                                                Save
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="text-xs px-2 py-1 rounded bg-purple-900/30 text-purple-300"
+                                                                                onClick={() => {
+                                                                                    setEditingCommentIdByPost(prev => ({ ...prev, [post.id]: null }));
+                                                                                    setEditingCommentContentByPost(prev => ({ ...prev, [post.id]: "" }));
+                                                                                }}
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="text-purple-300/80 text-sm mt-1">{comment.content}</p>
+                                                                    )}
+                                                                    {comment.image ? (
+                                                                        <div className="mt-2">
+                                                                            <Image
+                                                                                src={toUploadUrl(comment.image)}
+                                                                                alt="Comment image"
+                                                                                width={300}
+                                                                                height={180}
+                                                                                className="rounded w-full h-auto"
+                                                                            />
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-purple-400/50 text-sm text-center py-2">No echoes yet. Be the first to comment!</p>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        </article>
-                    ))}
+                                    </div>
+                                </article>
+                            );
+                        })
+                    )}
+
+                    {/* Load More */}
+                    {hasMorePosts && posts.length > 0 && (
+                        <button
+                            onClick={() => loadGroupPosts(postsPage + 1, true)}
+                            disabled={postsLoading}
+                            className="w-full py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50"
+                        >
+                            {postsLoading ? "Loading..." : "Load More Posts"}
+                        </button>
+                    )}
                 </section>
             )}
 
@@ -685,7 +974,20 @@ const GroupDetailPage = () => {
 
             {/* Create Post Modal */}
             {showCreatePostModal && (
-                <CreatePostModal onClose={() => setShowCreatePostModal(false)} />
+                <CreatePostModal 
+                    groupId={groupId} 
+                    onClose={() => setShowCreatePostModal(false)} 
+                    onCreated={(newPost) => {
+                        setPosts(prev => [newPost, ...prev]);
+                        // Initialize ripple state for the new post
+                        setRippleStateByPost(prev => ({
+                            ...prev,
+                            [newPost.id]: { count: 0, rippled: false }
+                        }));
+                        setCommentsByPost(prev => ({ ...prev, [newPost.id]: [] }));
+                        setShowCreatePostModal(false);
+                    }}
+                />
             )}
 
             {/* Create Event Modal */}
@@ -868,15 +1170,37 @@ const InviteModal = ({ onClose, members = [], groupId }) => {
 };
 
 // Create Post Modal Component
-const CreatePostModal = ({ onClose }) => {
+const CreatePostModal = ({ groupId, onClose, onCreated }) => {
     const [content, setContent] = useState("");
+    const [image, setImage] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!content.trim()) return;
-        console.log("Creating post:", content);
-        alert("Post created!");
-        onClose();
+        const trimmed = content.trim();
+        if (!trimmed && !image) {
+            setError("Post content or image is required.");
+            return;
+        }
+
+        setSubmitting(true);
+        setError("");
+
+        const formData = new FormData();
+        if (trimmed) formData.append("content", trimmed);
+        if (image) formData.append("avatar", image);
+
+        try {
+            const result = await createGroupPost(groupId, formData);
+            const newPost = result?.data || result;
+            onCreated(newPost);
+        } catch (err) {
+            console.error("Failed to create group post:", err);
+            setError(err?.message || "Failed to create post.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -891,21 +1215,49 @@ const CreatePostModal = ({ onClose }) => {
                         rows={4}
                         className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:shadow-[0_0_10px_rgba(168,85,247,0.3)] text-purple-100 placeholder-purple-400/50 text-sm resize-none"
                         placeholder="What's on your mind?"
+                        disabled={submitting}
                     />
+
+                    <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md cursor-pointer hover:border-purple-500/50 transition text-sm text-purple-300">
+                            <Image src="/photo_icon.svg" alt="Photo" width={18} height={18} className="opacity-60" />
+                            {image ? image.name : "Add Photo"}
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => setImage(e.target.files?.[0] || null)}
+                                disabled={submitting}
+                            />
+                        </label>
+                        {image && (
+                            <button
+                                type="button"
+                                onClick={() => setImage(null)}
+                                className="text-xs text-purple-400 hover:text-red-300 transition"
+                            >
+                                Remove
+                            </button>
+                        )}
+                    </div>
+
+                    {error && <p className="text-red-400 text-sm">{error}</p>}
 
                     <div className="flex gap-3 justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] disabled:opacity-50"
                         >
-                            Post
+                            {submitting ? "Posting..." : "Post"}
                         </button>
                     </div>
                 </form>
