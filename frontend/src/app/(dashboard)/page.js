@@ -11,6 +11,7 @@ import { getFollowers, getFollowing } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
+import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
 
 
 export default function App() {
@@ -355,13 +356,18 @@ export default function App() {
             width={25}
             height={25}
           />
-          <textarea
-            value={postContent}
-            onChange={(event) => setPostContent(event.target.value)}
-            className="border rounded border-gray-200 text-black w-full h-20 focus:outline-none pl-2 resize-none"
-            placeholder="What's on your mind?"
-            disabled={isSubmitting}
-          />
+          <div className="relative w-full">
+            <textarea
+              value={postContent}
+              onChange={(event) => setPostContent(event.target.value)}
+              className="border rounded border-gray-200 text-black w-full h-20 focus:outline-none pl-2 pr-8 resize-none"
+              placeholder="What's on your mind?"
+              disabled={isSubmitting}
+            />
+            <div className="absolute bottom-2 right-2">
+              <EmojiPickerButton onEmojiSelect={(emoji) => setPostContent((prev) => prev + emoji)} />
+            </div>
+          </div>
         </div>
 
         <ul className="flex gap-2 border-t border-gray-200 pt-2">
@@ -595,6 +601,12 @@ export default function App() {
                       setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
                     }
                     disabled={isCommentSubmitting}
+                  />
+
+                  <EmojiPickerButton
+                    onEmojiSelect={(emoji) =>
+                      setCommentInputByPost((prev) => ({ ...prev, [post.id]: (prev[post.id] || "") + emoji }))
+                    }
                   />
 
                   <label

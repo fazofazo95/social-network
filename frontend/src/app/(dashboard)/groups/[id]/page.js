@@ -37,6 +37,7 @@ import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import Echo_Button from "src/components/ui/Echo_Button";
+import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
 
 const GroupDetailPage = () => {
     const params = useParams();
@@ -745,7 +746,7 @@ const GroupDetailPage = () => {
                                                         className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                                                     />
                                                     <div className="flex-1 flex gap-2">
-                                                        <div className="flex-1 flex bg-[#0d0d1a] border border-purple-500/30 rounded-md">
+                                                        <div className="flex-1 flex items-center bg-[#0d0d1a] border border-purple-500/30 rounded-md">
                                                             <input
                                                                 type="text"
                                                                 value={commentValue}
@@ -753,6 +754,11 @@ const GroupDetailPage = () => {
                                                                 placeholder="Write a comment..."
                                                                 className="flex-1 px-3 py-2 bg-transparent focus:outline-none text-purple-100 placeholder-purple-400/50 text-sm"
                                                                 disabled={isCommentSubmitting}
+                                                            />
+                                                            <EmojiPickerButton
+                                                                onEmojiSelect={(emoji) =>
+                                                                    setCommentInputByPost(prev => ({ ...prev, [post.id]: (prev[post.id] || "") + emoji }))
+                                                                }
                                                             />
                                                             <label htmlFor={echoPhotoUploadId} className="flex items-center px-2 cursor-pointer">
                                                                 <Image src="/photo_icon.svg" alt="Photo" width={18} height={18} className="opacity-60" />
@@ -1334,14 +1340,19 @@ const CreatePostModal = ({ groupId, onClose, onCreated }) => {
                 <h2 className="text-xl font-bold mb-4 text-purple-100">Create Post</h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        rows={4}
-                        className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:shadow-[0_0_10px_rgba(168,85,247,0.3)] text-purple-100 placeholder-purple-400/50 text-sm resize-none"
-                        placeholder="What's on your mind?"
-                        disabled={submitting}
-                    />
+                    <div className="relative">
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            rows={4}
+                            className="w-full px-3 py-2 pr-10 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:shadow-[0_0_10px_rgba(168,85,247,0.3)] text-purple-100 placeholder-purple-400/50 text-sm resize-none"
+                            placeholder="What's on your mind?"
+                            disabled={submitting}
+                        />
+                        <div className="absolute bottom-2 right-2">
+                            <EmojiPickerButton onEmojiSelect={(emoji) => setContent((prev) => prev + emoji)} />
+                        </div>
+                    </div>
 
                     <div className="flex items-center gap-2">
                         <label className="flex items-center gap-2 px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md cursor-pointer hover:border-purple-500/50 transition text-sm text-purple-300">

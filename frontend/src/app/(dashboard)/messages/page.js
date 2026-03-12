@@ -8,6 +8,7 @@ import { getFollowing } from "src/lib/services/follow";
 import { getChatMessages, listChats, markChatRead, sendDirectMessage, sendGroupMessage } from "src/lib/services/chat";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import { parseProfileImage } from "src/lib/utils/profileImage";
+import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
 
 const DIRECT_SEND_RULE_MESSAGE = "You can send a direct message only if you follow this user or their account is public.";
 const DIRECT_VIEW_RULE_MESSAGE = "Your account is private. You can receive/view direct messages only from users you follow back.";
@@ -868,6 +869,7 @@ const MessagesPage = () => {
                   className="flex-1 h-9 rounded-full bg-[#26103b] px-4 text-sm text-purple-100 placeholder:text-purple-400 outline-none"
                   disabled={(!selectedChat && !newChatTarget) || isSending || !canSendInCurrentContext}
                 />
+                <EmojiPickerButton onEmojiSelect={(emoji) => setDraftMessage((prev) => prev + emoji)} />
                 <button
                   type="submit"
                   disabled={(!selectedChat && !newChatTarget) || isSending || !draftMessage.trim() || !canSendInCurrentContext}
