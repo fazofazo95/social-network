@@ -9,7 +9,7 @@ import SearchBar from "./SearchBar";
 import NotificationDropdown from "./NotificationDropdown";
 import { logoutUser } from "src/lib/services/auth";
 import { listChats } from "src/lib/services/chat";
-import { getDiscoveredUsers } from "src/lib/services/discover";
+import { searchAll } from "src/lib/services/search";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 function toWebSocketUrl(path = "/ws") {
@@ -27,11 +27,12 @@ const NavBar = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchUsers, setSearchUsers] = useState([]);
+  const [searchGroups, setSearchGroups] = useState([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const [allUsers, setAllUsers] = useState([]);
   const menuRef = useRef(null);
   const wsRef = useRef(null);
+  const searchTimerRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -46,64 +47,46 @@ const NavBar = () => {
     };
   }, []);
 
-  // Load all users for search
-  useEffect(() => {
-    let disposed = false;
-
-    async function loadUsers() {
-      try {
-        setIsSearchLoading(true);
-        const users = await getDiscoveredUsers();
-        if (!disposed) {
-          setAllUsers(Array.isArray(users) ? users : []);
-        }
-      } catch (error) {
-        console.error("Failed to load users for search:", error);
-        if (!disposed) {
-          setAllUsers([]);
-        }
-      } finally {
-        if (!disposed) {
-          setIsSearchLoading(false);
-        }
-      }
-    }
-
-    loadUsers();
-
-    return () => {
-      disposed = true;
-    };
-  }, []);
-
-  // Handle search input changes
+  // Handle search input changes with debounce
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
 
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
     if (!query.trim()) {
-      setSearchResults([]);
+      setSearchUsers([]);
+      setSearchGroups([]);
+      setIsSearchLoading(false);
       return;
     }
 
-    const queryLower = query.toLowerCase();
-    const filtered = allUsers.filter((user) => {
-      const name = `${user.first_name || ""} ${user.last_name || ""}`.toLowerCase();
-      const username = (user.username || "").toLowerCase();
-      const displayName = (user.display_name || "").toLowerCase();
-      return (
-        name.includes(queryLower) ||
-        username.includes(queryLower) ||
-        displayName.includes(queryLower)
-      );
-    });
-
-    setSearchResults(filtered);
+    setIsSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const { users, groups } = await searchAll(query.trim());
+        setSearchUsers(users);
+        setSearchGroups(groups);
+      } catch (err) {
+        console.error("Search failed:", err);
+        setSearchUsers([]);
+        setSearchGroups([]);
+      } finally {
+        setIsSearchLoading(false);
+      }
+    }, 300);
   };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   const handleSearchResultClick = () => {
     setSearchQuery("");
-    setSearchResults([]);
+    setSearchUsers([]);
+    setSearchGroups([]);
   };
 
   useEffect(() => {
@@ -228,10 +211,11 @@ const NavBar = () => {
         </div>
         
         <SearchBar
-          placeholder="Search users..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={handleSearchChange}
-          results={searchResults}
+          users={searchUsers}
+          groups={searchGroups}
           onResultClick={handleSearchResultClick}
           isLoading={isSearchLoading}
         />
