@@ -58,34 +58,20 @@ const LoginPage = () => {
           className="mb-6 mt-8"
         />
 
-        <div className="mb-4 flex items-center justify-between">
-          <label className="gap-2">
-            <input type="checkbox" className="mr-2" />
-            Remember Me
-          </label>
-
-          <Link
-            href="/forgot-password"
-            className="inline-block align-baseline font-bold text-sm text-pink-400 hover:text-pink-700"
-          >
-            Forgot Password?
-          </Link>
-        </div>
-
         <Button type="button" onClick={handleLogin}>Sign In</Button>
 
         <div className="flex items-center justify-center mt-4 gap-6">
-          <p className="border-t border-gray-400 w-1/2"></p>
-          <p className="text-gray-500">Or</p>
-          <p className="border-t border-gray-400 w-1/2"></p>
+          <p className="border-t border-purple-500/30 w-1/2"></p>
+          <p className="text-purple-400">Or</p>
+          <p className="border-t border-purple-500/30 w-1/2"></p>
         </div>
 
         <div className="mt-5 text-center">
-          <p className="text-gray-500 text-lg">
+          <p className="text-purple-400 text-lg">
             Don't have an account?{" "}
             <Link
               href="/register"
-              className="font-bold text-pink-400 hover:text-pink-700"
+              className="font-bold text-pink-400 hover:text-pink-300"
             >
               Sign Up
             </Link>

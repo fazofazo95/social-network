@@ -198,17 +198,19 @@ const NavBar = () => {
   };
 
   return (
-    <nav className="border w-full h-8 bg-white relative flex flex-row justify-between">
-      <div className="flex items-center relative">
-        <Image src="/logo_icon.svg" alt="Logo" width={25} height={25} />
-        <div className="relative">
-          <h1 className="text-purple-500 text-2xl font-semibold relative">
-            Pulse
-          </h1>
-          <h1 className="absolute top-0 left-0 text-2xl text-purple-500 neon-glow">
-            Pulse
-          </h1>
-        </div>
+    <nav className="border-b border-purple-500/20 w-full h-10 bg-[#1a1a2e] relative flex flex-row items-center justify-between shadow-custom px-4">
+      <div className="flex items-center gap-3 relative">
+        <Link href="/" className="flex items-center gap-1.5 shrink-0">
+          <Image src="/logo_icon.svg" alt="Logo" width={22} height={22} />
+          <div className="relative">
+            <span className="text-purple-500 text-lg font-semibold relative">
+              Pulse
+            </span>
+            <span className="absolute top-0 left-0 text-lg text-purple-500 neon-glow">
+              Pulse
+            </span>
+          </div>
+        </Link>
         
         <SearchBar
           placeholder="Search..."
@@ -224,7 +226,7 @@ const NavBar = () => {
       <div className="flex items-center gap-3 pr-4">
         <NotificationDropdown />
 
-        <Link href="/messages" className="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-white hover:bg-(--color-customPurple) transition" aria-label="Messages">
+        <Link href="/messages" className="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-transparent hover:bg-purple-900/30 transition" aria-label="Messages">
           <Image
             src="/echo_icon.svg"
             alt="Messages Icon"
@@ -247,17 +249,17 @@ const NavBar = () => {
           />
 
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-custom z-50">
+            <div className="absolute right-0 mt-2 w-36 rounded-lg border border-purple-500/30 bg-[#1a1a2e] shadow-custom z-50">
               <Link
                 href="/profile"
-                className="block px-3 py-2 text-sm text-black hover:bg-gray-100 rounded-t-lg"
+                className="block px-3 py-2 text-sm text-purple-100 hover:bg-purple-900/30 rounded-t-lg transition"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Profile
               </Link>
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm text-black hover:bg-gray-100 rounded-b-lg disabled:opacity-50"
+                className="w-full text-left px-3 py-2 text-sm text-purple-100 hover:bg-purple-900/30 rounded-b-lg disabled:opacity-50 transition cursor-pointer"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
               >

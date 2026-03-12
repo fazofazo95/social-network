@@ -374,11 +374,11 @@ export default function App() {
     }, []);
 
   return ( 
-    <main className="w-full max-w-2xl flex flex-col gap-20">
+    <main className="w-full max-w-2xl flex flex-col gap-6">
       <form
         onSubmit={handleSubmit}
         encType="multipart/form-data"
-        className="bg-white w-full rounded-lg shadow-custom p-4 sticky top-16 z-10"
+        className="bg-[#1a1a2e] w-full rounded-lg border border-purple-500/30 p-4 sticky top-16 z-10"
       >
         <div className="flex items-start gap-4 mb-4">
           <Image
@@ -386,12 +386,13 @@ export default function App() {
             alt="Profile Icon"
             width={25}
             height={25}
+            className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
           />
           <div className="relative w-full">
             <textarea
               value={postContent}
               onChange={(event) => setPostContent(event.target.value)}
-              className="border rounded border-gray-200 text-black w-full h-20 focus:outline-none pl-2 pr-8 resize-none"
+              className="bg-[#0d0d1a] border border-purple-500/30 rounded-md text-purple-100 placeholder-purple-400/50 w-full h-20 focus:outline-none focus:border-purple-500/50 pl-2 pr-8 resize-none"
               placeholder="What's on your mind?"
               disabled={isSubmitting}
             />
@@ -401,62 +402,64 @@ export default function App() {
           </div>
         </div>
 
-        <ul className="flex gap-2 border-t border-gray-200 pt-2">
-          <li className="flex  gap-1 hover:bg-gray-200   rounded-lg">
-            <label htmlFor="photo-upload" className="flex items-center gap-1">
+        <ul className="flex gap-2 border-t border-purple-500/20 pt-2">
+          <li className="flex gap-1 hover:bg-purple-900/20 rounded-lg px-2 py-1">
+            <label htmlFor="photo-upload" className="flex items-center gap-1 cursor-pointer">
               <Image
                 src="/photo_icon.svg"
                 alt="Share Icon"
                 width={20}
                 height={20}
+                className="opacity-60"
               />
               <input
                 id="photo-upload"
                 type="file"
                 onChange={(event) => setPostImage(event.target.files?.[0] || null)}
-                className="font-medium cursor-pointer text-black hidden"
+                className="hidden"
                 accept="image/*"
               />
-              <span className="font-medium cursor-pointer text-black">
+              <span className="font-medium cursor-pointer text-purple-300">
                 Photo
               </span>
             </label>
           </li>
-          <li className="flex items-center gap-2 hover:bg-gray-200 rounded-lg px-2 text-black text-sm">
+          <li className="flex items-center gap-2 hover:bg-purple-900/20 rounded-lg px-2 py-1 text-purple-300 text-sm">
             <label htmlFor="post-privacy" className="font-medium cursor-pointer">Privacy</label>
             <select
               id="post-privacy"
-              className="font-medium cursor-pointer text-black bg-transparent focus:outline-none"
+              className="font-medium cursor-pointer text-purple-300 bg-transparent focus:outline-none"
               value={postPrivacy}
               onChange={(event) => setPostPrivacy(event.target.value)}
               disabled={isSubmitting}
             >
-              <option value="public">Public</option>
-              <option value="followers">Followers</option>
-              <option value="custom">Selective</option>
+              <option value="public" className="bg-[#1a1a2e]">Public</option>
+              <option value="followers" className="bg-[#1a1a2e]">Followers</option>
+              <option value="custom" className="bg-[#1a1a2e]">Selective</option>
             </select>
           </li>
-          <li className="flex bg-blue-500  hover:bg-blue-700 rounded-lg p-1 ml-auto">
-            <Image
-              src="/share_icon.svg"
-              alt="Share Icon"
-              width={20}
-              height={20}
-            />
-            <button type="submit" className="text-white cursor-pointer" disabled={isSubmitting}>
+          <li className="flex ml-auto">
+            <button type="submit" className="flex items-center gap-2 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md px-4 py-1.5 transition cursor-pointer disabled:opacity-50 font-semibold" disabled={isSubmitting}>
+              <Image
+                src="/share_icon.svg"
+                alt="Share Icon"
+                width={16}
+                height={16}
+                className="opacity-70"
+              />
               {isSubmitting ? "Posting..." : "Post"}
             </button>
           </li>
         </ul>
         {postPrivacy === "custom" ? (
-          <div className="mt-2 border border-gray-200 rounded p-2">
-            <p className="text-sm text-gray-600 mb-2">Choose users who can see this post:</p>
+          <div className="mt-2 border border-purple-500/20 rounded-md p-2">
+            <p className="text-sm text-purple-400 mb-2">Choose users who can see this post:</p>
             {selectiveUsers.length === 0 ? (
-              <p className="text-sm text-gray-500">No followers/following available to select.</p>
+              <p className="text-sm text-purple-400/50">No followers/following available to select.</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto pr-1 rounded-md bg-gray-50 p-2 [scrollbar-width:thin] [scrollbar-color:#9CA3AF_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-track]:bg-transparent">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto pr-1 rounded-md bg-[#0d0d1a] p-2 [scrollbar-width:thin] [scrollbar-color:#7c3aed_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-purple-600 [&::-webkit-scrollbar-track]:bg-transparent">
                 {selectiveUsers.map((user) => (
-                  <label key={user.id} className="flex items-center gap-2 text-sm text-black">
+                  <label key={user.id} className="flex items-center gap-2 text-sm text-purple-200">
                     <input
                       type="checkbox"
                       checked={selectiveUserIds.includes(user.id)}
@@ -470,15 +473,15 @@ export default function App() {
             )}
           </div>
         ) : null}
-        {submitError ? <p className="text-red-600 text-sm mt-2">{submitError}</p> : null}
+        {submitError ? <p className="text-red-400 text-sm mt-2">{submitError}</p> : null}
       </form>
 
       {isLoading ? (
-        <div className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <div className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 text-center text-purple-300">
           Loading posts...
         </div>
       ) : posts.length === 0 ? (
-        <div className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <div className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 text-center text-purple-300">
           No posts yet.
         </div>
       ) : (
@@ -506,33 +509,34 @@ export default function App() {
           };
 
           return (
-            <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+            <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
             <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-3">
                 <Image
                   src={parseProfileImage(post.author_profile_picture)}
                   alt="Profile Icon"
-                  width={30}
-                  height={30}
+                  width={40}
+                  height={40}
+                  className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                 />
                 <div className="flex flex-col">
                   {post.user_id ? (
-                    <Link href={`/profile/${post.user_id}`} className="font-bold text-lg leading-tight">
+                    <Link href={`/profile/${post.user_id}`} className="font-semibold text-purple-100 hover:underline">
                       {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
                     </Link>
                   ) : (
-                    <h1 className="font-bold text-lg leading-tight">
+                    <span className="font-semibold text-purple-100">
                       {`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim() || "Unknown User"}
-                    </h1>
+                    </span>
                   )}
-                  {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
+                  {postDateLabel ? <span className="text-sm text-purple-400/60">{postDateLabel}</span> : null}
                 </div>
               </div>
               {isOwnPost ? (
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                     onClick={() => handleStartEditPost(post.id)}
                     disabled={isPostActionLoading}
                   >
@@ -540,7 +544,7 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                    className="text-xs bg-purple-900/30 hover:bg-red-900/30 text-purple-300 hover:text-red-300 border border-purple-500/30 hover:border-red-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                     onClick={() => handleDeletePost(post.id)}
                     disabled={isPostActionLoading}
                   >
@@ -553,13 +557,13 @@ export default function App() {
               <div className="flex items-center gap-2 mb-2">
                 <input
                   type="text"
-                  className="border rounded px-2 py-1 text-sm flex-1"
+                  className="flex-1 px-2 py-1 bg-[#0d0d1a] border border-purple-500/30 rounded-md text-purple-100 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
                   value={editingPostContent}
                   onChange={(event) => setEditingPostContent(event.target.value)}
                 />
                 <button
                   type="button"
-                  className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                  className="text-xs px-2 py-1 rounded-md bg-purple-600 text-white disabled:opacity-50"
                   onClick={() => handleSavePostEdit(post.id)}
                   disabled={isPostActionLoading}
                 >
@@ -567,7 +571,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                  className="text-xs px-2 py-1 rounded-md bg-purple-900/30 text-purple-300 border border-purple-500/30"
                   onClick={() => {
                     setEditingPostId(null);
                     setEditingPostContent("");
@@ -577,9 +581,9 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <p>{post.content}</p>
+              <p className="text-purple-300/80 mt-2">{post.content}</p>
             )}
-            {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
+            {postActionError ? <p className="text-red-400 text-sm mb-1">{postActionError}</p> : null}
             {post.image ? (
               <div className="mt-3">
                 <Image
@@ -592,10 +596,10 @@ export default function App() {
               </div>
             ) : null}
             <div className="flex justify-between gap-4 mt-4">
-              <span className="text-sm text-gray-500">{rippleCount} Ripples</span>
-              <span className="text-sm text-gray-500">{comments.length} Echoes</span>
+              <span className="text-sm text-purple-400">{rippleCount} Ripples</span>
+              <span className="text-sm text-purple-400">{comments.length} Echoes</span>
             </div>
-            <div className="flex justify-between gap-8 mt-2 mx-8 border-t border-gray-200 pt-2">
+            <div className="flex justify-between gap-8 mt-2 mx-8 border-t border-purple-500/20 pt-2">
               <Ripple_Button 
                 postId={post.id}
                 initialRippled={rippled}
@@ -613,20 +617,21 @@ export default function App() {
             </div>
             <div
               id={echoSectionId}
-              className="border-t border-gray-200 rounded mt-2 pt-2 gap-2 hidden flex-col"
+              className="mt-4 pt-4 border-t border-purple-500/20 hidden flex-col gap-2"
             >
               <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
                 <Image
                   src={parseProfileImage(userData.profile_picture)}
                   alt="Profile Icon"
-                  width={25}
-                  height={25}
+                  width={32}
+                  height={32}
+                  className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                 />
-                <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
+                <div className="flex-1 flex items-center bg-[#0d0d1a] border border-purple-500/30 rounded-md">
                   <input
                     type="text"
                     placeholder="Write a comment..."
-                    className="focus:outline-none w-full pl-1 bg-transparent"
+                    className="flex-1 px-3 py-2 bg-transparent focus:outline-none text-purple-100 placeholder-purple-400/50 text-sm"
                     value={commentValue}
                     onChange={(event) =>
                       setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
@@ -642,18 +647,19 @@ export default function App() {
 
                   <label
                     htmlFor={echoPhotoUploadId}
-                    className="flex items-center gap-1 cursor-pointer px-1"
+                    className="flex items-center gap-1 cursor-pointer px-2"
                   >
                     <Image
                       src="/photo_icon.svg"
                       alt="Share Icon"
-                      width={20}
-                      height={20}
+                      width={18}
+                      height={18}
+                      className="opacity-60"
                     />
                     <input
                       id={echoPhotoUploadId}
                       type="file"
-                      className="font-medium cursor-pointer text-black hidden"
+                      className="hidden"
                       accept="image/*"
                       onChange={(event) =>
                         setCommentImageByPost((prev) => ({ ...prev, [post.id]: event.target.files?.[0] || null }))
@@ -664,55 +670,55 @@ export default function App() {
                 </div>
                 <button
                   type="submit"
-                  className="text-sm px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                  className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] disabled:opacity-50"
                   disabled={isCommentSubmitting}
                 >
-                  {isCommentSubmitting ? "Sending..." : "Send"}
+                  {isCommentSubmitting ? "..." : "Echo"}
                 </button>
               </form>
 
-              {commentError ? <p className="text-red-600 text-sm">{commentError}</p> : null}
+              {commentError ? <p className="text-red-400 text-sm">{commentError}</p> : null}
 
               <div className="flex flex-col gap-2">
                 {isCommentsLoading ? (
-                  <p className="text-sm text-gray-500">Loading echoes...</p>
+                  <p className="text-purple-400/50 text-sm text-center py-2">Loading echoes...</p>
                 ) : comments.length === 0 ? (
-                  <p className="text-sm text-gray-500">No echoes yet.</p>
+                  <p className="text-purple-400/50 text-sm text-center py-2">No echoes yet.</p>
                 ) : (
                   comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 rounded p-2">
+                    <div key={comment.id} className="flex gap-2">
+                      <div className="pt-0.5">
+                        <Image
+                          src={parseProfileImage(comment.author_profile_picture)}
+                          alt="Comment author"
+                          width={32}
+                          height={32}
+                          className="rounded-full"
+                        />
+                      </div>
+                      <div className="flex-1 bg-[#0d0d1a] rounded-md p-3 border border-purple-500/20">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="flex items-start gap-2">
-                          <div className="pt-0.5">
-                            <Image
-                              src={parseProfileImage(comment.author_profile_picture)}
-                              alt="Comment author"
-                              width={20}
-                              height={20}
-                            />
-                          </div>
-                          <div className="flex flex-col leading-tight">
+                        <div className="flex items-center gap-2">
                             {comment.user_id ? (
-                              <Link href={`/profile/${comment.user_id}`} className="text-sm font-medium">
+                              <Link href={`/profile/${comment.user_id}`} className="font-semibold text-purple-100 text-sm hover:underline">
                                 {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
                               </Link>
                             ) : (
-                              <span className="text-sm font-medium">
+                              <span className="font-semibold text-purple-100 text-sm">
                                 {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
                               </span>
                             )}
                             {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
-                              <span className="text-xs text-gray-500 mt-0.5">
+                              <span className="text-purple-400/50 text-xs">
                                 {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
                               </span>
                             ) : null}
-                          </div>
                         </div>
                         {comment.user_id === userData.id ? (
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                              className="text-xs text-purple-400 hover:text-purple-200 transition"
                               onClick={() => {
                                 setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
                                 setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
@@ -723,7 +729,7 @@ export default function App() {
                             </button>
                             <button
                               type="button"
-                              className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                              className="text-xs text-purple-400 hover:text-red-300 transition"
                               onClick={() => handleDeleteComment(post.id, comment.id)}
                               disabled={!!commentActionLoadingById[comment.id]}
                             >
@@ -733,10 +739,10 @@ export default function App() {
                         ) : null}
                       </div>
                       {editingCommentIdByPost[post.id] === comment.id ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-1">
                           <input
                             type="text"
-                            className="border rounded px-2 py-1 text-sm flex-1"
+                            className="flex-1 px-2 py-1 bg-[#1a1a2e] border border-purple-500/30 rounded text-purple-100 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
                             value={editingCommentContentByPost[post.id] || ""}
                             onChange={(event) =>
                               setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
@@ -744,7 +750,7 @@ export default function App() {
                           />
                           <button
                             type="button"
-                            className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                            className="text-xs px-2 py-1 rounded bg-purple-600 text-white disabled:opacity-50"
                             onClick={() => handleSaveCommentEdit(post.id, comment.id)}
                             disabled={!!commentActionLoadingById[comment.id]}
                           >
@@ -752,7 +758,7 @@ export default function App() {
                           </button>
                           <button
                             type="button"
-                            className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                            className="text-xs px-2 py-1 rounded bg-purple-900/30 text-purple-300"
                             onClick={() => {
                               setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
                               setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
@@ -762,7 +768,7 @@ export default function App() {
                           </button>
                         </div>
                       ) : (
-                        <p className="text-sm">{comment.content}</p>
+                        <p className="text-purple-300/80 text-sm mt-1">{comment.content}</p>
                       )}
                       {comment.image ? (
                         <div className="mt-2">
@@ -775,6 +781,7 @@ export default function App() {
                           />
                         </div>
                       ) : null}
+                    </div>
                     </div>
                   ))
                 )}

@@ -25,7 +25,7 @@ const Logo = ({ title, subtitle, variant = "default" }) => {
         </p>
       )}
       {subtitle && (
-        <p className="text-gray-500 font-light text-md text-center">
+        <p className="text-purple-400 font-light text-md text-center">
           {subtitle}
         </p>
       )}

@@ -5,7 +5,7 @@ const IconButton = ({ icon, alt, iconSize = 20, onClick, className = "" }) => {
     <button
       type="button"
       onClick={onClick}
-      className={`w-6 h-6 flex items-center justify-center rounded-full bg-white hover:bg-(--color-customPurple) transition ${className}`}
+      className={`w-6 h-6 flex items-center justify-center rounded-full bg-transparent hover:bg-purple-900/30 transition cursor-pointer ${className}`}
     >
       <Image
         src={icon}

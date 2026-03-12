@@ -165,7 +165,7 @@ export default function NotificationDropdown() {
       <button
         type="button"
         onClick={handleToggle}
-        className="relative w-6 h-6 flex items-center justify-center rounded-full bg-white hover:bg-(--color-customPurple) transition cursor-pointer"
+        className="relative w-6 h-6 flex items-center justify-center rounded-full bg-transparent hover:bg-purple-900/30 transition cursor-pointer"
         aria-label="Notifications"
       >
         <Image
@@ -183,30 +183,30 @@ export default function NotificationDropdown() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-custom z-50">
-          <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto rounded-lg border border-purple-500/30 bg-[#1a1a2e] shadow-custom z-50">
+          <div className="sticky top-0 bg-[#1a1a2e] border-b border-purple-500/20 px-4 py-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-purple-100">Notifications</h3>
           </div>
 
           {loading && notifications.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-gray-400">
+            <div className="px-4 py-6 text-center text-sm text-purple-400">
               Loading...
             </div>
           ) : notifications.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-gray-400">
+            <div className="px-4 py-6 text-center text-sm text-purple-400">
               No notifications
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-purple-500/20">
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  className={`px-4 py-3 flex gap-3 items-start hover:bg-gray-50 transition ${
-                    !n.seen ? "bg-purple-50/40" : ""
+                  className={`px-4 py-3 flex gap-3 items-start hover:bg-purple-900/20 transition ${
+                    !n.seen ? "bg-purple-900/30" : ""
                   }`}
                 >
                   {/* Actor avatar */}
-                  <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-gray-200 relative">
+                  <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-[#0d0d1a] relative">
                     <Image
                       src={parseProfileImage(n.actor_picture)}
                       alt={`${n.actor_first_name || "User"}'s avatar`}
@@ -217,31 +217,31 @@ export default function NotificationDropdown() {
 
                   <div className="flex-1 min-w-0">
                     {/* Name + content */}
-                    <p className="text-sm text-gray-800 leading-snug">
+                    <p className="text-sm text-purple-100 leading-snug">
                       <span className="font-semibold">
                         {n.actor_first_name || ""} {n.actor_last_name || ""}
                       </span>{" "}
-                      <span className="text-gray-600">{n.content}</span>
+                      <span className="text-purple-300">{n.content}</span>
                     </p>
 
                     {/* Type badge + time */}
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300 font-medium border border-purple-500/20">
                         {TYPE_LABELS[n.type] || n.type}
                       </span>
-                      <span className="text-[11px] text-gray-400">
+                      <span className="text-[11px] text-purple-400/60">
                         {formatFriendlyDateTime(n.created_at)}
                       </span>
                     </div>
 
                     {/* Status badge for resolved */}
                     {n.status === "accepted" && (
-                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">
+                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 font-medium border border-green-500/20">
                         Accepted
                       </span>
                     )}
                     {n.status === "rejected" && (
-                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 font-medium border border-red-500/20">
                         Rejected
                       </span>
                     )}
@@ -253,7 +253,7 @@ export default function NotificationDropdown() {
                           type="button"
                           disabled={!!actionLoading[n.id]}
                           onClick={() => handleAction(n.id, "accept")}
-                          className="px-3 py-1 text-xs rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition cursor-pointer"
+                          className="px-3 py-1 text-xs rounded-md bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition cursor-pointer shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                         >
                           {actionLoading[n.id] === "accept" ? "..." : "Accept"}
                         </button>
@@ -261,7 +261,7 @@ export default function NotificationDropdown() {
                           type="button"
                           disabled={!!actionLoading[n.id]}
                           onClick={() => handleAction(n.id, "reject")}
-                          className="px-3 py-1 text-xs rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition cursor-pointer"
+                          className="px-3 py-1 text-xs rounded-md bg-purple-900/30 text-purple-300 border border-purple-500/30 hover:bg-purple-900/50 disabled:opacity-50 transition cursor-pointer"
                         >
                           {actionLoading[n.id] === "reject" ? "..." : "Reject"}
                         </button>

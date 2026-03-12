@@ -11,15 +11,24 @@
 }
 
 .input {
-  border: 1px solid white;
-  background-color: white;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  background-color: #0d0d1a;
   border-radius: 0.375rem;
   width: 100%;
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   padding-left: 2rem;
   padding-right: 0.5rem;
-  color: #000000;
+  color: #e9d5ff;
+  color-scheme: dark;
+}
+
+.input::placeholder {
+  color: rgba(168, 85, 247, 0.4);
+}
+
+.input:focus {
+  border-color: rgba(168, 85, 247, 0.5);
 }
 .shadow-custom {
   box-shadow: 0px 7px  10px rgba(208, 0, 255, 0.4);

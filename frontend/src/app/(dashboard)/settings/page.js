@@ -267,25 +267,25 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6">
-      <section className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+      <section className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500">Manage profile content and privacy visibility.</p>
+        <p className="text-purple-400">Manage profile content and privacy visibility.</p>
       </section>
 
       {isLoading ? (
-        <section className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <section className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
           Loading settings...
         </section>
       ) : null}
 
       {!isLoading && loadingError ? (
-        <section className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <section className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-red-400 w-full p-5">
           {loadingError}
         </section>
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveCover} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5 flex flex-col gap-4">
+        <form onSubmit={handleSaveCover} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
           <h2 className="text-xl font-bold">Cover Image</h2>
 
           <div className="flex flex-col gap-3">
@@ -296,14 +296,14 @@ export default function SettingsPage() {
               height={180}
               className="rounded-lg w-full h-36 object-cover"
             />
-            <input type="file" accept="image/*" onChange={handleCoverFileChange} className="text-sm" />
+            <input type="file" accept="image/*" onChange={handleCoverFileChange} className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer" />
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">{coverStatus}</span>
+            <span className="text-sm text-purple-400">{coverStatus}</span>
             <button
               type="submit"
-              className="bg-blue-500 text-white rounded px-4 py-2 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-500 text-white rounded-md px-4 py-2 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition cursor-pointer"
               disabled={isSavingCover}
             >
               {isSavingCover ? "Saving..." : "Save Cover"}
@@ -313,7 +313,7 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveAvatar} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5 flex flex-col gap-4">
+        <form onSubmit={handleSaveAvatar} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
           <h2 className="text-xl font-bold">Profile Image</h2>
 
           <div className="flex items-center gap-4">
@@ -322,16 +322,16 @@ export default function SettingsPage() {
               alt="Current profile image"
               width={64}
               height={64}
-              className="rounded-full"
+              className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
             />
-            <input type="file" accept="image/*" onChange={handleAvatarFileChange} className="text-sm" />
+            <input type="file" accept="image/*" onChange={handleAvatarFileChange} className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer" />
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">{avatarStatus}</span>
+            <span className="text-sm text-purple-400">{avatarStatus}</span>
             <button
               type="submit"
-              className="bg-blue-500 text-white rounded px-4 py-2 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-500 text-white rounded-md px-4 py-2 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition cursor-pointer"
               disabled={isSavingAvatar}
             >
               {isSavingAvatar ? "Saving..." : "Save Image"}
@@ -341,87 +341,87 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveContent} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5 flex flex-col gap-4">
+        <form onSubmit={handleSaveContent} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
           <h2 className="text-xl font-bold">Profile Content</h2>
 
           <div className="grid grid-cols-2 gap-4">
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               First Name
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="first_name"
                 value={contentForm.first_name}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Last Name
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="last_name"
                 value={contentForm.last_name}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Birthday Date
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="birthday_date"
                 type="date"
                 value={contentForm.birthday_date}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Relationship Status
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="relationship_status"
                 value={contentForm.relationship_status}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Employed At
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="employed_at"
                 value={contentForm.employed_at}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Location
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="location"
                 value={contentForm.location}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Phone Number
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="phone_number"
                 value={contentForm.phone_number}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1 col-span-2">
+            <label className="flex flex-col text-sm gap-1 col-span-2 text-purple-300">
               Nickname
               <input
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50"
                 name="nickname"
                 value={contentForm.nickname}
                 onChange={handleContentChange}
               />
             </label>
-            <label className="flex flex-col text-sm gap-1 col-span-2">
+            <label className="flex flex-col text-sm gap-1 col-span-2 text-purple-300">
               About Me
               <textarea
-                className="border rounded px-3 py-2 min-h-24"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 min-h-24 text-purple-100 focus:outline-none focus:border-purple-500/50 resize-none"
                 name="about_me"
                 value={contentForm.about_me}
                 onChange={handleContentChange}
@@ -430,10 +430,10 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">{contentStatus}</span>
+            <span className="text-sm text-purple-400">{contentStatus}</span>
             <button
               type="submit"
-              className="bg-blue-500 text-white rounded px-4 py-2 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-500 text-white rounded-md px-4 py-2 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition cursor-pointer"
               disabled={isSavingContent}
             >
               {isSavingContent ? "Saving..." : "Save Content"}
@@ -443,93 +443,93 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveVisibility} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5 flex flex-col gap-4">
+        <form onSubmit={handleSaveVisibility} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
           <h2 className="text-xl font-bold">Visibility & Privacy</h2>
 
           <div className="grid grid-cols-2 gap-4">
-            <label className="flex flex-col text-sm gap-1 col-span-2">
+            <label className="flex flex-col text-sm gap-1 col-span-2 text-purple-300">
               Profile Type
               <select
-                className="border rounded px-3 py-2"
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
                 name="profile_type"
                 value={visibilityForm.profile_type}
                 onChange={handleVisibilityChange}
               >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
+                <option value="public" className="bg-[#1a1a2e]">Public</option>
+                <option value="private" className="bg-[#1a1a2e]">Private</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Email
-              <select className="border rounded px-3 py-2" name="email_vis" value={visibilityForm.email_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="email_vis" value={visibilityForm.email_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Birthday Date
-              <select className="border rounded px-3 py-2" name="birthday_date_vis" value={visibilityForm.birthday_date_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="birthday_date_vis" value={visibilityForm.birthday_date_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Relationship Status
-              <select className="border rounded px-3 py-2" name="relationship_status_vis" value={visibilityForm.relationship_status_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="relationship_status_vis" value={visibilityForm.relationship_status_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Employed At
-              <select className="border rounded px-3 py-2" name="employed_at_vis" value={visibilityForm.employed_at_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="employed_at_vis" value={visibilityForm.employed_at_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Phone Number
-              <select className="border rounded px-3 py-2" name="phone_number_vis" value={visibilityForm.phone_number_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="phone_number_vis" value={visibilityForm.phone_number_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               About Me
-              <select className="border rounded px-3 py-2" name="about_me_vis" value={visibilityForm.about_me_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="about_me_vis" value={visibilityForm.about_me_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Nickname
-              <select className="border rounded px-3 py-2" name="nickname_vis" value={visibilityForm.nickname_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="nickname_vis" value={visibilityForm.nickname_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
 
-            <label className="flex flex-col text-sm gap-1">
+            <label className="flex flex-col text-sm gap-1 text-purple-300">
               Follow List
-              <select className="border rounded px-3 py-2" name="follow_vis" value={visibilityForm.follow_vis} onChange={handleVisibilityChange}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
+              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="follow_vis" value={visibilityForm.follow_vis} onChange={handleVisibilityChange}>
+                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
+                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
               </select>
             </label>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">{visibilityStatus}</span>
+            <span className="text-sm text-purple-400">{visibilityStatus}</span>
             <button
               type="submit"
-              className="bg-blue-500 text-white rounded px-4 py-2 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-500 text-white rounded-md px-4 py-2 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition cursor-pointer"
               disabled={isSavingVisibility}
             >
               {isSavingVisibility ? "Saving..." : "Save Visibility"}

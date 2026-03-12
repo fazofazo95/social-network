@@ -468,8 +468,8 @@ const Profile = () => {
   const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-10 pb-8">
-      <main className="flex flex-col w-full bg-white rounded-lg overflow-hidden gap-2">
+    <div className="w-full max-w-2xl flex flex-col gap-6 pb-8">
+      <main className="flex flex-col w-full bg-[#1a1a2e] rounded-lg border border-purple-500/30 overflow-hidden gap-2">
         <div
           className="w-full h-36 relative"
           style={{
@@ -481,23 +481,23 @@ const Profile = () => {
         >
           <label
             htmlFor="cover-upload"
-            className="flex items-center gap-1 cursor-pointer absolute bottom-2 right-2 bg-gray-200 bg-opacity-70 p-1 rounded"
+            className="flex items-center gap-1 cursor-pointer absolute bottom-2 right-2 bg-purple-900/70 hover:bg-purple-900/90 p-1 px-2 rounded transition"
           >
             <Image src="/cover_icon.svg" alt="Cover" width={20} height={20} />
-            <span className="text-sm text-black">Change Cover</span>
+            <span className="text-sm text-purple-200">Change Cover</span>
             <input
               id="cover-upload"
               type="file"
               accept="image/*"
               onChange={handleChangeCover}
               disabled={isSavingCover}
-              className="font-medium cursor-pointer text-black hidden"
+              className="font-medium cursor-pointer text-purple-200 hidden"
             />
           </label>
         </div>
-        {coverStatus ? <p className="text-xs text-gray-500 px-3">{coverStatus}</p> : null}
+        {coverStatus ? <p className="text-xs text-purple-400 px-3">{coverStatus}</p> : null}
 
-        <section className="border-b border-gray-200 pb-4 mb-2">
+        <section className="border-b border-purple-500/20 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
             <div className="flex items-center gap-2 pl-5 pt-5">
               <Image
@@ -505,17 +505,17 @@ const Profile = () => {
                 alt="Profile Picture"
                 width={50}
                 height={50}
-                className="rounded-full border-white"
+                className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
               />
 
               <div className="mb-4">
-                <h1 className="text-3xl font-black text-black">{fullName}</h1>
-                <span className="text-gray-400 text-sm">{usernameText}</span>
+                <h1 className="text-3xl font-black text-purple-100">{fullName}</h1>
+                <span className="text-purple-400 text-sm">{usernameText}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center mx-10 gap-6 text-sm text-gray-400">
+          <div className="flex justify-between items-center mx-10 gap-6 text-sm text-purple-400/60">
             <div className="flex flex-wrap items-center gap-6">
               {locationText ? (
                 <span className="flex items-center gap-2">
@@ -534,7 +534,7 @@ const Profile = () => {
                 {privacyText}
               </span>
             </div>
-            <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
+            <Link href="/settings" className="flex items-center gap-2 rounded-lg px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white cursor-pointer transition font-semibold">
               <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
               Edit Profile
             </Link>
@@ -543,62 +543,62 @@ const Profile = () => {
 
         <section className="flex justify-start gap-8 ml-5">
           <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{userPosts.length}</h1>
-            <span className="text-gray-400">Posts</span>
+            <h1 className="text-4xl text-purple-100">{userPosts.length}</h1>
+            <span className="text-purple-400">Posts</span>
           </div>
           {canShowFollowLists ? (
             <>
               <div className="flex flex-col items-center">
-                <h1 className="text-4xl text-black">{followers.length}</h1>
-                <span className="text-gray-400">Followers</span>
+                <h1 className="text-4xl text-purple-100">{followers.length}</h1>
+                <span className="text-purple-400">Followers</span>
               </div>
               <div className="flex flex-col items-center">
-                <h1 className="text-4xl text-black">{following.length}</h1>
-                <span className="text-gray-400">Following</span>
+                <h1 className="text-4xl text-purple-100">{following.length}</h1>
+                <span className="text-purple-400">Following</span>
               </div>
             </>
           ) : null}
         </section>
 
-        <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
-          <button type="button" onClick={() => setActiveTab("posts")} className="text-gray-400 cursor-pointer">
+        <section className="text-purple-400 flex justify-around border-t border-purple-500/20 mt-4 pt-2 pb-2">
+          <button type="button" onClick={() => setActiveTab("posts")} className={`cursor-pointer transition ${activeTab === 'posts' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
             Posts({userPosts.length})
           </button>
-          <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400 cursor-pointer">
+          <button type="button" onClick={() => setActiveTab("about")} className={`cursor-pointer transition ${activeTab === 'about' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
             About
           </button>
           {canShowFollowLists ? (
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400 cursor-pointer">
+              <button type="button" onClick={() => setActiveTab("followers")} className={`cursor-pointer transition ${activeTab === 'followers' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
                 Followers({followers.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400 cursor-pointer">
+              <button type="button" onClick={() => setActiveTab("following")} className={`cursor-pointer transition ${activeTab === 'following' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
                 Following({following.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("blocked")} className="text-gray-400 cursor-pointer">
+              <button type="button" onClick={() => setActiveTab("blocked")} className={`cursor-pointer transition ${activeTab === 'blocked' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
                 Blocked({blockedUsers.length})
               </button>
             </>
           ) : null}
-          <button type="button" onClick={() => setActiveTab("requests")} className="text-gray-400 cursor-pointer">
+          <button type="button" onClick={() => setActiveTab("requests")} className={`cursor-pointer transition ${activeTab === 'requests' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
             Follow Requests({pendingRequests.length})
           </button>
         </section>
       </main>
 
       {isLoading ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
           Loading profile...
         </article>
       ) : error ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-red-400 w-full p-5">
           {error}
         </article>
       ) : null}
 
       {!isLoading && !error && activeTab === "posts" ? (
         userPosts.length === 0 ? (
-          <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+          <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
             No posts yet.
           </article>
         ) : (
@@ -623,24 +623,25 @@ const Profile = () => {
               }));
             };
             return (
-              <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+              <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-3">
                     <Image
                       src={parseProfileImage(profileData.profile_picture)}
                       alt="Profile Icon"
-                      width={30}
-                      height={30}
+                      width={40}
+                      height={40}
+                      className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                     />
                     <div className="flex flex-col">
-                      <Link href="/profile" className="font-bold text-lg leading-tight">{fullName}</Link>
-                      {postDateLabel ? <span className="text-sm text-gray-500">{postDateLabel}</span> : null}
+                      <Link href="/profile" className="font-semibold text-purple-100 hover:underline">{fullName}</Link>
+                      {postDateLabel ? <span className="text-sm text-purple-400/60">{postDateLabel}</span> : null}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                      className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                       onClick={() => handleStartEditPost(post.id)}
                       disabled={isPostActionLoading}
                     >
@@ -648,7 +649,7 @@ const Profile = () => {
                     </button>
                     <button
                       type="button"
-                      className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                      className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                       onClick={() => handleDeletePost(post.id)}
                       disabled={isPostActionLoading}
                     >
@@ -660,13 +661,13 @@ const Profile = () => {
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       type="text"
-                      className="border rounded px-2 py-1 text-sm flex-1"
+                      className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-2 py-1 text-sm text-purple-100 flex-1 focus:outline-none focus:border-purple-500/50"
                       value={editingPostContent}
                       onChange={(event) => setEditingPostContent(event.target.value)}
                     />
                     <button
                       type="button"
-                      className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                      className="text-xs px-2 py-1 rounded-md bg-purple-600 text-white disabled:opacity-50"
                       onClick={() => handleSavePostEdit(post.id)}
                       disabled={isPostActionLoading}
                     >
@@ -674,7 +675,7 @@ const Profile = () => {
                     </button>
                     <button
                       type="button"
-                      className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                      className="text-xs px-2 py-1 rounded-md bg-purple-900/30 text-purple-300 border border-purple-500/30"
                       onClick={() => {
                         setEditingPostId(null);
                         setEditingPostContent("");
@@ -684,9 +685,9 @@ const Profile = () => {
                     </button>
                   </div>
                 ) : (
-                  <p>{post.content}</p>
+                  <p className="text-purple-200">{post.content}</p>
                 )}
-                {postActionError ? <p className="text-red-600 text-sm mb-1">{postActionError}</p> : null}
+                {postActionError ? <p className="text-red-400 text-sm mb-1">{postActionError}</p> : null}
                 {post.image ? (
                   <div className="mt-3">
                     <Image
@@ -698,9 +699,9 @@ const Profile = () => {
                     />
                   </div>
                 ) : null}
-                <div className="flex justify-end gap-4 mt-2 border-b border-gray-200 pb-1">
-                  <span className="text-gray-500 text-sm mr-auto">{rippleCount} Ripples</span>
-                  <span className="text-gray-500 text-sm">{comments.length} Echoes</span>
+                <div className="flex justify-end gap-4 mt-2 border-b border-purple-500/20 pb-1">
+                  <span className="text-purple-400/60 text-sm mr-auto">{rippleCount} Ripples</span>
+                  <span className="text-purple-400/60 text-sm">{comments.length} Echoes</span>
                 </div>
                 <div className="flex justify-between gap-8 mt-2 mx-8">
                   <Ripple_Button 
@@ -720,7 +721,7 @@ const Profile = () => {
                 </div>
                 <div
                   id={echoSectionId}
-                  className="border-t border-gray-200 rounded mt-2 pt-2 gap-2 hidden flex-col"
+                  className="border-t border-purple-500/20 rounded mt-2 pt-2 gap-2 hidden flex-col"
                 >
                   <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
                     <Image
@@ -728,12 +729,13 @@ const Profile = () => {
                       alt="Profile Icon"
                       width={25}
                       height={25}
+                      className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                     />
-                    <div className="flex justify-between bg-gray-100 text-black w-full rounded-lg resize-none h-10">
+                    <div className="flex justify-between bg-[#0d0d1a] border border-purple-500/30 text-purple-100 w-full rounded-lg resize-none h-10">
                       <input
                         type="text"
                         placeholder="Write a comment..."
-                        className="focus:outline-none w-full pl-1 bg-transparent"
+                        className="focus:outline-none w-full pl-2 bg-transparent placeholder-purple-400/50"
                         value={commentValue}
                         onChange={(event) =>
                           setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
@@ -765,23 +767,23 @@ const Profile = () => {
                     </div>
                     <button
                       type="submit"
-                      className="text-sm px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                      className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] disabled:opacity-50"
                       disabled={isCommentSubmitting}
                     >
-                      {isCommentSubmitting ? "Sending..." : "Send"}
+                      {isCommentSubmitting ? "Sending..." : "Echo"}
                     </button>
                   </form>
 
-                  {commentError ? <p className="text-red-600 text-sm">{commentError}</p> : null}
+                  {commentError ? <p className="text-red-400 text-sm">{commentError}</p> : null}
 
                   <div className="flex flex-col gap-2">
                     {isCommentsLoading ? (
-                      <p className="text-sm text-gray-500">Loading echoes...</p>
+                      <p className="text-sm text-purple-400/60">Loading echoes...</p>
                     ) : comments.length === 0 ? (
-                      <p className="text-sm text-gray-500">No echoes yet.</p>
+                      <p className="text-sm text-purple-400/60">No echoes yet.</p>
                     ) : (
                       comments.map((comment) => (
-                        <div key={comment.id} className="bg-gray-50 rounded p-2">
+                        <div key={comment.id} className="bg-[#0d0d1a] rounded-md border border-purple-500/20 p-3">
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <div className="flex items-start gap-2">
                               <div className="pt-0.5">
@@ -790,23 +792,24 @@ const Profile = () => {
                                   alt="Comment author"
                                   width={20}
                                   height={20}
+                                  className="rounded-full"
                                 />
                               </div>
                               <div className="flex flex-col leading-tight">
                                 {comment.user_id ? (
                                   <Link
                                     href={comment.user_id === profileData.id ? "/profile" : `/profile/${comment.user_id}`}
-                                    className="text-sm font-medium"
+                                    className="text-sm font-medium text-purple-200 hover:underline"
                                   >
                                     {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
                                   </Link>
                                 ) : (
-                                  <span className="text-sm font-medium">
+                                  <span className="text-sm font-medium text-purple-200">
                                     {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
                                   </span>
                                 )}
                                 {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
-                                  <span className="text-xs text-gray-500 mt-0.5">
+                                  <span className="text-xs text-purple-400/60 mt-0.5">
                                     {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
                                   </span>
                                 ) : null}
@@ -816,7 +819,7 @@ const Profile = () => {
                               <div className="flex gap-2">
                                 <button
                                   type="button"
-                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                                   onClick={() => {
                                     setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
                                     setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
@@ -827,7 +830,7 @@ const Profile = () => {
                                 </button>
                                 <button
                                   type="button"
-                                  className="text-xs bg-purple-900 hover:bg-purple-800 text-white rounded-lg px-3 py-1 disabled:opacity-50"
+                                  className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                                   onClick={() => handleDeleteComment(post.id, comment.id)}
                                   disabled={!!commentActionLoadingById[comment.id]}
                                 >
@@ -840,7 +843,7 @@ const Profile = () => {
                             <div className="flex items-center gap-2">
                               <input
                                 type="text"
-                                className="border rounded px-2 py-1 text-sm flex-1"
+                                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-2 py-1 text-sm text-purple-100 flex-1 focus:outline-none focus:border-purple-500/50"
                                 value={editingCommentContentByPost[post.id] || ""}
                                 onChange={(event) =>
                                   setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
@@ -848,7 +851,7 @@ const Profile = () => {
                               />
                               <button
                                 type="button"
-                                className="text-xs px-2 py-1 rounded bg-blue-500 text-white disabled:opacity-50"
+                                className="text-xs px-2 py-1 rounded-md bg-purple-600 text-white disabled:opacity-50"
                                 onClick={() => handleSaveCommentEdit(post.id, comment.id)}
                                 disabled={!!commentActionLoadingById[comment.id]}
                               >
@@ -856,7 +859,7 @@ const Profile = () => {
                               </button>
                               <button
                                 type="button"
-                                className="text-xs px-2 py-1 rounded bg-gray-300 text-black"
+                                className="text-xs px-2 py-1 rounded-md bg-purple-900/30 text-purple-300 border border-purple-500/30"
                                 onClick={() => {
                                   setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
                                   setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
@@ -866,7 +869,7 @@ const Profile = () => {
                               </button>
                             </div>
                           ) : (
-                            <p className="text-sm">{comment.content}</p>
+                            <p className="text-sm text-purple-200">{comment.content}</p>
                           )}
                           {comment.image ? (
                             <div className="mt-2">
@@ -891,39 +894,39 @@ const Profile = () => {
       ) : null}
 
       {!isLoading && !error && activeTab === "about" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl mb-1">User Information</h1>
           <h2 className="font-semibold text-sm text-purple-300 mb-2">Contact Information</h2>
           <ul className="text-sm">
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Email:</span>
               <span>{emailText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Full Name:</span>
               <span>{fullName || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Nickname:</span>
               <span>{usernameText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Date of Birth:</span>
               <span>{birthdayText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Location:</span>
               <span>{locationText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Relationship:</span>
               <span>{relationshipText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Employed At:</span>
               <span>{employedAtText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Phone:</span>
               <span>{phoneText || "-"}</span>
             </li>
@@ -936,15 +939,15 @@ const Profile = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Followers ({followers.length})</h1>
-          {followListActionError ? <p className="text-red-300 text-sm mb-3">{followListActionError}</p> : null}
+          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
           {followers.length === 0 ? (
-            <p className="text-sm text-purple-200">No followers yet.</p>
+            <p className="text-sm text-purple-300">No followers yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
-                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
                   <Image
                     src={parseProfileImage(follower.profile_picture)}
                     alt="Follower"
@@ -953,20 +956,20 @@ const Profile = () => {
                     className="h-6 w-6 rounded-full"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
                     {follower.username ? (
-                      <span className="block truncate text-[11px] text-[#5b4d76]">@{follower.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">@{follower.username}</span>
                     ) : null}
                   </span>
                   <Link
                     href={`/profile/${follower.id}`}
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                   >
                     View profile
                   </Link>
                   <button
                     type="button"
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition disabled:opacity-50"
                     onClick={() => handleRemoveFollower(follower.id)}
                     disabled={!!isRemovingByUserId[follower.id]}
                   >
@@ -980,15 +983,15 @@ const Profile = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Following ({following.length})</h1>
-          {followListActionError ? <p className="text-red-300 text-sm mb-3">{followListActionError}</p> : null}
+          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
           {following.length === 0 ? (
-            <p className="text-sm text-purple-200">Not following anyone yet.</p>
+            <p className="text-sm text-purple-300">Not following anyone yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
                   <Image
                     src={parseProfileImage(followedUser.profile_picture)}
                     alt="Following"
@@ -997,20 +1000,20 @@ const Profile = () => {
                     className="h-6 w-6 rounded-full"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
                     {followedUser.username ? (
-                      <span className="block truncate text-[11px] text-[#5b4d76]">@{followedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">@{followedUser.username}</span>
                     ) : null}
                   </span>
                   <Link
                     href={`/profile/${followedUser.id}`}
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                   >
                     View profile
                   </Link>
                   <button
                     type="button"
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition disabled:opacity-50"
                     onClick={() => handleUnfollow(followedUser.id)}
                     disabled={!!isRemovingByUserId[followedUser.id]}
                   >
@@ -1024,15 +1027,15 @@ const Profile = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "blocked" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Blocked ({blockedUsers.length})</h1>
-          {followListActionError ? <p className="text-red-300 text-sm mb-3">{followListActionError}</p> : null}
+          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
           {blockedUsers.length === 0 ? (
-            <p className="text-sm text-purple-200">No blocked users.</p>
+            <p className="text-sm text-purple-300">No blocked users.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {blockedUsers.map((blockedUser) => (
-                <li key={blockedUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                <li key={blockedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
                   <Image
                     src={parseProfileImage(blockedUser.profile_picture)}
                     alt="Blocked user"
@@ -1041,20 +1044,20 @@ const Profile = () => {
                     className="h-6 w-6 rounded-full"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">{`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() || "Unknown User"}</span>
                     {blockedUser.username ? (
-                      <span className="block truncate text-[11px] text-[#5b4d76]">@{blockedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">@{blockedUser.username}</span>
                     ) : null}
                   </span>
                   <Link
                     href={`/profile/${blockedUser.id}`}
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                   >
                     View profile
                   </Link>
                   <button
                     type="button"
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition disabled:opacity-50"
                     onClick={() => handleUnblockUser(blockedUser.id)}
                     disabled={!!isUnblockingByUserId[blockedUser.id]}
                   >
@@ -1068,18 +1071,18 @@ const Profile = () => {
       ) : null}
 
       {!isLoading && !error && activeTab === "requests" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Pending Requests ({pendingRequests.length})</h1>
-          {pendingError ? <p className="text-red-300 text-sm mb-3">{pendingError}</p> : null}
+          {pendingError ? <p className="text-red-400 text-sm mb-3">{pendingError}</p> : null}
           {pendingRequests.length === 0 ? (
-            <p className="text-sm text-purple-200">No pending requests.</p>
+            <p className="text-sm text-purple-300">No pending requests.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {pendingRequests.map((requestUser) => {
                 const isAccepting = !!acceptingByUserId[requestUser.id];
                 const isRejecting = !!rejectingByUserId[requestUser.id];
                 return (
-                  <li key={requestUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                  <li key={requestUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
                     <Image
                       src={parseProfileImage(requestUser.profile_picture)}
                       alt="Request user"
@@ -1088,20 +1091,20 @@ const Profile = () => {
                       className="h-6 w-6 rounded-full"
                     />
                     <span className="flex-1 min-w-0">
-                      <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                      <span className="block truncate text-sm font-semibold text-purple-100">{`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() || "Unknown User"}</span>
                       {requestUser.username ? (
-                        <span className="block truncate text-[11px] text-[#5b4d76]">@{requestUser.username}</span>
+                        <span className="block truncate text-[11px] text-purple-400">@{requestUser.username}</span>
                       ) : null}
                     </span>
                     <Link
                       href={`/profile/${requestUser.id}`}
-                      className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                      className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                     >
                       View profile
                     </Link>
                     <button
                       type="button"
-                      className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                      className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition disabled:opacity-50"
                       onClick={() => handleAcceptRequest(requestUser.id)}
                       disabled={isAccepting || isRejecting}
                     >
@@ -1109,7 +1112,7 @@ const Profile = () => {
                     </button>
                     <button
                       type="button"
-                      className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1 disabled:opacity-50"
+                      className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition disabled:opacity-50"
                       onClick={() => handleRejectRequest(requestUser.id)}
                       disabled={isAccepting || isRejecting}
                     >

@@ -145,7 +145,7 @@ const UserProfilePage = () => {
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-10 pb-8">
-      <main className="flex flex-col w-full bg-white rounded-lg overflow-hidden gap-2">
+      <main className="flex flex-col w-full bg-[#1a1a2e] rounded-lg overflow-hidden gap-2 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
         <div
           className="w-full h-36 relative"
           style={{
@@ -156,7 +156,7 @@ const UserProfilePage = () => {
           }}
         />
 
-        <section className="border-b border-gray-200 pb-4 mb-2">
+        <section className="border-b border-purple-500/20 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
             <div className="flex items-center gap-2 pl-5 pt-5">
               <Image
@@ -164,17 +164,17 @@ const UserProfilePage = () => {
                 alt="Profile Picture"
                 width={50}
                 height={50}
-                className="rounded-full border-white"
+                className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
               />
 
               <div className="mb-4">
-                <h1 className="text-3xl font-black text-black">{fullName}</h1>
-                <span className="text-gray-400 text-sm">{usernameText}</span>
+                <h1 className="text-3xl font-black text-purple-100">{fullName}</h1>
+                <span className="text-purple-400 text-sm">{usernameText}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center mx-10 gap-6 text-sm text-gray-400">
+          <div className="flex justify-between items-center mx-10 gap-6 text-sm text-purple-400">
             <div className="flex flex-wrap items-center gap-6">
               {locationText ? (
                 <span className="flex items-center gap-2">
@@ -199,7 +199,7 @@ const UserProfilePage = () => {
                 Edit Profile
               </Link>
             ) : isBlockedByTarget ? (
-              <span className="text-sm text-red-500">You are blocked</span>
+              <span className="text-sm text-red-400">You are blocked</span>
             ) : (
               <div className="flex items-center gap-2 ml-auto">
                 {!isBlockedByMe ? (
@@ -216,41 +216,41 @@ const UserProfilePage = () => {
               </div>
             )}
           </div>
-          {blockActionError ? <p className="text-red-600 text-sm mx-10 mt-2">{blockActionError}</p> : null}
+          {blockActionError ? <p className="text-red-400 text-sm mx-10 mt-2">{blockActionError}</p> : null}
         </section>
 
         <section className="flex justify-start gap-8 ml-5">
           <div className="flex flex-col items-center">
-            <h1 className="text-4xl text-black">{userPosts.length}</h1>
-            <span className="text-gray-400">Posts</span>
+            <h1 className="text-4xl text-purple-100">{userPosts.length}</h1>
+            <span className="text-purple-400">Posts</span>
           </div>
           {canShowFollowLists ? (
             <>
               <div className="flex flex-col items-center">
-                <h1 className="text-4xl text-black">{followersCount}</h1>
-                <span className="text-gray-400">Followers</span>
+                <h1 className="text-4xl text-purple-100">{followersCount}</h1>
+                <span className="text-purple-400">Followers</span>
               </div>
               <div className="flex flex-col items-center">
-                <h1 className="text-4xl text-black">{following.length}</h1>
-                <span className="text-gray-400">Following</span>
+                <h1 className="text-4xl text-purple-100">{following.length}</h1>
+                <span className="text-purple-400">Following</span>
               </div>
             </>
           ) : null}
         </section>
 
-        <section className="text-gray-400 flex justify-around border-t border-gray-200 mt-4 pt-2 pb-2">
-          <button type="button" onClick={() => setActiveTab("posts")} className="text-gray-400 cursor-pointer">
+        <section className="text-purple-400 flex justify-around border-t border-purple-500/20 mt-4 pt-2 pb-2">
+          <button type="button" onClick={() => setActiveTab("posts")} className={`cursor-pointer transition ${activeTab === "posts" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
             Posts({userPosts.length})
           </button>
-          <button type="button" onClick={() => setActiveTab("about")} className="text-gray-400 cursor-pointer">
+          <button type="button" onClick={() => setActiveTab("about")} className={`cursor-pointer transition ${activeTab === "about" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
             About
           </button>
           {canShowFollowLists ? (
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className="text-gray-400 cursor-pointer">
+              <button type="button" onClick={() => setActiveTab("followers")} className={`cursor-pointer transition ${activeTab === "followers" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
                 Followers({followersCount})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className="text-gray-400 cursor-pointer">
+              <button type="button" onClick={() => setActiveTab("following")} className={`cursor-pointer transition ${activeTab === "following" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
                 Following({following.length})
               </button>
             </>
@@ -259,40 +259,41 @@ const UserProfilePage = () => {
       </main>
 
       {isLoading ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
           Loading profile...
         </article>
       ) : error ? (
-        <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
           {error}
         </article>
       ) : null}
 
       {!isLoading && !error && activeTab === "posts" ? (
         userPosts.length === 0 ? (
-          <article className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+          <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
             No posts yet.
           </article>
         ) : (
           userPosts.map((post) => {
             const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
             return (
-              <article key={post.id} className="border border-gray-200 rounded-lg bg-white text-black w-full p-5">
+              <article key={post.id} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition">
                 <div className="flex items-center gap-2">
                   <Image
                     src={parseProfileImage(post.author_profile_picture || profileData.profile_picture)}
                     alt="Profile Icon"
                     width={30}
                     height={30}
+                    className="rounded-full"
                   />
                   <Link
                     href={post.user_id ? `/profile/${post.user_id}` : (targetUserId ? `/profile/${targetUserId}` : "/profile")}
-                    className="font-bold text-lg"
+                    className="font-bold text-lg text-purple-200 hover:text-purple-100"
                   >
                     {fullName}
                   </Link>
                 </div>
-                {postDateLabel ? <span className="text-sm text-gray-500 ml-4 mb-2">{postDateLabel}</span> : null}
+                {postDateLabel ? <span className="text-sm text-purple-400 ml-4 mb-2">{postDateLabel}</span> : null}
                 <p>{post.content}</p>
                 {post.image ? (
                   <div className="mt-3">
@@ -312,39 +313,39 @@ const UserProfilePage = () => {
       ) : null}
 
       {!isLoading && !error && activeTab === "about" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
-          <h1 className="font-bold text-2xl mb-1">User Information</h1>
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
+          <h1 className="font-bold text-2xl mb-1 text-purple-100">User Information</h1>
           <h2 className="font-semibold text-sm text-purple-300 mb-2">Contact Information</h2>
           <ul className="text-sm">
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Email:</span>
               <span>{emailText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Full Name:</span>
               <span>{fullName || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Nickname:</span>
               <span>{usernameText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Date of Birth:</span>
               <span>{birthdayText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Location:</span>
               <span>{locationText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Relationship:</span>
               <span>{relationshipText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Employed At:</span>
               <span>{employedAtText || "-"}</span>
             </li>
-            <li className="flex justify-between gap-4 py-1 border-b border-purple-900">
+            <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Phone:</span>
               <span>{phoneText || "-"}</span>
             </li>
@@ -357,14 +358,14 @@ const UserProfilePage = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Followers ({followers.length})</h1>
           {followers.length === 0 ? (
-            <p className="text-sm text-purple-200">No followers yet.</p>
+            <p className="text-sm text-purple-300">No followers yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
-                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
                   <Image
                     src={parseProfileImage(follower.profile_picture)}
                     alt="Follower"
@@ -373,18 +374,18 @@ const UserProfilePage = () => {
                     className="h-6 w-6 rounded-full"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-200">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
                     {follower.username ? (
-                      <span className="block truncate text-[11px] text-[#5b4d76]">@{follower.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">@{follower.username}</span>
                     ) : null}
                   </span>
                   <Link
                     href={`/profile/${follower.id}`}
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                   >
                     View profile
                   </Link>
-                  <span className="text-xs bg-[#4d3f74] text-white rounded-md px-3 py-1">Follower</span>
+                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">Follower</span>
                 </li>
               ))}
             </ul>
@@ -393,14 +394,14 @@ const UserProfilePage = () => {
       ) : null}
 
       {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
-        <article className="border border-purple-800 rounded-lg bg-[#140026] text-white w-full p-5">
+        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl text-purple-200 mb-3">Following ({following.length})</h1>
           {following.length === 0 ? (
-            <p className="text-sm text-purple-200">Not following anyone yet.</p>
+            <p className="text-sm text-purple-300">Not following anyone yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-200 bg-white px-3 py-2">
+                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
                   <Image
                     src={parseProfileImage(followedUser.profile_picture)}
                     alt="Following"
@@ -409,18 +410,18 @@ const UserProfilePage = () => {
                     className="h-6 w-6 rounded-full"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#2d1b48]">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-200">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
                     {followedUser.username ? (
-                      <span className="block truncate text-[11px] text-[#5b4d76]">@{followedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">@{followedUser.username}</span>
                     ) : null}
                   </span>
                   <Link
                     href={`/profile/${followedUser.id}`}
-                    className="text-xs bg-[#4d3f74] hover:bg-[#3f315f] text-white rounded-md px-3 py-1"
+                    className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition"
                   >
                     View profile
                   </Link>
-                  <span className="text-xs bg-[#4d3f74] text-white rounded-md px-3 py-1">Following</span>
+                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">Following</span>
                 </li>
               ))}
             </ul>

@@ -15,8 +15,8 @@ const Input = ({
     <div className={`relative ${className}`}>
       <label className="label-custom" htmlFor={id}>
         {label}{" "}
-        {required && <span className="text-red-500">*</span>}
-        {optional && <span className="text-gray-500">(Optional)</span>}
+        {required && <span className="text-pink-400">*</span>}
+        {optional && <span className="text-purple-400">(Optional)</span>}
       </label>
 
       {icon && (

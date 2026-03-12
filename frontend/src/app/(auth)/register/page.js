@@ -127,7 +127,7 @@ const RegisterPage = () => {
           htmlFor="avatar"
         >
           Avatar/Profile Picture{" "}
-          <span className="text-gray-500">(Optional)</span>
+          <span className="text-purple-400">(Optional)</span>
         </label>
 
         <Image
@@ -135,11 +135,11 @@ const RegisterPage = () => {
           alt="Image Icon"
           width={40}
           height={40}
-          className="absolute left-2 top-0 bg-gray-200 py-2 px-2 rounded-(--rounded-full)"
+          className="absolute left-2 top-0 py-2 px-2"
         />
 
         <input
-          className="absolute top-2 left-16 bg-gray-200 w-3/4 rounded-xl text-sm pl-1.5 text-black"
+          className="absolute top-2 left-16 bg-[#0d0d1a] border border-purple-500/30 w-3/4 rounded-xl text-sm pl-1.5 text-purple-200 file:bg-transparent file:text-purple-300 file:border-0 file:rounded-md file:px-2 file:py-0.5 file:mr-2 file:cursor-pointer"
           id="avatar"
           name="avatar"
           type="file"
@@ -159,7 +159,7 @@ const RegisterPage = () => {
 
       <div className="mb-14 relative">
         <label className="label-custom h-16" htmlFor="about_me">
-          About Me <span className="text-gray-500">(Optional)</span>
+          About Me <span className="text-purple-400">(Optional)</span>
         </label>
 
         <Image
@@ -170,7 +170,7 @@ const RegisterPage = () => {
           className="absolute left-2 top-3"
         />
         <input
-          className="border rounded-md w-full py-2 pb-12 pl-8 pr-2 bg-white text-gray-600"
+          className="border border-purple-500/30 rounded-md w-full py-2 pb-12 pl-8 pr-2 bg-[#0d0d1a] text-purple-200 placeholder-purple-400/40 focus:border-purple-500/50 focus:outline-none"
           id="about_me"
           name="about_me"
           type="text"

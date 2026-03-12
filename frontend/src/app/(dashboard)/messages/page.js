@@ -668,11 +668,11 @@ const MessagesPage = () => {
 
   return (
     <div className="w-full max-w-5xl pb-8">
-      <div className="border border-purple-800 bg-[#140026] rounded-xl overflow-hidden shadow-[0_0_0_1px_rgba(168,85,247,0.25)] min-h-[70vh]">
+      <div className="border border-purple-500/30 bg-[#1a1a2e] rounded-xl overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[70vh]">
         <div className="grid grid-cols-[300px_1fr] min-h-[70vh]">
-          <aside className="border-r border-purple-900/80 bg-[#17002b]">
-            <div className="p-3 border-b border-purple-900/80">
-              <div className="flex items-center rounded-full bg-[#26103b] px-3 py-2">
+          <aside className="border-r border-purple-500/20 bg-[#1a1a2e]">
+            <div className="p-3 border-b border-purple-500/20">
+              <div className="flex items-center rounded-full bg-[#0d0d1a] border border-purple-500/30 px-3 py-2">
                 <span className="text-purple-300 text-sm mr-2">⌕</span>
                 <input
                   value={searchTerm}
@@ -682,7 +682,7 @@ const MessagesPage = () => {
                 />
               </div>
 
-              <div className="mt-2 rounded-md border border-purple-900/70 bg-[#1b0a30] px-2 py-2">
+              <div className="mt-2 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-2 py-2">
                 <input
                   value={newChatQuery}
                   onChange={(event) => setNewChatQuery(event.target.value)}
@@ -696,7 +696,7 @@ const MessagesPage = () => {
                         key={candidate.id}
                         type="button"
                         onClick={() => handleStartNewChat(candidate)}
-                        className="w-full flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#291144]"
+                        className="w-full flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-purple-900/20 transition"
                       >
                         <Image
                           src={parseProfileImage(candidate.profile_picture)}
@@ -737,8 +737,8 @@ const MessagesPage = () => {
                         setNewChatTarget(null);
                         setSelectedChatId(chatItem.chat_id);
                       }}
-                      className={`w-full text-left px-3 py-3 border-b border-purple-900/50 transition ${
-                        isSelected ? "bg-[#24103b]" : "hover:bg-[#1e0b33]"
+                      className={`w-full text-left px-3 py-3 border-b border-purple-500/20 transition ${
+                        isSelected ? "bg-purple-900/30" : "hover:bg-purple-900/20"
                       }`}
                     >
                       <div className="flex items-start gap-2">
@@ -779,8 +779,8 @@ const MessagesPage = () => {
             </div>
           </aside>
 
-          <section className="flex flex-col bg-[#140026]">
-            <header className="h-14 border-b border-purple-900/80 px-4 flex items-center justify-between">
+          <section className="flex flex-col bg-[#0d0d1a]">
+            <header className="h-14 border-b border-purple-500/20 px-4 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <Image
                   src={parseProfileImage(selectedChat?.other_user_picture || newChatTarget?.profile_picture)}
@@ -846,7 +846,7 @@ const MessagesPage = () => {
                     const isMine = Number(message.sender_id) === Number(currentUser?.id);
                     return (
                       <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                        <div className="max-w-[70%] rounded-lg border border-purple-500/70 bg-[#3a1c67] px-3 py-2">
+                        <div className="max-w-[70%] rounded-lg border border-purple-500/30 bg-purple-900/30 px-3 py-2">
                           <p className="text-xs text-purple-100 wrap-break-word">{message.body || ""}</p>
                           <p className="text-[10px] text-purple-300 mt-1">{formatSmallTime(message.created_at)}</p>
                         </div>
@@ -860,20 +860,20 @@ const MessagesPage = () => {
               ) : null}
             </div>
 
-            <footer className="h-14 border-t border-purple-900/80 px-3 flex items-center gap-2">
+            <footer className="h-14 border-t border-purple-500/20 px-3 flex items-center gap-2">
               <form onSubmit={handleSendMessage} className="w-full flex items-center gap-2">
                 <input
                   value={draftMessage}
                   onChange={(event) => setDraftMessage(event.target.value)}
                   placeholder="Type a message here..."
-                  className="flex-1 h-9 rounded-full bg-[#26103b] px-4 text-sm text-purple-100 placeholder:text-purple-400 outline-none"
+                  className="flex-1 h-9 rounded-full bg-[#1a1a2e] border border-purple-500/30 px-4 text-sm text-purple-100 placeholder:text-purple-400 outline-none focus:border-purple-500/50"
                   disabled={(!selectedChat && !newChatTarget) || isSending || !canSendInCurrentContext}
                 />
                 <EmojiPickerButton onEmojiSelect={(emoji) => setDraftMessage((prev) => prev + emoji)} />
                 <button
                   type="submit"
                   disabled={(!selectedChat && !newChatTarget) || isSending || !draftMessage.trim() || !canSendInCurrentContext}
-                  className="h-9 w-9 flex items-center justify-center rounded-full bg-[#5a37ff] hover:bg-[#4c2df3] disabled:opacity-50"
+                  className="h-9 w-9 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition"
                 >
                   <Image
                     src="/share_icon.svg"
@@ -888,7 +888,7 @@ const MessagesPage = () => {
         </div>
       </div>
 
-      {error ? <p className="text-red-300 text-sm mt-3">{error}</p> : null}
+      {error ? <p className="text-red-400 text-sm mt-3">{error}</p> : null}
     </div>
   );
 };
