@@ -806,15 +806,9 @@ const MessagesPage = () => {
                   ) : (
                     <h1 className="text-sm font-semibold text-purple-100 truncate">Messages</h1>
                   )}
-                  <p className="text-[11px] text-purple-300 inline-flex items-center gap-2">
-                    {activeDirectTargetId ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className={`h-2 w-2 rounded-full ${isDirectTargetOnline ? "bg-green-400" : "bg-gray-500"}`} />
-                        {isDirectTargetOnline ? "Online" : "Offline"}
-                      </span>
-                    ) : null}
-                    <span>{headerActivityText}</span>
-                  </p>
+                  {headerActivityText && (
+                    <p className="text-[11px] text-purple-300">{headerActivityText}</p>
+                  )}
                 </div>
               </div>
               {selectedChat || newChatTarget ? (
