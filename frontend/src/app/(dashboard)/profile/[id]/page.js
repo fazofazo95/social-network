@@ -143,6 +143,34 @@ const UserProfilePage = () => {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-2xl flex flex-col items-center justify-center py-20">
+        <div className="text-purple-400 text-lg">Loading profile...</div>
+      </div>
+    );
+  }
+
+  if (error || (!isLoading && !profileData?.id)) {
+    return (
+      <div className="w-full max-w-2xl flex flex-col items-center justify-center py-20 gap-4">
+        <div className="bg-[#1a1a2e] border border-purple-500/30 rounded-xl p-10 flex flex-col items-center gap-4 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+          <span className="text-5xl">👤</span>
+          <h2 className="text-2xl font-bold text-purple-200">User Not Found</h2>
+          <p className="text-purple-400 text-center max-w-sm">
+            {error || "The profile you're looking for doesn't exist or may have been removed."}
+          </p>
+          <Link
+            href="/"
+            className="mt-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition shadow-custom"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-2xl flex flex-col gap-10 pb-8">
       <main className="flex flex-col w-full bg-[#1a1a2e] rounded-lg overflow-hidden gap-2 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
@@ -258,17 +286,7 @@ const UserProfilePage = () => {
         </section>
       </main>
 
-      {isLoading ? (
-        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
-          Loading profile...
-        </article>
-      ) : error ? (
-        <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
-          {error}
-        </article>
-      ) : null}
-
-      {!isLoading && !error && activeTab === "posts" ? (
+      {activeTab === "posts" ? (
         userPosts.length === 0 ? (
           <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-300 w-full p-5">
             No posts yet.

@@ -460,10 +460,29 @@ const GroupDetailPage = () => {
                 <span>Back to Groups</span>
             </Link>
 
-            {loading && <p className="text-center text-purple-300">Loading group...</p>}
-            {error && <p className="text-center text-red-500">{error}</p>}
-            
-            {!loading && !group && <p className="text-center text-purple-300">Group not found</p>}
+            {loading && (
+                <div className="flex justify-center py-20">
+                    <p className="text-purple-400 text-lg">Loading group...</p>
+                </div>
+            )}
+
+            {!loading && (error || !group) && (
+                <div className="flex justify-center py-20">
+                    <div className="bg-[#1a1a2e] border border-purple-500/30 rounded-xl p-10 flex flex-col items-center gap-4 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <span className="text-5xl">👥</span>
+                        <h2 className="text-2xl font-bold text-purple-200">Group Not Found</h2>
+                        <p className="text-purple-400 text-center max-w-sm">
+                            {error || "The group you're looking for doesn't exist or may have been removed."}
+                        </p>
+                        <Link
+                            href="/groups"
+                            className="mt-2 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition shadow-custom"
+                        >
+                            Back to Groups
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {!loading && group && (
             <>
