@@ -187,3 +187,47 @@ export async function deleteGroupPost(groupId, postId) {
     method: "DELETE",
   });
 }
+
+// ===== GROUP EVENTS =====
+
+export async function createGroupEvent(groupId, data) {
+  return apiRequest(`/api/groups/${groupId}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getGroupEventsTimeline(groupId) {
+  const payload = await apiRequest(`/api/groups/${groupId}/events`, {
+    method: "GET",
+  });
+
+  const data = payload?.data || {};
+  return {
+    upcoming_events: Array.isArray(data.upcoming_events) ? data.upcoming_events : [],
+    older_events: Array.isArray(data.older_events) ? data.older_events : [],
+  };
+}
+
+export async function respondGroupEvent(groupId, eventId, reactionType) {
+  return apiRequest(`/api/groups/${groupId}/events/${eventId}/respond`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reaction_type: reactionType }),
+  });
+}
+
+export async function changeGroupEventResponse(groupId, eventId, reactionType) {
+  return apiRequest(`/api/groups/${groupId}/events/${eventId}/respond`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reaction_type: reactionType }),
+  });
+}
+
+export async function deleteGroupEvent(groupId, eventId) {
+  return apiRequest(`/api/groups/${groupId}/events/${eventId}`, {
+    method: "DELETE",
+  });
+}

@@ -22,6 +22,11 @@ import {
     createGroupPost,
     getGroupPosts,
     deleteGroupPost,
+    createGroupEvent,
+    getGroupEventsTimeline,
+    respondGroupEvent,
+    changeGroupEventResponse,
+    deleteGroupEvent,
 } from "src/lib/services/group";
 import { getDiscoveredUsers } from "src/lib/services/discover";
 import { fetchUserData } from "src/lib/services/user";
@@ -76,10 +81,10 @@ const GroupDetailPage = () => {
 
     const [expandedComments, setExpandedComments] = useState({});
 
-    const [events, setEvents] = useState([
-        { id: 1, title: "Weekly Code Review", date: "March 1, 2026", time: "3:00 PM", attendees: 28, going: true },
-        { id: 2, title: "React Workshop", date: "March 5, 2026", time: "2:00 PM", attendees: 45, going: false },
-    ]);
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [olderEvents, setOlderEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+    const [eventActionLoading, setEventActionLoading] = useState({});
 
     // Load current user
     useEffect(() => {
@@ -156,8 +161,9 @@ const GroupDetailPage = () => {
                     const membersData = await getGroupMembers(groupId);
                     setMembers(membersData);
 
-                    // Load group posts
+                    // Load group posts and events
                     await loadGroupPosts(1);
+                    await loadGroupEvents();
                     
                     // If moderator/owner, fetch pending requests and invites
                     if (groupData.role === "owner" || groupData.role === "moderator") {
@@ -368,15 +374,46 @@ const GroupDetailPage = () => {
         }));
     };
 
-    const handleToggleAttend = (eventId) => {
-        setEvents(prev => prev.map(ev => {
-            if (ev.id === eventId) {
-                const newGoing = !ev.going;
-                const newAttendees = newGoing ? (ev.attendees || 0) + 1 : Math.max(0, (ev.attendees || 0) - 1);
-                return { ...ev, going: newGoing, attendees: newAttendees };
+    async function loadGroupEvents() {
+        setEventsLoading(true);
+        try {
+            const timeline = await getGroupEventsTimeline(groupId);
+            setUpcomingEvents(timeline.upcoming_events);
+            setOlderEvents(timeline.older_events);
+        } catch (err) {
+            console.error("Failed to load events:", err);
+        } finally {
+            setEventsLoading(false);
+        }
+    }
+
+    const handleEventResponse = async (eventId, currentReaction, newReaction) => {
+        setEventActionLoading(prev => ({ ...prev, [eventId]: true }));
+        try {
+            if (currentReaction === "pending" || !currentReaction) {
+                await respondGroupEvent(groupId, eventId, newReaction);
+            } else {
+                await changeGroupEventResponse(groupId, eventId, newReaction);
             }
-            return ev;
-        }));
+            await loadGroupEvents();
+        } catch (err) {
+            console.error("Failed to respond to event:", err);
+            alert(err?.message || "Failed to update response");
+        } finally {
+            setEventActionLoading(prev => ({ ...prev, [eventId]: false }));
+        }
+    };
+
+    const handleDeleteEvent = async (eventId) => {
+        if (!confirm("Are you sure you want to cancel this event?")) return;
+        try {
+            await deleteGroupEvent(groupId, eventId);
+            setUpcomingEvents(prev => prev.filter(e => e.id !== eventId));
+            setOlderEvents(prev => prev.filter(e => e.id !== eventId));
+        } catch (err) {
+            console.error("Failed to delete event:", err);
+            alert(err?.message || "Failed to cancel event");
+        }
     };
 
     return (
@@ -488,7 +525,7 @@ const GroupDetailPage = () => {
                             : "text-purple-400 hover:text-purple-200 hover:bg-purple-900/20 border border-transparent"
                     }`}
                 >
-                    Events ({events.length})
+                    Events ({upcomingEvents.length + olderEvents.length})
                 </button>
                 {(userRole === "owner" || userRole === "moderator") && (
                     <>
@@ -857,39 +894,58 @@ const GroupDetailPage = () => {
             {/* Events Section */}
             {activeTab === "events" && (
                 <section className="flex flex-col gap-4">
-                    {(userRole === "moderator" || userRole === "owner") && (
-                        <button 
-                            onClick={() => setShowCreateEventModal(true)}
-                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition cursor-pointer text-sm flex items-center gap-2 w-fit"
-                        >
-                            <span>+</span> Create Event
-                        </button>
+                    {/* Create Event - any active member can create */}
+                    <button 
+                        onClick={() => setShowCreateEventModal(true)}
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition cursor-pointer text-sm flex items-center gap-2 w-fit"
+                    >
+                        <span>+</span> Create Event
+                    </button>
+
+                    {eventsLoading ? (
+                        <p className="text-center text-purple-300">Loading events...</p>
+                    ) : upcomingEvents.length === 0 && olderEvents.length === 0 ? (
+                        <EmptyState message="No events yet" subMessage="Create an event to get started!" />
+                    ) : (
+                        <>
+                            {/* Upcoming Events */}
+                            {upcomingEvents.length > 0 && (
+                                <>
+                                    <h3 className="text-purple-200 font-semibold text-sm uppercase tracking-wider">Upcoming</h3>
+                                    {upcomingEvents.map(event => (
+                                        <EventCard
+                                            key={event.id}
+                                            event={event}
+                                            userRole={userRole}
+                                            currentUserId={currentUser?.id}
+                                            loading={!!eventActionLoading[event.id]}
+                                            onRespond={(reaction) => handleEventResponse(event.id, event.my_reaction, reaction)}
+                                            onDelete={() => handleDeleteEvent(event.id)}
+                                        />
+                                    ))}
+                                </>
+                            )}
+
+                            {/* Older Events */}
+                            {olderEvents.length > 0 && (
+                                <>
+                                    <h3 className="text-purple-400/60 font-semibold text-sm uppercase tracking-wider mt-4">Past Events</h3>
+                                    {olderEvents.map(event => (
+                                        <EventCard
+                                            key={event.id}
+                                            event={event}
+                                            userRole={userRole}
+                                            currentUserId={currentUser?.id}
+                                            loading={!!eventActionLoading[event.id]}
+                                            onRespond={(reaction) => handleEventResponse(event.id, event.my_reaction, reaction)}
+                                            onDelete={() => handleDeleteEvent(event.id)}
+                                            isPast
+                                        />
+                                    ))}
+                                </>
+                            )}
+                        </>
                     )}
-                    
-                    {events.map(event => (
-                        <article key={event.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-semibold text-purple-100 text-lg">{event.title}</h3>
-                                    <div className="flex items-center gap-4 text-sm text-purple-400 mt-1">
-                                        <span>📅 {event.date}</span>
-                                        <span>🕐 {event.time}</span>
-                                        <span>👥 {event.attendees} attending</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => handleToggleAttend(event.id)}
-                                    className={`px-4 py-2 rounded-md transition cursor-pointer text-sm ${
-                                        event.going 
-                                            ? "bg-purple-900/30 text-purple-300 border border-purple-500/30 hover:bg-purple-900/50"
-                                            : "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]"
-                                    }`}
-                                >
-                                    {event.going ? "Going ✓" : "Attend"}
-                                </button>
-                            </div>
-                        </article>
-                    ))}
                 </section>
             )}
 
@@ -992,7 +1048,14 @@ const GroupDetailPage = () => {
 
             {/* Create Event Modal */}
             {showCreateEventModal && (
-                <CreateEventModal onClose={() => setShowCreateEventModal(false)} />
+                <CreateEventModal
+                    groupId={groupId}
+                    onClose={() => setShowCreateEventModal(false)}
+                    onCreated={() => {
+                        loadGroupEvents();
+                        setShowCreateEventModal(false);
+                    }}
+                />
             )}
 
             {/* Settings Modal */}
@@ -1267,20 +1330,115 @@ const CreatePostModal = ({ groupId, onClose, onCreated }) => {
 };
 
 // Create Event Modal Component
-const CreateEventModal = ({ onClose }) => {
+// Event Card Component
+const EventCard = ({ event, userRole, currentUserId, loading, onRespond, onDelete, isPast }) => {
+    const myReaction = event.my_reaction;
+    const canDelete = event.creator_id === currentUserId || userRole === "owner" || userRole === "moderator";
+
+    return (
+        <article className={`bg-[#1a1a2e] rounded-lg border p-4 transition-all ${
+            isPast
+                ? "border-purple-500/15 opacity-70"
+                : "border-purple-500/30 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+        }`}>
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                    <h3 className="font-semibold text-purple-100 text-lg">{event.title}</h3>
+                    {event.description && (
+                        <p className="text-purple-300/70 text-sm mt-1">{event.description}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-sm text-purple-400 mt-2 flex-wrap">
+                        <span>📅 {event.event_day}</span>
+                        <span>🕐 {event.event_time}</span>
+                        <span className="text-green-400">✓ {event.going} going</span>
+                        <span className="text-red-400">✗ {event.not_going} not going</span>
+                        <span className="text-purple-400/60">📩 {event.pending} pending</span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                    {!isPast && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onRespond("going")}
+                                disabled={loading || myReaction === "going"}
+                                className={`px-3 py-1.5 rounded-md transition cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    myReaction === "going"
+                                        ? "bg-green-600/30 text-green-300 border border-green-500/40"
+                                        : "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                }`}
+                            >
+                                {myReaction === "going" ? "Going ✓" : "Going"}
+                            </button>
+                            <button
+                                onClick={() => onRespond("not_going")}
+                                disabled={loading || myReaction === "not_going"}
+                                className={`px-3 py-1.5 rounded-md transition cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    myReaction === "not_going"
+                                        ? "bg-red-600/30 text-red-300 border border-red-500/40"
+                                        : "bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30"
+                                }`}
+                            >
+                                {myReaction === "not_going" ? "Not Going ✗" : "Not Going"}
+                            </button>
+                        </div>
+                    )}
+                    {canDelete && (
+                        <button
+                            onClick={onDelete}
+                            className="text-xs text-purple-400 hover:text-red-300 transition"
+                        >
+                            Cancel Event
+                        </button>
+                    )}
+                </div>
+            </div>
+        </article>
+    );
+};
+
+// Create Event Modal Component
+const CreateEventModal = ({ groupId, onClose, onCreated }) => {
     const [formData, setFormData] = useState({
         title: "",
-        date: "",
-        time: "",
+        event_day: "",
+        event_time: "",
         description: "",
     });
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.title.trim()) return;
-        console.log("Creating event:", formData);
-        alert("Event created!");
-        onClose();
+        if (!formData.title.trim()) {
+            setError("Event title is required.");
+            return;
+        }
+        if (!formData.event_day) {
+            setError("Event date is required.");
+            return;
+        }
+        if (!formData.event_time) {
+            setError("Event time is required.");
+            return;
+        }
+
+        setSubmitting(true);
+        setError("");
+
+        try {
+            await createGroupEvent(groupId, {
+                title: formData.title.trim(),
+                description: formData.description.trim(),
+                event_day: formData.event_day,
+                event_time: formData.event_time,
+            });
+            onCreated();
+        } catch (err) {
+            console.error("Failed to create event:", err);
+            setError(err?.message || "Failed to create event.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -1297,6 +1455,7 @@ const CreateEventModal = ({ onClose }) => {
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-400/50 text-sm"
                             placeholder="Enter event title..."
+                            disabled={submitting}
                         />
                     </div>
 
@@ -1305,18 +1464,20 @@ const CreateEventModal = ({ onClose }) => {
                             <label className="block text-sm font-medium text-purple-300 mb-1">Date</label>
                             <input
                                 type="date"
-                                value={formData.date}
-                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                value={formData.event_day}
+                                onChange={(e) => setFormData({ ...formData, event_day: e.target.value })}
                                 className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 text-sm"
+                                disabled={submitting}
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-purple-300 mb-1">Time</label>
                             <input
                                 type="time"
-                                value={formData.time}
-                                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                                value={formData.event_time}
+                                onChange={(e) => setFormData({ ...formData, event_time: e.target.value })}
                                 className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 text-sm"
+                                disabled={submitting}
                             />
                         </div>
                     </div>
@@ -1329,22 +1490,27 @@ const CreateEventModal = ({ onClose }) => {
                             rows={3}
                             className="w-full px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-400/50 text-sm resize-none"
                             placeholder="Describe your event..."
+                            disabled={submitting}
                         />
                     </div>
+
+                    {error && <p className="text-red-400 text-sm">{error}</p>}
 
                     <div className="flex gap-3 justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+                            disabled={submitting}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_15px_rgba(168,85,247,0.4)] disabled:opacity-50"
                         >
-                            Create Event
+                            {submitting ? "Creating..." : "Create Event"}
                         </button>
                     </div>
                 </form>
