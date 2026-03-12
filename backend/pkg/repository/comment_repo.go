@@ -93,10 +93,14 @@ func (r *sqliteCommentRepo) GetPostComments(ctx context.Context, postID int, vie
             OR (p.privacy = 'custom' AND EXISTS (
                 SELECT 1 FROM post_permissions WHERE post_id = p.id AND user_id = ?
             ))
+            OR (p.group_id IS NOT NULL AND EXISTS (
+                SELECT 1 FROM group_members gm
+                WHERE gm.group_id = p.group_id AND gm.user_id = ? AND gm.status = 'active'
+            ))
         )
         ORDER BY c.created_at ASC;`
 
-	rows, err := r.db.QueryContext(ctx, query, postID, viewerID, viewerID, viewerID)
+	rows, err := r.db.QueryContext(ctx, query, postID, viewerID, viewerID, viewerID, viewerID)
 	if err != nil {
 		log.Printf("[ERROR] GetPostComments query failed: %v", err)
 		return nil, err
