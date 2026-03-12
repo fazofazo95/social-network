@@ -1,6 +1,5 @@
 'use client';
 import { useState } from "react";
-import Image from "next/image";
 import { addReaction, removeReaction } from "src/lib/services/reaction";
 
 // Accept postId as a prop to know which post to react to
@@ -41,12 +40,7 @@ const Ripple_Button = ({ postId, initialRippled = false, initialCount = 0, onCha
       disabled={loading}
       aria-pressed={rippled}
     >
-      <Image
-        src={rippled ? "/ripples/Ripple_icon.svg" : "/ripples/Unripple_icon.svg"}
-        alt="Ripple Icon"
-        width={20}
-        height={20}
-      />
+      <span className="text-lg">{rippled ? "💜" : "🤍"}</span>
       Ripple
     </button>
   );

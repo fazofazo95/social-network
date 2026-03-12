@@ -13,7 +13,7 @@ import {
     requestToJoinGroup,
     leaveGroup
 } from "src/lib/services/group";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import Link from "next/link";
 import { useToast } from "src/components/ui/Toast";
 
@@ -201,13 +201,7 @@ const GroupsPage = () => {
 
             {/* Search Bar */}
             <div className="relative">
-                <Image 
-                    src="/search_icon.svg" 
-                    alt="Search" 
-                    width={16} 
-                    height={16} 
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60"
-                />
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60 text-sm">🔍</span>
                 <input
                     type="text"
                     value={searchQuery}
@@ -277,9 +271,9 @@ const GroupsPage = () => {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h2 className="text-lg font-bold text-purple-100">{group.name}</h2>
                                         {group.privacy === "private" ? (
-                                            <Image src="/lock_icon.svg" alt="Private" width={14} height={14} />
+                                            <span className="text-xs">🔒</span>
                                         ) : (
-                                            <Image src="/globe_icon.svg" alt="Public" width={14} height={14} />
+                                            <span className="text-xs">🌐</span>
                                         )}
                                         {group.owner === currentUser && (
                                             <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Creator</span>
@@ -288,7 +282,7 @@ const GroupsPage = () => {
                                     <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content || group.description}</p>
                                     <div className="flex items-center gap-4 text-xs text-purple-400 mt-2">
                                         <span className="flex items-center gap-1">
-                                            <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
+                                            <span className="opacity-60">👥</span>
                                             {formatMembers(group.members || group.group_members || 0)} members
                                         </span>
                                         <span>Created by {group.owner_first_name} {group.owner_last_name}</span>
@@ -338,15 +332,15 @@ const GroupsPage = () => {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h2 className="text-lg font-bold text-purple-100">{group.name}</h2>
                                         {group.privacy === "private" ? (
-                                            <Image src="/lock_icon.svg" alt="Private" width={14} height={14} />
+                                            <span className="text-xs">🔒</span>
                                         ) : (
-                                            <Image src="/globe_icon.svg" alt="Public" width={14} height={14} />
+                                            <span className="text-xs">🌐</span>
                                         )}
                                     </div>
                                     <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content || group.description}</p>
                                     <div className="flex items-center gap-4 text-xs text-purple-400 mt-2">
                                         <span className="flex items-center gap-1">
-                                            <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
+                                            <span className="opacity-60">👥</span>
                                             {formatMembers(group.members || group.group_members || 0)} members
                                         </span>
                                         <span>Invited by {group.owner_first_name} {group.owner_last_name}</span>
@@ -387,34 +381,28 @@ const GroupsPage = () => {
                         <article key={group.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 rounded-md bg-purple-600 flex items-center justify-center text-white text-xl font-bold  shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.3)] overflow-hidden">
-                                    {/* Prefer group picture when available */}
-                                    {group.group_picture ? (
-                                        <Image
-                                            src={parseProfileImage(group.group_picture)}
-                                            alt={group.name}
-                                            width={48}
-                                            height={48}
-                                            className="object-cover w-full h-full"
-                                            onError={e => { e.target.onerror = null; e.target.src = "/groups_icon.svg"; }}
-                                        />
-                                    ) : (
-                                        <span className="text-xl">{group.name[0]}</span>
-                                    )}
+                                    <Avatar
+                                        src={group.group_picture}
+                                        name={group.name}
+                                        size={48}
+                                        type="group"
+                                        className="rounded-md"
+                                    />
                                 </div>
                                 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h2 className="text-lg font-bold text-purple-100">{group.name}</h2>
                                         {group.privacy === "private" ? (
-                                            <Image src="/lock_icon.svg" alt="Private" width={14} height={14} />
+                                            <span className="text-xs">🔒</span>
                                         ) : (
-                                            <Image src="/globe_icon.svg" alt="Public" width={14} height={14} />
+                                            <span className="text-xs">🌐</span>
                                         )}
                                     </div>
                                     <p className="text-purple-300/70 text-sm mt-1 line-clamp-2">{group.content || group.description || "No description provided."}</p>
                                     <div className="flex items-center gap-4 text-xs text-purple-400 mt-2">
                                         <span className="flex items-center gap-1">
-                                            <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
+                                            <span className="opacity-60">👥</span>
                                             {formatMembers(group.members || group.members_count || 0)} members
                                         </span>
                                         <span>Created by {group.owner_first_name} {group.owner_last_name}</span>
@@ -473,7 +461,7 @@ const GroupsPage = () => {
 // Empty State Component
 const EmptyState = ({ message, subMessage }) => (
     <div className="text-center py-12 bg-[#1a1a2e] rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
-        <Image src="/groups_icon.svg" alt="Groups" width={48} height={48} className="mx-auto mb-4 opacity-50" />
+        <span className="text-5xl mx-auto mb-4 opacity-50 block text-center">👥</span>
         <h3 className="text-lg font-semibold text-purple-200 mb-2">{message}</h3>
         <p className="text-purple-400 text-sm">{subMessage}</p>
     </div>

@@ -20,6 +20,8 @@ type ChatSummary struct {
 	ChatID             int    `json:"chat_id"`
 	Type               string `json:"type"`
 	GroupID            int    `json:"group_id,omitempty"`
+	GroupName          string `json:"group_name,omitempty"`
+	GroupPicture       string `json:"group_picture,omitempty"`
 	OtherUserID        int    `json:"other_user_id,omitempty"`
 	OtherUserFirstName string `json:"other_user_first_name,omitempty"`
 	OtherUserLastName  string `json:"other_user_last_name,omitempty"`

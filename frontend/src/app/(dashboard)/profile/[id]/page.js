@@ -8,7 +8,7 @@ import Follow_Bottom from "src/components/ui/Follow_Button";
 import { fetchUserData } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
 import { blockUser, getFollowersByUser, getFollowingByUser, unblockUser } from "src/lib/services/follow";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
@@ -187,12 +187,11 @@ const UserProfilePage = () => {
         <section className="border-b border-purple-500/20 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
             <div className="flex items-center gap-2 pl-5 pt-5">
-              <Image
-                src={parseProfileImage(profileData.profile_picture)}
-                alt="Profile Picture"
-                width={50}
-                height={50}
-                className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+              <Avatar
+                src={profileData.profile_picture}
+                name={fullName}
+                size={50}
+                className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
               />
 
               <div className="mb-4">
@@ -206,24 +205,24 @@ const UserProfilePage = () => {
             <div className="flex flex-wrap items-center gap-6">
               {locationText ? (
                 <span className="flex items-center gap-2">
-                  <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
+                  <span className="text-sm">📍</span>
                   {locationText}
                 </span>
               ) : null}
               {birthdayText ? (
                 <span className="flex items-center gap-2 p-1">
-                  <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
+                  <span className="text-sm">📅</span>
                   {birthdayText}
                 </span>
               ) : null}
               <span className="flex items-center gap-2 p-1">
-                <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
+                <span className="text-sm">👁️</span>
                 {privacyText}
               </span>
             </div>
             {profileData.own_profile ? (
               <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
-                <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
+                <span className="text-sm">✏️</span>
                 Edit Profile
               </Link>
             ) : isBlockedByTarget ? (
@@ -297,12 +296,10 @@ const UserProfilePage = () => {
             return (
               <article key={post.id} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition">
                 <div className="flex items-center gap-2">
-                  <Image
-                    src={parseProfileImage(post.author_profile_picture || profileData.profile_picture)}
-                    alt="Profile Icon"
-                    width={30}
-                    height={30}
-                    className="rounded-full"
+                  <Avatar
+                    src={post.author_profile_picture || profileData.profile_picture}
+                    name={fullName}
+                    size={30}
                   />
                   <Link
                     href={post.user_id ? `/profile/${post.user_id}` : (targetUserId ? `/profile/${targetUserId}` : "/profile")}
@@ -384,12 +381,11 @@ const UserProfilePage = () => {
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
                 <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
-                  <Image
-                    src={parseProfileImage(follower.profile_picture)}
-                    alt="Follower"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-full"
+                  <Avatar
+                    src={follower.profile_picture}
+                    name={`${follower.first_name || ""} ${follower.last_name || ""}`.trim()}
+                    size={24}
+                    className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-semibold text-purple-200">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
@@ -420,12 +416,11 @@ const UserProfilePage = () => {
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
                 <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
-                  <Image
-                    src={parseProfileImage(followedUser.profile_picture)}
-                    alt="Following"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-full"
+                  <Avatar
+                    src={followedUser.profile_picture}
+                    name={`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim()}
+                    size={24}
+                    className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-semibold text-purple-200">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>

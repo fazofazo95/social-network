@@ -1,6 +1,4 @@
-
 'use client';
-import Image from "next/image";
 
 const Echo_Button = ({ targetId, onToggle }) => {
   const handleEchoBtn = () => {
@@ -29,12 +27,7 @@ const Echo_Button = ({ targetId, onToggle }) => {
   };
   return (
     <button type="button" onClick={handleEchoBtn} className="flex cursor-pointer gap-1">
-      <Image
-        src="/echo_icon.svg"
-        alt="Echo Icon"
-        width={20}
-        height={20}
-      />
+      <span className="text-lg">💧</span>
       Echo
     </button>
   );

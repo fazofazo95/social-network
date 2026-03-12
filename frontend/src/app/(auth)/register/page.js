@@ -4,7 +4,6 @@ import FormContainer from "../../../components/ui/FormContainer";
 import Button from "../../../components/ui/Button";
 import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
-import Image from "next/image";
 import { signupUser } from "src/lib/services/auth";
 import { useToast } from "src/components/ui/Toast";
 
@@ -60,7 +59,7 @@ const RegisterPage = () => {
 
       <Input
         label="Email"
-        icon="/email_icon.svg"
+        emoji="📧"
         id="email"
         name="email"
         type="email"
@@ -72,7 +71,7 @@ const RegisterPage = () => {
       <div className="mb-6 flex justify-center gap-4 relative mt-8">
         <Input
           label="Password"
-          icon="/lock_icon.svg"
+          emoji="🔒"
           id="password"
           name="password"
           type="password"
@@ -81,7 +80,7 @@ const RegisterPage = () => {
         />
         <Input
           label="Confirm Password"
-          icon="/lock_icon.svg"
+          emoji="🔒"
           id="confirm-password"
           name="confirm-password"
           type="password"
@@ -93,7 +92,7 @@ const RegisterPage = () => {
       <div className="mb-10 flex justify-center gap-4 relative mt-8">
         <Input
           label="First Name"
-          icon="/name_icon.svg"
+          emoji="👤"
           id="firstname"
           name="firstname"
           type="text"
@@ -102,7 +101,7 @@ const RegisterPage = () => {
         />
         <Input
           label="Last Name"
-          icon="/name_icon.svg"
+          emoji="👤"
           id="lastname"
           name="lastname"
           type="text"
@@ -113,7 +112,7 @@ const RegisterPage = () => {
 
       <Input
         label="Date of Birth"
-        icon="/calendar_icon.svg"
+        emoji="📅"
         id="date_of_birth"
         name="date_of_birth"
         type="date"
@@ -130,16 +129,10 @@ const RegisterPage = () => {
           <span className="text-purple-400">(Optional)</span>
         </label>
 
-        <Image
-          src="/image_icon.svg"
-          alt="Image Icon"
-          width={40}
-          height={40}
-          className="absolute left-2 top-0 py-2 px-2"
-        />
+        <span className="absolute left-2.5 top-2 text-2xl leading-none">🖼️</span>
 
         <input
-          className="absolute top-2 left-16 bg-[#0d0d1a] border border-purple-500/30 w-3/4 rounded-xl text-sm pl-1.5 text-purple-200 file:bg-transparent file:text-purple-300 file:border-0 file:rounded-md file:px-2 file:py-0.5 file:mr-2 file:cursor-pointer"
+          className="absolute top-2 left-14 bg-[#0d0d1a] border border-purple-500/30 w-3/4 rounded-xl text-sm pl-2 text-purple-200 file:bg-transparent file:text-purple-300 file:border-0 file:rounded-md file:px-2 file:py-0.5 file:mr-2 file:cursor-pointer"
           id="avatar"
           name="avatar"
           type="file"
@@ -148,7 +141,7 @@ const RegisterPage = () => {
 
       <Input
         label="Nickname"
-        icon="/nickname_icon.svg"
+        emoji="🏷️"
         id="nickname"
         name="nickname"
         type="text"
@@ -162,15 +155,9 @@ const RegisterPage = () => {
           About Me <span className="text-purple-400">(Optional)</span>
         </label>
 
-        <Image
-          src="/aboutme_icon.svg"
-          alt="About Me Icon"
-          width={20}
-          height={20}
-          className="absolute left-2 top-3"
-        />
+        <span className="absolute left-2.5 bottom-[1.1rem] text-lg leading-none">📝</span>
         <input
-          className="border border-purple-500/30 rounded-md w-full py-2 pb-12 pl-8 pr-2 bg-[#0d0d1a] text-purple-200 placeholder-purple-400/40 focus:border-purple-500/50 focus:outline-none"
+          className="border border-purple-500/30 rounded-md w-full py-2 pb-12 pl-10 pr-2 bg-[#0d0d1a] text-purple-200 placeholder-purple-400/40 focus:border-purple-500/50 focus:outline-none"
           id="about_me"
           name="about_me"
           type="text"

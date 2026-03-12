@@ -12,7 +12,7 @@ export async function getDiscoveredGroups(page = 1) {
     id: group.id,
     name: group.name,
     description: group.description,
-    group_picture: group.group_picture || "/groups_icon.svg",
+    group_picture: group.group_picture || null,
     members_count: group.group_members,
     owner_name: group.owner_first_name && group.owner_last_name
       ? `${group.owner_first_name} ${group.owner_last_name}`

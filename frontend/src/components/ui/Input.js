@@ -3,6 +3,7 @@ import Image from "next/image";
 const Input = ({ 
   label, 
   icon, 
+  emoji,
   required = false, 
   optional = false,
   id, 
@@ -19,7 +20,9 @@ const Input = ({
         {optional && <span className="text-purple-400">(Optional)</span>}
       </label>
 
-      {icon && (
+      {emoji ? (
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-lg leading-none">{emoji}</span>
+      ) : icon ? (
         <Image
           src={icon}
           alt={`${label} Icon`}
@@ -27,7 +30,7 @@ const Input = ({
           height={20}
           className="absolute left-2 top-3"
         />
-      )}
+      ) : null}
       
       <input
         className="input focus:outline-none"

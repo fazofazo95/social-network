@@ -308,6 +308,7 @@ func (r *sqliteChatRepo) FetchChatSummaries(ctx context.Context, userID, limit, 
                 ELSE 0
             END as other_user_id,
             COALESCE(u.first_name, ''), COALESCE(u.last_name, ''), COALESCE(u.profile_picture, ''),
+            COALESCE(g.name, ''), COALESCE(g.group_picture, ''),
             CASE
                 WHEN c.last_message_id IS NULL THEN 1
                 WHEN cm.sender_id = ? THEN 1
@@ -318,6 +319,7 @@ func (r *sqliteChatRepo) FetchChatSummaries(ctx context.Context, userID, limit, 
         JOIN chat_participants cp ON cp.chat_id = c.id AND cp.user_id = ? AND cp.left_at IS NULL
         LEFT JOIN chat_messages cm ON cm.id = c.last_message_id
         LEFT JOIN users u ON c.type = 'direct' AND u.id = CASE WHEN c.user_low_id = ? THEN c.user_high_id ELSE c.user_low_id END
+        LEFT JOIN groups g ON c.type = 'group' AND g.id = c.group_id
         ORDER BY COALESCE(c.last_message_at, c.created_at) DESC, c.id DESC
         LIMIT ? OFFSET ?
     `, userID, userID, userID, userID, limit, offset)
@@ -335,7 +337,8 @@ func (r *sqliteChatRepo) FetchChatSummaries(ctx context.Context, userID, limit, 
 			&item.ChatID, &item.Type, &item.GroupID, &item.LastMessageID,
 			&item.LastMessageSender, &item.LastMessageType, &item.LastMessagePreview,
 			&item.LastMessageAt, &item.OtherUserID, &item.OtherUserFirstName,
-			&item.OtherUserLastName, &item.OtherUserPicture, &seenInt,
+			&item.OtherUserLastName, &item.OtherUserPicture,
+			&item.GroupName, &item.GroupPicture, &seenInt,
 		); err != nil {
 			return nil, err
 		}

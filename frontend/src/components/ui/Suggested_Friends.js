@@ -1,10 +1,9 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import Follow_Bottom from "./Follow_Button";
 import { useEffect, useState } from "react";
 import { getDiscoveredUsers } from "src/lib/services/discover";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 
 const SuggestedFriends = () => {
   const [suggestedFriends, setSuggestedFriends] = useState([]);
@@ -35,12 +34,10 @@ const SuggestedFriends = () => {
           ) : (
             suggestedFriends.map(friend => (
               <li key={friend.id} className="flex items-center gap-2 hover:bg-purple-900/20 rounded-lg px-1 py-1 transition">
-                <Image
-                  src={parseProfileImage(friend.profile_picture)}
-                  alt={`${friend.first_name} ${friend.last_name}'s Profile Picture`}
-                  width={20}
-                  height={20}
-                  className="rounded-full"
+                <Avatar
+                  src={friend.profile_picture}
+                  name={`${friend.first_name || ""} ${friend.last_name || ""}`.trim()}
+                  size={20}
                 />
                 <Link href={`/profile/${friend.id}`} className="text-purple-200 text-sm hover:text-purple-100 transition truncate">
                   {friend.first_name} {friend.last_name}

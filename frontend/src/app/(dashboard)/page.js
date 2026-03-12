@@ -8,8 +8,8 @@ import { fetchUserData } from "src/lib/services/user";
 import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost, restorePost } from "src/lib/services/post";
 import { createComment, deleteComment, getPostComments, updateComment, restoreComment } from "src/lib/services/comment";
 import { getFollowers, getFollowing } from "src/lib/services/follow";
-import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
+import Avatar from "src/components/ui/Avatar";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
 import { useToast } from "src/components/ui/Toast";
@@ -381,12 +381,11 @@ export default function App() {
         className="bg-[#1a1a2e] w-full rounded-lg border border-purple-500/30 p-4 sticky top-16 z-10"
       >
         <div className="flex items-start gap-4 mb-4">
-          <Image
-            src={parseProfileImage(userData.profile_picture)}
-            alt="Profile Icon"
-            width={25}
-            height={25}
-            className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+          <Avatar
+            src={userData.profile_picture}
+            name={`${userData.first_name || ""} ${userData.last_name || ""}`.trim()}
+            size={25}
+            className="shadow-[0_0_8px_rgba(168,85,247,0.3)]"
           />
           <div className="relative w-full">
             <textarea
@@ -405,13 +404,7 @@ export default function App() {
         <ul className="flex gap-2 border-t border-purple-500/20 pt-2">
           <li className="flex gap-1 hover:bg-purple-900/20 rounded-lg px-2 py-1">
             <label htmlFor="photo-upload" className="flex items-center gap-1 cursor-pointer">
-              <Image
-                src="/photo_icon.svg"
-                alt="Share Icon"
-                width={20}
-                height={20}
-                className="opacity-60"
-              />
+              <span className="text-base opacity-60">📷</span>
               <input
                 id="photo-upload"
                 type="file"
@@ -440,13 +433,7 @@ export default function App() {
           </li>
           <li className="flex ml-auto">
             <button type="submit" className="flex items-center gap-2 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md px-4 py-1.5 transition cursor-pointer disabled:opacity-50 font-semibold" disabled={isSubmitting}>
-              <Image
-                src="/share_icon.svg"
-                alt="Share Icon"
-                width={16}
-                height={16}
-                className="opacity-70"
-              />
+              <span className="text-sm">🚀</span>
               {isSubmitting ? "Posting..." : "Post"}
             </button>
           </li>
@@ -512,12 +499,11 @@ export default function App() {
             <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex items-start gap-3">
-                <Image
-                  src={parseProfileImage(post.author_profile_picture)}
-                  alt="Profile Icon"
-                  width={40}
-                  height={40}
-                  className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                <Avatar
+                  src={post.author_profile_picture}
+                  name={`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim()}
+                  size={40}
+                  className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                 />
                 <div className="flex flex-col">
                   {post.user_id ? (
@@ -620,12 +606,11 @@ export default function App() {
               className="mt-4 pt-4 border-t border-purple-500/20 hidden flex-col gap-2"
             >
               <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
-                <Image
-                  src={parseProfileImage(userData.profile_picture)}
-                  alt="Profile Icon"
-                  width={32}
-                  height={32}
-                  className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                <Avatar
+                  src={userData.profile_picture}
+                  name={`${userData.first_name || ""} ${userData.last_name || ""}`.trim()}
+                  size={32}
+                  className="shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                 />
                 <div className="flex-1 flex items-center bg-[#0d0d1a] border border-purple-500/30 rounded-md">
                   <input
@@ -649,13 +634,7 @@ export default function App() {
                     htmlFor={echoPhotoUploadId}
                     className="flex items-center gap-1 cursor-pointer px-2"
                   >
-                    <Image
-                      src="/photo_icon.svg"
-                      alt="Share Icon"
-                      width={18}
-                      height={18}
-                      className="opacity-60"
-                    />
+                    <span className="text-base opacity-60">📷</span>
                     <input
                       id={echoPhotoUploadId}
                       type="file"
@@ -688,12 +667,10 @@ export default function App() {
                   comments.map((comment) => (
                     <div key={comment.id} className="flex gap-2">
                       <div className="pt-0.5">
-                        <Image
-                          src={parseProfileImage(comment.author_profile_picture)}
-                          alt="Comment author"
-                          width={32}
-                          height={32}
-                          className="rounded-full"
+                        <Avatar
+                          src={comment.author_profile_picture}
+                          name={`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim()}
+                          size={32}
                         />
                       </div>
                       <div className="flex-1 bg-[#0d0d1a] rounded-md p-3 border border-purple-500/20">

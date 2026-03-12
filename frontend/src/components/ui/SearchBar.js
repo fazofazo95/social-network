@@ -1,19 +1,13 @@
-import Image from "next/image";
 import Link from "next/link";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 
-const SearchBar = ({ placeholder = "Search...", icon = "/search_icon.svg", onChange, className = "", users = [], groups = [], onResultClick, isLoading = false, value = "" }) => {
+const SearchBar = ({ placeholder = "Search...", onChange, className = "", users = [], groups = [], onResultClick, isLoading = false, value = "" }) => {
   const hasResults = value.trim().length > 0 && (users.length > 0 || groups.length > 0);
 
   return (
     <div className={`relative ${className}`}>
-      <Image
-        src={icon}
-        alt="Search Icon"
-        width={14}
-        height={14}
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 pointer-events-none"
-      />
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none">🔍</span>
+ 
       <input
         type="text"
         placeholder={placeholder}
@@ -40,10 +34,11 @@ const SearchBar = ({ placeholder = "Search...", icon = "/search_icon.svg", onCha
                       onClick={onResultClick}
                       className="flex items-center gap-3 px-3 py-2 hover:bg-purple-900/20 border-b border-purple-500/10 last:border-b-0 cursor-pointer transition"
                     >
-                      <img
-                        src={parseProfileImage(user.profile_picture)}
-                        alt={`${user.first_name} ${user.last_name}`}
-                        className="w-8 h-8 rounded-full object-cover shrink-0"
+                      <Avatar
+                        src={user.profile_picture}
+                        name={`${user.first_name || ""} ${user.last_name || ""}`.trim()}
+                        size={32}
+                        className="shrink-0"
                       />
                       <div>
                         <div className="text-sm font-medium text-purple-100">
@@ -67,10 +62,12 @@ const SearchBar = ({ placeholder = "Search...", icon = "/search_icon.svg", onCha
                       onClick={onResultClick}
                       className="flex items-center gap-3 px-3 py-2 hover:bg-purple-900/20 border-b border-purple-500/10 last:border-b-0 cursor-pointer transition"
                     >
-                      <img
-                        src={parseProfileImage(group.group_picture)}
-                        alt={group.name}
-                        className="w-8 h-8 rounded-full object-cover shrink-0"
+                      <Avatar
+                        src={group.group_picture}
+                        name={group.name}
+                        size={32}
+                        type="group"
+                        className="shrink-0"
                       />
                       <div>
                         <div className="text-sm font-medium text-purple-100">{group.name}</div>

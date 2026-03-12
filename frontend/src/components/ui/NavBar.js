@@ -227,12 +227,7 @@ const NavBar = () => {
         <NotificationDropdown />
 
         <Link href="/messages" className="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-transparent hover:bg-purple-900/30 transition" aria-label="Messages">
-          <Image
-            src="/echo_icon.svg"
-            alt="Messages Icon"
-            width={18}
-            height={18}
-          />
+          <span className="text-sm">💬</span>
           {unreadMessagesCount > 0 ? (
             <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
               {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
@@ -242,7 +237,7 @@ const NavBar = () => {
 
         <div className="relative" ref={menuRef}>
           <IconButton
-            icon="/profil_icon.svg"
+            emoji="👤"
             alt="Profile Icon"
             iconSize={20}
             onClick={() => setIsMenuOpen((prev) => !prev)}

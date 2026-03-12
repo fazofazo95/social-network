@@ -11,7 +11,7 @@ import {
   updateUserCover,
   updateVisibilitySettings,
 } from "src/lib/services/user";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
 const visibilityKeys = [
@@ -317,12 +317,11 @@ export default function SettingsPage() {
           <h2 className="text-xl font-bold">Profile Image</h2>
 
           <div className="flex items-center gap-4">
-            <Image
-              src={parseProfileImage(profilePicture)}
-              alt="Current profile image"
-              width={64}
-              height={64}
-              className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+            <Avatar
+              src={profilePicture}
+              name={`${contentForm.first_name || ""} ${contentForm.last_name || ""}`.trim()}
+              size={64}
+              className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
             />
             <input type="file" accept="image/*" onChange={handleAvatarFileChange} className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer" />
           </div>

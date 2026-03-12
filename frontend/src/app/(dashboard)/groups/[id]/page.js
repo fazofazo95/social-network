@@ -33,7 +33,7 @@ import { getDiscoveredUsers } from "src/lib/services/discover";
 import { fetchUserData } from "src/lib/services/user";
 import { restorePost } from "src/lib/services/post";
 import { getPostComments, createComment, deleteComment, updateComment, restoreComment } from "src/lib/services/comment";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import Ripple_Button from "src/components/ui/Ripple_Button";
@@ -505,9 +505,9 @@ const GroupDetailPage = () => {
                             <div className="flex items-center gap-3">
                                 <h1 className="text-2xl font-bold text-purple-100">{group.name}</h1>
                                 {group.visibility === "private" ? (
-                                    <Image src="/lock_icon.svg" alt="Private" width={18} height={18} />
+                                    <span className="text-base">🔒</span>
                                 ) : (
-                                    <Image src="/globe_icon.svg" alt="Public" width={18} height={18} />
+                                    <span className="text-base">🌐</span>
                                 )}
                                 {userRole === "owner" && (
                                     <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,197,94,0.4)]">Owner</span>
@@ -518,7 +518,7 @@ const GroupDetailPage = () => {
                             </div>
                             <div className="flex items-center gap-4 text-sm text-purple-400 mt-1">
                                 <span className="flex items-center gap-1">
-                                    <Image src="/groups_icon.svg" alt="Members" width={14} height={14} className="opacity-60" />
+                                    <span className="opacity-60">👥</span>
                                     {formatMembers(group.group_members || group.members)} members
                                 </span>
                                 <span>Created {group.created_at || group.createdAt}</span>
@@ -540,7 +540,7 @@ const GroupDetailPage = () => {
                                     onClick={() => setShowSettingsModal(true)}
                                     className="px-4 py-2 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md transition cursor-pointer text-sm"
                                 >
-                                    <Image src="/settings_icon.svg" alt="Settings" width={16} height={16} />
+                                    <span className="text-sm">⚙️</span>
                                 </button>
                             )}
                             {!userRole && group.can_request && (
@@ -664,7 +664,7 @@ const GroupDetailPage = () => {
             {/* Non-member info */}
             {!userRole && !loading && group && (
                 <div className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-8 text-center">
-                    <Image src="/groups_icon.svg" alt="Groups" width={48} height={48} className="mx-auto mb-4 opacity-50" />
+                    <span className="text-5xl mx-auto mb-4 opacity-50 block text-center">👥</span>
                     <h3 className="text-lg font-semibold text-purple-200 mb-2">
                         {group.pending_type === "requested" ? "Your request is pending" : "You are not a member"}
                     </h3>
@@ -721,12 +721,11 @@ const GroupDetailPage = () => {
                             return (
                                 <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                                     <div className="flex items-start gap-3">
-                                        <Image
-                                            src={parseProfileImage(post.author_profile_picture)}
-                                            alt="Profile"
-                                            width={40}
-                                            height={40}
-                                            className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                                        <Avatar
+                                            src={post.author_profile_picture}
+                                            name={`${post.author_first_name || ""} ${post.author_last_name || ""}`.trim()}
+                                            size={40}
+                                            className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                                         />
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between">
@@ -791,12 +790,11 @@ const GroupDetailPage = () => {
                                             >
                                                 {/* Comment Input */}
                                                 <form onSubmit={(e) => handleCommentSubmit(e, post.id)} className="flex gap-2 mb-2">
-                                                    <Image
-                                                        src={parseProfileImage(currentUser?.profile_picture)}
-                                                        alt="Profile"
-                                                        width={32}
-                                                        height={32}
-                                                        className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                                                    <Avatar
+                                                        src={currentUser?.profile_picture}
+                                                        name={`${currentUser?.first_name || ""} ${currentUser?.last_name || ""}`.trim()}
+                                                        size={32}
+                                                        className="shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                                                     />
                                                     <div className="flex-1 flex gap-2">
                                                         <div className="flex-1 flex items-center bg-[#0d0d1a] border border-purple-500/30 rounded-md">
@@ -814,7 +812,7 @@ const GroupDetailPage = () => {
                                                                 }
                                                             />
                                                             <label htmlFor={echoPhotoUploadId} className="flex items-center px-2 cursor-pointer">
-                                                                <Image src="/photo_icon.svg" alt="Photo" width={18} height={18} className="opacity-60" />
+                                                                <span className="opacity-60 text-base">📷</span>
                                                                 <input
                                                                     id={echoPhotoUploadId}
                                                                     type="file"
@@ -844,12 +842,10 @@ const GroupDetailPage = () => {
                                                     <div className="space-y-3">
                                                         {comments.map(comment => (
                                                             <div key={comment.id} className="flex gap-2">
-                                                                <Image
-                                                                    src={parseProfileImage(comment.author_profile_picture)}
-                                                                    alt="Comment author"
-                                                                    width={32}
-                                                                    height={32}
-                                                                    className="rounded-full"
+                                                                <Avatar
+                                                                    src={comment.author_profile_picture}
+                                                                    name={`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim()}
+                                                                    size={32}
                                                                 />
                                                                 <div className="flex-1 bg-[#0d0d1a] rounded-md p-3 border border-purple-500/20">
                                                                     <div className="flex items-center justify-between">
@@ -1200,7 +1196,7 @@ const GroupDetailPage = () => {
 // Empty State Component
 const EmptyState = ({ message, subMessage }) => (
     <div className="text-center py-12 bg-[#1a1a2e] rounded-lg border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
-        <Image src="/groups_icon.svg" alt="Empty" width={48} height={48} className="mx-auto mb-4 opacity-50" />
+        <span className="text-5xl mx-auto mb-4 opacity-50 block text-center">👥</span>
         <h3 className="text-lg font-semibold text-purple-200 mb-2">{message}</h3>
         <p className="text-purple-400 text-sm">{subMessage}</p>
     </div>
@@ -1285,13 +1281,7 @@ const InviteModal = ({ onClose, members = [], groupId }) => {
                 <h2 className="text-xl font-bold mb-4 text-purple-100">Invite Members</h2>
                 
                 <div className="relative mb-4">
-                    <Image 
-                        src="/search_icon.svg" 
-                        alt="Search" 
-                        width={16} 
-                        height={16} 
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60"
-                    />
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60 text-sm">🔍</span>
                     <input
                         type="text"
                         value={searchQuery}
@@ -1410,7 +1400,7 @@ const CreatePostModal = ({ groupId, onClose, onCreated }) => {
 
                     <div className="flex items-center gap-2">
                         <label className="flex items-center gap-2 px-3 py-2 bg-[#0d0d1a] border border-purple-500/30 rounded-md cursor-pointer hover:border-purple-500/50 transition text-sm text-purple-300">
-                            <Image src="/photo_icon.svg" alt="Photo" width={18} height={18} className="opacity-60" />
+                            <span className="opacity-60 text-base">📷</span>
                             {image ? image.name : "Add Photo"}
                             <input
                                 type="file"

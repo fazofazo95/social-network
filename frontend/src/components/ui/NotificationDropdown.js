@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Image from "next/image";
 import {
   listNotifications,
   markAllNotificationsRead,
   respondToNotification,
 } from "src/lib/services/notification";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 
@@ -168,12 +167,8 @@ export default function NotificationDropdown() {
         className="relative w-6 h-6 flex items-center justify-center rounded-full bg-transparent hover:bg-purple-900/30 transition cursor-pointer"
         aria-label="Notifications"
       >
-        <Image
-          src="/notif-icon.svg"
-          alt="Notification Icon"
-          width={17}
-          height={17}
-        />
+        <span className="text-sm">🔔</span>
+        
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center shadow-[0_0_8px_rgba(239,68,68,0.6)]">
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -205,13 +200,11 @@ export default function NotificationDropdown() {
                     !n.seen ? "bg-purple-900/30" : ""
                   }`}
                 >
-                  {/* Actor avatar */}
-                  <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-[#0d0d1a] relative">
-                    <Image
-                      src={parseProfileImage(n.actor_picture)}
-                      alt={`${n.actor_first_name || "User"}'s avatar`}
-                      fill
-                      className="object-cover"
+                  <div className="shrink-0 w-8 h-8">
+                    <Avatar
+                      src={n.actor_picture}
+                      name={`${n.actor_first_name || ""} ${n.actor_last_name || ""}`.trim()}
+                      size={32}
                     />
                   </div>
 

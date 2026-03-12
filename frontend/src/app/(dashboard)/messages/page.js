@@ -7,7 +7,7 @@ import { fetchUserData } from "src/lib/services/user";
 import { getFollowing } from "src/lib/services/follow";
 import { getChatMessages, listChats, markChatRead, sendDirectMessage, sendGroupMessage } from "src/lib/services/chat";
 import { getApiBaseUrl } from "src/lib/apiClient";
-import { parseProfileImage } from "src/lib/utils/profileImage";
+import Avatar from "src/components/ui/Avatar";
 import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
 
 const DIRECT_SEND_RULE_MESSAGE = "You can send a direct message only if you follow this user or their account is public.";
@@ -24,7 +24,7 @@ function formatChatTitle(chat) {
     const last = chat.other_user_last_name || "";
     return `${first} ${last}`.trim() || "Direct Chat";
   }
-  return chat.group_id ? `Group #${chat.group_id}` : "Group Chat";
+  return chat.group_name || (chat.group_id ? `Group #${chat.group_id}` : "Group Chat");
 }
 
 function formatSmallTime(value) {
@@ -698,12 +698,11 @@ const MessagesPage = () => {
                         onClick={() => handleStartNewChat(candidate)}
                         className="w-full flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-purple-900/20 transition"
                       >
-                        <Image
-                          src={parseProfileImage(candidate.profile_picture)}
-                          alt="New chat user"
-                          width={18}
-                          height={18}
-                          className="h-4.5 w-4.5 rounded-full"
+                        <Avatar
+                          src={candidate.profile_picture}
+                          name={candidate.display_name}
+                          size={18}
+                          className="h-4.5 w-4.5"
                         />
                         <Link
                           href={`/profile/${candidate.id}`}
@@ -742,12 +741,12 @@ const MessagesPage = () => {
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <Image
-                          src={parseProfileImage(chatItem.other_user_picture)}
-                          alt="Chat avatar"
-                          width={28}
-                          height={28}
-                          className="h-7 w-7 rounded-full shrink-0"
+                        <Avatar
+                          src={chatItem.type === "group" ? chatItem.group_picture : chatItem.other_user_picture}
+                          name={formatChatTitle(chatItem)}
+                          size={28}
+                          type={chatItem.type === "group" ? "group" : "user"}
+                          className="h-7 w-7 shrink-0"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
@@ -782,12 +781,12 @@ const MessagesPage = () => {
           <section className="flex flex-col bg-[#0d0d1a]">
             <header className="h-14 border-b border-purple-500/20 px-4 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
-                <Image
-                  src={parseProfileImage(selectedChat?.other_user_picture || newChatTarget?.profile_picture)}
-                  alt="Selected chat avatar"
-                  width={24}
-                  height={24}
-                  className="h-6 w-6 rounded-full"
+                <Avatar
+                  src={selectedChat?.type === "group" ? selectedChat?.group_picture : (selectedChat?.other_user_picture || newChatTarget?.profile_picture)}
+                  name={formatChatTitle(selectedChat) || newChatTarget?.display_name}
+                  size={24}
+                  type={selectedChat?.type === "group" ? "group" : "user"}
+                  className="h-6 w-6"
                 />
                 <div className="min-w-0">
                   {selectedChat?.type === "direct" && selectedChat?.other_user_id ? (
@@ -875,12 +874,7 @@ const MessagesPage = () => {
                   disabled={(!selectedChat && !newChatTarget) || isSending || !draftMessage.trim() || !canSendInCurrentContext}
                   className="h-9 w-9 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)] transition"
                 >
-                  <Image
-                    src="/share_icon.svg"
-                    alt="Send message"
-                    width={16}
-                    height={16}
-                  />
+                  <span className="text-base">🚀</span>
                 </button>
               </form>
             </footer>

@@ -42,7 +42,7 @@ const LoginPage = () => {
 
         <Input
           label="Email Address"
-          icon="/email_icon.svg"
+          emoji="📧"
           id="email"
           type="email"
           placeholder="your.email@example.com"
@@ -51,7 +51,7 @@ const LoginPage = () => {
 
         <Input
           label="Password"
-          icon="/lock_icon.svg"
+          emoji="🔒"
           id="password"
           type="password"
           placeholder="******************"

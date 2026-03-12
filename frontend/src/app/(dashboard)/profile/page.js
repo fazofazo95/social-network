@@ -19,8 +19,8 @@ import {
   unfollowUser,
 } from "src/lib/services/follow";
 import { createComment, deleteComment, getPostComments, updateComment, restoreComment } from "src/lib/services/comment";
-import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
+import Avatar from "src/components/ui/Avatar";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import { useToast } from "src/components/ui/Toast";
 
@@ -483,7 +483,7 @@ const Profile = () => {
             htmlFor="cover-upload"
             className="flex items-center gap-1 cursor-pointer absolute bottom-2 right-2 bg-purple-900/70 hover:bg-purple-900/90 p-1 px-2 rounded transition"
           >
-            <Image src="/cover_icon.svg" alt="Cover" width={20} height={20} />
+            <span className="text-base">📸</span>
             <span className="text-sm text-purple-200">Change Cover</span>
             <input
               id="cover-upload"
@@ -500,12 +500,11 @@ const Profile = () => {
         <section className="border-b border-purple-500/20 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
             <div className="flex items-center gap-2 pl-5 pt-5">
-              <Image
-                src={parseProfileImage(profileData.profile_picture)}
-                alt="Profile Picture"
-                width={50}
-                height={50}
-                className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+              <Avatar
+                src={profileData.profile_picture}
+                name={fullName}
+                size={50}
+                className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
               />
 
               <div className="mb-4">
@@ -519,23 +518,23 @@ const Profile = () => {
             <div className="flex flex-wrap items-center gap-6">
               {locationText ? (
                 <span className="flex items-center gap-2">
-                  <Image src="/location_icon.svg" alt="Location" width={15} height={15} />
+                  <span className="text-sm">📍</span>
                   {locationText}
                 </span>
               ) : null}
               {birthdayText ? (
                 <span className="flex items-center gap-2 p-1">
-                  <Image src="/calendar_icon.svg" alt="Birthday" width={15} height={15} />
+                  <span className="text-sm">📅</span>
                   {birthdayText}
                 </span>
               ) : null}
               <span className="flex items-center gap-2 p-1">
-                <Image src="/profile_status_icon.svg" alt="Profile visibility" width={15} height={15} />
+                <span className="text-sm">👁️</span>
                 {privacyText}
               </span>
             </div>
             <Link href="/settings" className="flex items-center gap-2 rounded-lg px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white cursor-pointer transition font-semibold">
-              <Image src="/edit_profile_icon.svg" alt="Edit Profile" width={15} height={15} />
+              <span className="text-sm">✏️</span>
               Edit Profile
             </Link>
           </div>
@@ -626,12 +625,11 @@ const Profile = () => {
               <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-start gap-3">
-                    <Image
-                      src={parseProfileImage(profileData.profile_picture)}
-                      alt="Profile Icon"
-                      width={40}
-                      height={40}
-                      className="rounded-full shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+                    <Avatar
+                      src={profileData.profile_picture}
+                      name={fullName}
+                      size={40}
+                      className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                     />
                     <div className="flex flex-col">
                       <Link href="/profile" className="font-semibold text-purple-100 hover:underline">{fullName}</Link>
@@ -724,12 +722,11 @@ const Profile = () => {
                   className="border-t border-purple-500/20 rounded mt-2 pt-2 gap-2 hidden flex-col"
                 >
                   <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
-                    <Image
-                      src={parseProfileImage(profileData.profile_picture)}
-                      alt="Profile Icon"
-                      width={25}
-                      height={25}
-                      className="rounded-full shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                    <Avatar
+                      src={profileData.profile_picture}
+                      name={fullName}
+                      size={25}
+                      className="shadow-[0_0_8px_rgba(168,85,247,0.3)]"
                     />
                     <div className="flex justify-between bg-[#0d0d1a] border border-purple-500/30 text-purple-100 w-full rounded-lg resize-none h-10">
                       <input
@@ -747,12 +744,7 @@ const Profile = () => {
                         htmlFor={echoPhotoUploadId}
                         className="flex items-center gap-1 cursor-pointer px-1"
                       >
-                        <Image
-                          src="/photo_icon.svg"
-                          alt="Share Icon"
-                          width={20}
-                          height={20}
-                        />
+                        <span className="text-lg">📷</span>
                         <input
                           id={echoPhotoUploadId}
                           type="file"
@@ -787,12 +779,10 @@ const Profile = () => {
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <div className="flex items-start gap-2">
                               <div className="pt-0.5">
-                                <Image
-                                  src={parseProfileImage(comment.author_profile_picture)}
-                                  alt="Comment author"
-                                  width={20}
-                                  height={20}
-                                  className="rounded-full"
+                                <Avatar
+                                  src={comment.author_profile_picture}
+                                  name={`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim()}
+                                  size={20}
                                 />
                               </div>
                               <div className="flex flex-col leading-tight">
@@ -948,12 +938,11 @@ const Profile = () => {
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
                 <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
-                  <Image
-                    src={parseProfileImage(follower.profile_picture)}
-                    alt="Follower"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-full"
+                  <Avatar
+                    src={follower.profile_picture}
+                    name={`${follower.first_name || ""} ${follower.last_name || ""}`.trim()}
+                    size={24}
+                    className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-semibold text-purple-100">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
@@ -992,12 +981,11 @@ const Profile = () => {
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
                 <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
-                  <Image
-                    src={parseProfileImage(followedUser.profile_picture)}
-                    alt="Following"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-full"
+                  <Avatar
+                    src={followedUser.profile_picture}
+                    name={`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim()}
+                    size={24}
+                    className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-semibold text-purple-100">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
@@ -1036,12 +1024,11 @@ const Profile = () => {
             <ul className="flex flex-col gap-2.5">
               {blockedUsers.map((blockedUser) => (
                 <li key={blockedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
-                  <Image
-                    src={parseProfileImage(blockedUser.profile_picture)}
-                    alt="Blocked user"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6 rounded-full"
+                  <Avatar
+                    src={blockedUser.profile_picture}
+                    name={`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim()}
+                    size={24}
+                    className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
                     <span className="block truncate text-sm font-semibold text-purple-100">{`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() || "Unknown User"}</span>
@@ -1083,12 +1070,11 @@ const Profile = () => {
                 const isRejecting = !!rejectingByUserId[requestUser.id];
                 return (
                   <li key={requestUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
-                    <Image
-                      src={parseProfileImage(requestUser.profile_picture)}
-                      alt="Request user"
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 rounded-full"
+                    <Avatar
+                      src={requestUser.profile_picture}
+                      name={`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim()}
+                      size={24}
+                      className="h-6 w-6"
                     />
                     <span className="flex-1 min-w-0">
                       <span className="block truncate text-sm font-semibold text-purple-100">{`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() || "Unknown User"}</span>
