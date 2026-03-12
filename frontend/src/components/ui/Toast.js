@@ -37,26 +37,37 @@ function ToastItem({ toast, onDismiss }) {
   return (
     <div
       className={`relative flex items-start gap-3 px-4 py-3 rounded-lg border backdrop-blur-md shadow-lg 
-        ${style.bg} text-white min-w-[300px] max-w-[420px] animate-[slideIn_0.3s_ease-out]`}
+        ${style.bg} text-white min-w-75 max-w-105 animate-[slideIn_0.3s_ease-out]`}
     >
       <span className={`flex items-center justify-center w-6 h-6 rounded-full text-sm font-bold shrink-0 mt-0.5 ${style.iconBg}`}>
         {style.icon}
       </span>
-      <p className="text-sm flex-1 break-words">{toast.message}</p>
+      <p className="text-sm flex-1 wrap-break-word">{toast.message}</p>
+      {toast.action && (
+        <button
+          onClick={() => {
+            toast.action.onClick();
+            onDismiss(toast.id);
+          }}
+          className="text-purple-300 hover:text-purple-100 text-sm font-semibold shrink-0 underline cursor-pointer"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         onClick={() => onDismiss(toast.id)}
         className="text-white/50 hover:text-white text-lg leading-none shrink-0 cursor-pointer"
       >
         ×
       </button>
-      <div className={`absolute bottom-0 left-0 h-0.5 ${style.bar} rounded-b-lg animate-[shrink_3s_linear_forwards]`} />
+      <div className={`absolute bottom-0 left-0 h-0.5 ${style.bar} rounded-b-lg animate-[shrink_${toast.duration ? toast.duration / 1000 : 3}s_linear_forwards]`} />
     </div>
   );
 }
 
 function ConfirmToast({ toast, onDismiss }) {
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-9999">
       <div className="bg-[#1a1a2e] border border-purple-500/50 rounded-lg p-6 max-w-sm w-full mx-4 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
         <p className="text-white text-sm mb-6">{toast.message}</p>
         <div className="flex justify-end gap-3">
@@ -92,18 +103,19 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((message, type = "info") => {
+  const addToast = useCallback((message, type = "info", options = {}) => {
     const id = ++idRef.current;
-    setToasts((prev) => [...prev, { id, message, type, isConfirm: false }]);
-    setTimeout(() => dismiss(id), 3000);
+    const duration = options.duration || 3000;
+    setToasts((prev) => [...prev, { id, message, type, isConfirm: false, action: options.action, duration }]);
+    setTimeout(() => dismiss(id), duration);
   }, [dismiss]);
 
   const toast = useCallback(
-    Object.assign((message) => addToast(message, "info"), {
-      success: (message) => addToast(message, "success"),
-      error: (message) => addToast(message, "error"),
-      warning: (message) => addToast(message, "warning"),
-      info: (message) => addToast(message, "info"),
+    Object.assign((message, options) => addToast(message, "info", options), {
+      success: (message, options) => addToast(message, "success", options),
+      error: (message, options) => addToast(message, "error", options),
+      warning: (message, options) => addToast(message, "warning", options),
+      info: (message, options) => addToast(message, "info", options),
       confirm: (message, onConfirm, onCancel) => {
         const id = ++idRef.current;
         setToasts((prev) => [
@@ -136,33 +148,23 @@ export function ToastProvider({ children }) {
           <ConfirmToast key={t.id} toast={t} onDismiss={dismiss} />
         ))}
       {/* Toast stack */}
-      <div className="fixed top-4 right-4 z-[9998] flex flex-col gap-2">
+      <div className="fixed top-4 right-4 z-9998 flex flex-col gap-2">
         {toasts
           .filter((t) => !t.isConfirm)
           .map((t) => (
             <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
           ))}
       </div>
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+          from { opacity: 0; transform: translateX(100%); }
+          to { opacity: 1; transform: translateX(0); }
         }
         @keyframes shrink {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
+          from { width: 100%; }
+          to { width: 0%; }
         }
-      `}</style>
+      `}} />
     </ToastContext.Provider>
   );
 }

@@ -5,16 +5,18 @@ import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { useEffect, useState } from "react";
 import { fetchUserData } from "src/lib/services/user";
-import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
-import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
+import { createPost, deletePost, getFeedPosts, getPostById, getUserPosts, updatePost, restorePost } from "src/lib/services/post";
+import { createComment, deleteComment, getPostComments, updateComment, restoreComment } from "src/lib/services/comment";
 import { getFollowers, getFollowing } from "src/lib/services/follow";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
 import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
+import { useToast } from "src/components/ui/Toast";
 
 
 export default function App() {
+  const toast = useToast();
   const [userData, setUserData] = useState({});
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -188,6 +190,20 @@ export default function App() {
       try {
         await deleteComment(commentId);
         await loadComments(postId);
+        toast.success("Comment deleted", {
+          duration: 5000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await restoreComment(commentId);
+                await loadComments(postId);
+              } catch (e) {
+                toast.error(e?.message || "Failed to restore comment");
+              }
+            },
+          },
+        });
       } catch (error) {
         console.error("Error deleting comment:", error);
         setCommentErrorByPost((prev) => ({
@@ -275,12 +291,27 @@ export default function App() {
       setPostActionErrorById((prev) => ({ ...prev, [postId]: "" }));
       setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
       try {
+        const deletedPost = posts.find((p) => p.id === postId);
         await deletePost(postId);
         setPosts((prev) => prev.filter((post) => post.id !== postId));
         if (editingPostId === postId) {
           setEditingPostId(null);
           setEditingPostContent("");
         }
+        toast.success("Post deleted", {
+          duration: 5000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await restorePost(postId);
+                if (deletedPost) setPosts((prev) => [deletedPost, ...prev]);
+              } catch (e) {
+                toast.error(e?.message || "Failed to restore post");
+              }
+            },
+          },
+        });
       } catch (error) {
         console.error("Error deleting post:", error);
         setPostActionErrorById((prev) => ({

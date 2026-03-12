@@ -31,7 +31,8 @@ import {
 } from "src/lib/services/group";
 import { getDiscoveredUsers } from "src/lib/services/discover";
 import { fetchUserData } from "src/lib/services/user";
-import { getPostComments, createComment, deleteComment, updateComment } from "src/lib/services/comment";
+import { restorePost } from "src/lib/services/post";
+import { getPostComments, createComment, deleteComment, updateComment, restoreComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
@@ -284,8 +285,23 @@ const GroupDetailPage = () => {
 
     const handleDeleteGroupPost = async (postId) => {
         try {
+            const deletedPost = posts.find(p => p.id === postId);
             await deleteGroupPost(groupId, postId);
             setPosts(prev => prev.filter(p => p.id !== postId));
+            toast.success("Post deleted", {
+                duration: 5000,
+                action: {
+                    label: "Undo",
+                    onClick: async () => {
+                        try {
+                            await restorePost(postId);
+                            if (deletedPost) setPosts(prev => [deletedPost, ...prev]);
+                        } catch (e) {
+                            toast.error(e?.message || "Failed to restore post");
+                        }
+                    },
+                },
+            });
         } catch (error) {
             console.error("Failed to delete group post:", error);
             toast.error(error?.message || "Failed to delete post");
@@ -343,6 +359,20 @@ const GroupDetailPage = () => {
         try {
             await deleteComment(commentId);
             await loadComments(postId);
+            toast.success("Comment deleted", {
+                duration: 5000,
+                action: {
+                    label: "Undo",
+                    onClick: async () => {
+                        try {
+                            await restoreComment(commentId);
+                            await loadComments(postId);
+                        } catch (e) {
+                            toast.error(e?.message || "Failed to restore comment");
+                        }
+                    },
+                },
+            });
         } catch (error) {
             console.error("Error deleting comment:", error);
             setCommentErrorByPost(prev => ({ ...prev, [postId]: error?.message || "Failed to delete echo." }));

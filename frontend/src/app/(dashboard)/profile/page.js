@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
-import { deletePost, getPostById, getUserPosts, updatePost } from "src/lib/services/post";
+import { deletePost, getPostById, getUserPosts, updatePost, restorePost } from "src/lib/services/post";
 import {
   acceptFollowRequest,
   getBlockedUsers,
@@ -18,12 +18,14 @@ import {
   unblockUser,
   unfollowUser,
 } from "src/lib/services/follow";
-import { createComment, deleteComment, getPostComments, updateComment } from "src/lib/services/comment";
+import { createComment, deleteComment, getPostComments, updateComment, restoreComment } from "src/lib/services/comment";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import { getApiBaseUrl } from "src/lib/apiClient";
+import { useToast } from "src/components/ui/Toast";
 
 const Profile = () => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("posts");
   const [profileData, setProfileData] = useState({});
   const [userPosts, setUserPosts] = useState([]);
@@ -274,12 +276,27 @@ const Profile = () => {
     setPostActionError("");
     setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
     try {
+      const deletedPost = userPosts.find((p) => p.id === postId);
       await deletePost(postId);
       setUserPosts((prev) => prev.filter((post) => post.id !== postId));
       if (editingPostId === postId) {
         setEditingPostId(null);
         setEditingPostContent("");
       }
+      toast.success("Post deleted", {
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await restorePost(postId);
+              if (deletedPost) setUserPosts((prev) => [deletedPost, ...prev]);
+            } catch (e) {
+              toast.error(e?.message || "Failed to restore post");
+            }
+          },
+        },
+      });
     } catch (deleteError) {
       console.error("Failed to delete post:", deleteError);
       setPostActionError(deleteError?.message || "Failed to delete post.");
@@ -296,6 +313,20 @@ const Profile = () => {
     try {
       await deleteComment(commentId);
       await loadComments(postId);
+      toast.success("Comment deleted", {
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await restoreComment(commentId);
+              await loadComments(postId);
+            } catch (e) {
+              toast.error(e?.message || "Failed to restore comment");
+            }
+          },
+        },
+      });
     } catch (error) {
       console.error("Error deleting profile comment:", error);
       setCommentErrorByPost((prev) => ({

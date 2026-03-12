@@ -76,3 +76,9 @@ export async function deletePost(postId) {
     method: "DELETE",
   });
 }
+
+export async function restorePost(postId) {
+  return apiRequest(`/api/posts/${postId}/restore`, {
+    method: "PUT",
+  });
+}

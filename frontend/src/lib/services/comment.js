@@ -59,3 +59,9 @@ export async function deleteComment(commentId) {
     method: "PUT",
   });
 }
+
+export async function restoreComment(commentId) {
+  return apiRequest(`/api/comments/${commentId}/restore`, {
+    method: "PUT",
+  });
+}
