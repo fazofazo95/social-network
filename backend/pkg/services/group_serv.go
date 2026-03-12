@@ -42,15 +42,14 @@ type GroupService interface {
 	// Group listing
 	GetGroupPageView(ctx context.Context, viewerID, groupID int) (repository.GroupPageView, error)
 	DiscoverGroups(ctx context.Context, userID, limit, offset int) ([]models.GroupDiscoverItem, error)
+	SearchGroups(ctx context.Context, userID int, query string, limit int) ([]models.SearchGroupItem, error)
 	GetActiveGroupsForUser(ctx context.Context, userID int) ([]models.GroupActiveItem, error)
 	GetUserPendingGroupRequests(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
 	GetUserPendingGroupInvites(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
 
 	// Events
 	CreateGroupEvent(ctx context.Context, actorID, groupID int, in models.GroupEventCreateInput) (*models.GroupEvent, error)
-	GetGroupEventInviteableMembers(ctx context.Context, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error)
-	InviteGroupEventMember(ctx context.Context, actorID, groupID, eventID, targetUserID int) error
-	InviteAllGroupEventMembers(ctx context.Context, actorID, groupID, eventID int) (int, error)
+	GetGroupEventsTimeline(ctx context.Context, actorID, groupID int) (models.GroupEventsTimeline, error)
 	RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	ChangeGroupEventResponse(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error
@@ -266,6 +265,20 @@ func (s *groupService) DiscoverGroups(ctx context.Context, userID, limit, offset
 	return s.repo.DiscoverGroups(ctx, userID, limit, offset)
 }
 
+func (s *groupService) SearchGroups(ctx context.Context, userID int, query string, limit int) ([]models.SearchGroupItem, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []models.SearchGroupItem{}, nil
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 25 {
+		limit = 25
+	}
+	return s.repo.SearchGroups(ctx, userID, query, limit)
+}
+
 func (s *groupService) GetActiveGroupsForUser(ctx context.Context, userID int) ([]models.GroupActiveItem, error) {
 	return s.repo.GetActiveGroupsForUser(ctx, userID)
 }
@@ -313,25 +326,11 @@ func (s *groupService) CreateGroupEvent(ctx context.Context, actorID, groupID in
 	return created, nil
 }
 
-func (s *groupService) GetGroupEventInviteableMembers(ctx context.Context, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error) {
-	if groupID <= 0 || eventID <= 0 {
-		return nil, errors.New("invalid group or event id")
+func (s *groupService) GetGroupEventsTimeline(ctx context.Context, actorID, groupID int) (models.GroupEventsTimeline, error) {
+	if groupID <= 0 {
+		return models.GroupEventsTimeline{}, errors.New("invalid group id")
 	}
-	return s.repo.GetGroupEventInviteableMembers(ctx, actorID, groupID, eventID)
-}
-
-func (s *groupService) InviteGroupEventMember(ctx context.Context, actorID, groupID, eventID, targetUserID int) error {
-	if groupID <= 0 || eventID <= 0 || targetUserID <= 0 {
-		return errors.New("invalid group, event or target user id")
-	}
-	return s.repo.InviteGroupEventMember(ctx, actorID, groupID, eventID, targetUserID)
-}
-
-func (s *groupService) InviteAllGroupEventMembers(ctx context.Context, actorID, groupID, eventID int) (int, error) {
-	if groupID <= 0 || eventID <= 0 {
-		return 0, errors.New("invalid group or event id")
-	}
-	return s.repo.InviteAllGroupEventMembers(ctx, actorID, groupID, eventID)
+	return s.repo.GetGroupEventsTimeline(ctx, actorID, groupID)
 }
 
 func (s *groupService) RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error {

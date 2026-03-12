@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 type ProfileRepository interface {
@@ -14,6 +15,7 @@ type ProfileRepository interface {
 	UpdateUserMedia(ctx context.Context, targetID int, imageURL, coverImageURL string) error
 	UserPrivacy(ctx context.Context, userID int) (bool, error)
 	DiscoverUsers(ctx context.Context, currentUserID int, limit int) ([]*models.DiscoveredUser, error)
+	SearchUsers(ctx context.Context, currentUserID int, query string, limit int) ([]models.SearchUserItem, error)
 	GetVisibilityRaw(ctx context.Context, userID int) (*models.RawVisibilityData, error)
 	UpdateUserVisibilitySettings(ctx context.Context, userID int,
 		emailVis, birthdayVis, relVis, employedVis, phoneVis, aboutVis, nickVis, followVis, profileType *int) error
@@ -196,6 +198,97 @@ func (r *sqliteProfileRepo) DiscoverUsers(ctx context.Context, currentUserID int
 	}
 
 	return users, nil
+}
+
+func (r *sqliteProfileRepo) SearchUsers(ctx context.Context, currentUserID int, query string, limit int) ([]models.SearchUserItem, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 25 {
+		limit = 25
+	}
+
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return []models.SearchUserItem{}, nil
+	}
+
+	prefix := q + "%"
+	contains := "%" + q + "%"
+
+	rows, err := r.db.QueryContext(ctx, `
+		WITH ranked AS (
+			SELECT u.id,
+			       COALESCE(u.first_name, '') AS first_name,
+			       COALESCE(u.last_name, '') AS last_name,
+			       COALESCE(lu.username, '') AS username,
+			       COALESCE(u.profile_picture, '') AS profile_picture,
+			       CASE
+				   WHEN f.status = 'blocked' THEN 'Blocked'
+				   WHEN f.status = 'accepted' THEN 'Following'
+				   WHEN f.status = 'pending' THEN 'Pending'
+				   WHEN f_back.status = 'accepted' THEN 'Follow Back'
+				   ELSE 'Follow'
+			       END AS current_status,
+			       (
+				   CASE WHEN lower(COALESCE(lu.username, '')) = ? THEN 120 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(lu.username, '')) LIKE ? THEN 90 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(lu.username, '')) LIKE ? THEN 60 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.first_name, '')) = ? THEN 70 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.first_name, '')) LIKE ? THEN 50 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.first_name, '')) LIKE ? THEN 35 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.last_name, '')) = ? THEN 70 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.last_name, '')) LIKE ? THEN 50 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(u.last_name, '')) LIKE ? THEN 35 ELSE 0 END +
+				   CASE WHEN lower(trim(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))) LIKE ? THEN 45 ELSE 0 END +
+				   CASE WHEN lower(trim(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))) LIKE ? THEN 25 ELSE 0 END
+			   ) AS score
+			FROM users u
+			JOIN login_users lu ON lu.id = u.id
+			LEFT JOIN followers f ON f.follower_id = ? AND f.followed_id = u.id
+			LEFT JOIN followers f_back ON f_back.follower_id = u.id AND f_back.followed_id = ?
+			WHERE u.id <> ?
+			  AND COALESCE(f_back.status, '') <> 'blocked'
+			  AND (
+				   lower(COALESCE(u.first_name, '')) LIKE ? OR
+				   lower(COALESCE(u.last_name, '')) LIKE ? OR
+				   lower(COALESCE(lu.username, '')) LIKE ? OR
+				   lower(trim(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))) LIKE ?
+			  )
+		)
+		SELECT id, first_name, last_name, username, profile_picture, current_status
+		FROM ranked
+		ORDER BY score DESC, first_name ASC, last_name ASC, username ASC
+		LIMIT ?
+	`,
+		q, prefix, contains,
+		q, prefix, contains,
+		q, prefix, contains,
+		prefix, contains,
+		currentUserID, currentUserID,
+		currentUserID,
+		contains, contains, contains, contains,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.SearchUserItem, 0)
+	for rows.Next() {
+		var item models.SearchUserItem
+		if err := rows.Scan(&item.ID, &item.FirstName, &item.LastName, &item.Username, &item.ProfilePicture, &item.CurrentStatus); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (r *sqliteProfileRepo) GetVisibilityRaw(ctx context.Context, userID int) (*models.RawVisibilityData, error) {

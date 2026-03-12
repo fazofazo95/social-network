@@ -42,6 +42,12 @@ All endpoints below:
 - `invited`
 - `none` (group page only)
 
+### Group event participation state (`my_reaction` in events timeline)
+- `pending`
+- `going`
+- `not_going`
+- `null` (no row yet, member can still respond)
+
 ---
 
 ## Endpoint Index
@@ -53,9 +59,7 @@ All endpoints below:
 - `GET /api/groups/invites/pending`
 - `GET /api/groups/{id}`
 - `POST /api/groups/{id}/events`
-- `GET /api/groups/{id}/events/{event_id}/inviteable`
-- `POST /api/groups/{id}/events/{event_id}/invites/all`
-- `POST /api/groups/{id}/events/{event_id}/invites/{user_id}`
+- `GET /api/groups/{id}/events`
 - `POST /api/groups/{id}/events/{event_id}/respond`
 - `PATCH /api/groups/{id}/events/{event_id}/respond`
 - `DELETE /api/groups/{id}/events/{event_id}`
@@ -261,9 +265,15 @@ Returns groups where the current user has a pending invite.
 ## 2e) Create Group Event
 
 ### `POST /api/groups/{id}/events`
-**Who can use:** owner or moderator only.
+**Who can use:** any active member of the group.
 
-Creates a group event. The creator is auto-marked as going.
+Creates a group event.
+
+Behavior:
+- all currently active members are initialized as `pending`
+- creator is also `pending` at creation time (not auto-`going`)
+- all active members receive a `group_event_created` notification
+- active members who join the group later are not backfilled as `pending`, but can still respond (see `POST /respond`)
 
 ### Request body
 ```json
@@ -272,143 +282,6 @@ Creates a group event. The creator is auto-marked as going.
   "description": "Bring your favorite board game",
   "event_day": "2026-03-01",
   "event_time": "19:30"
-}
-```
-
-## 2f) List Inviteable Members (Group Event)
-
-### `GET /api/groups/{id}/events/{event_id}/inviteable`
-**Who can use:** any active member of the group who is invited/responded.
-
-Returns active members who have not been invited or responded yet.
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event inviteable members",
-  "data": [
-    {
-      "id": 7,
-      "first_name": "Sam",
-      "last_name": "Wong",
-      "profile_picture": "sam.jpg",
-      "group_status": "member"
-    }
-  ]
-}
-```
-
-## 2g) Invite All Members (Group Event)
-
-### `POST /api/groups/{id}/events/{event_id}/invites/all`
-**Who can use:** any active member of the group who is invited/responded.
-
-Invites all active members who have not been invited or responded yet.
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event invites sent",
-  "data": {
-    "group_id": 12,
-    "event_id": 5,
-    "invited": 9
-  }
-}
-```
-
-## 2h) Invite One Member (Group Event)
-
-### `POST /api/groups/{id}/events/{event_id}/invites/{user_id}`
-**Who can use:** any active member of the group who is invited/responded.
-
-Invites a single active member who has not been invited or responded yet.
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event invite sent",
-  "data": {
-    "group_id": 12,
-    "event_id": 5,
-    "user_id": 7
-  }
-}
-```
-
-## 2i) Respond to Group Event Invite
-
-### `POST /api/groups/{id}/events/{event_id}/respond`
-**Who can use:** invited members only.
-
-Records a response to an event invite. Valid reactions: `going`, `not_going`.
-
-### Request body
-```json
-{
-  "reaction_type": "going"
-}
-```
-
-## 2j) Change Group Event Response
-
-### `PATCH /api/groups/{id}/events/{event_id}/respond`
-**Who can use:** members who already responded.
-
-Changes a response between `going` and `not_going`.
-
-### Request body
-```json
-{
-  "reaction_type": "not_going"
-}
-```
-
-## 2k) Cancel Group Event
-
-### `DELETE /api/groups/{id}/events/{event_id}`
-**Who can use:** owner or moderator only.
-
-Deletes the event and all related rows.
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event cancelled",
-  "data": {
-    "group_id": 12,
-    "event_id": 5
-  }
-}
-```
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event response updated",
-  "data": {
-    "group_id": 12,
-    "event_id": 5,
-    "reaction_type": "not_going"
-  }
-}
-```
-
-### Success (200)
-```json
-{
-  "status": "success",
-  "message": "group event response recorded",
-  "data": {
-    "group_id": 12,
-    "event_id": 5,
-    "reaction_type": "going"
-  }
 }
 ```
 
@@ -428,16 +301,177 @@ Deletes the event and all related rows.
     "created_at": "2026-02-25 14:03:11",
     "going": 0,
     "not_going": 0,
-    "invited": 0
+    "pending": 8
   }
 }
 ```
 
-### Invalid page example (400)
+## 2f) List Group Events Timeline
+
+### `GET /api/groups/{id}/events`
+**Who can use:** any active member of the group.
+
+Returns two lists for this group only:
+- `upcoming_events`: event date/time has not passed yet
+- `older_events`: event date/time has already passed
+- each event includes `my_reaction`:
+  - `pending`
+  - `going`
+  - `not_going`
+  - `null` (member has no event reaction row yet, e.g. joined group after event creation)
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group events fetched",
+  "data": {
+    "upcoming_events": [
+      {
+        "id": 5,
+        "group_id": 12,
+        "creator_id": 3,
+        "title": "Game Night",
+        "description": "Bring your favorite board game",
+        "event_day": "2026-03-01",
+        "event_time": "19:30:00",
+        "created_at": "2026-02-25 14:03:11",
+        "going": 4,
+        "not_going": 1,
+        "pending": 7,
+        "my_reaction": "pending"
+      },
+      {
+        "id": 9,
+        "group_id": 12,
+        "creator_id": 7,
+        "title": "Weekend Run",
+        "description": "5k around the park",
+        "event_day": "2026-03-03",
+        "event_time": "08:00:00",
+        "created_at": "2026-02-27 09:10:00",
+        "going": 2,
+        "not_going": 0,
+        "pending": 5,
+        "my_reaction": null
+      }
+    ],
+    "older_events": []
+  }
+}
+```
+
+## 2g) Event Invite Endpoints (Removed)
+
+Event invite endpoints were removed from the API. Event participation now happens directly through `respond`/`change response` and timeline listing.
+
+## 2h) Respond to Group Event Invite
+
+### `POST /api/groups/{id}/events/{event_id}/respond`
+**Who can use:** any active member.
+
+Records a first response to an event.
+
+Rules:
+- valid `reaction_type`: `going`, `not_going`
+- if current state is `pending`, converts pending to selected response
+- if current state is `null`, creates response directly (member can still join event)
+- if already `going` or `not_going`, returns conflict (use `PATCH` endpoint)
+
+### Request body
+```json
+{
+  "reaction_type": "going"
+}
+```
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event response recorded",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "reaction_type": "going"
+  }
+}
+```
+
+### Example errors
 ```json
 {
   "status": "error",
-  "message": "page must be a positive integer"
+  "message": "reaction_type must be going or not_going"
+}
+```
+
+```json
+{
+  "status": "error",
+  "message": "event response already recorded"
+}
+```
+
+## 2i) Change Group Event Response
+
+### `PATCH /api/groups/{id}/events/{event_id}/respond`
+**Who can use:** members who already responded.
+
+Changes a response between `going` and `not_going`.
+
+### Request body
+```json
+{
+  "reaction_type": "not_going"
+}
+```
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event response updated",
+  "data": {
+    "group_id": 12,
+    "event_id": 5,
+    "reaction_type": "not_going"
+  }
+}
+```
+
+### Example errors
+```json
+{
+  "status": "error",
+  "message": "no existing response to change"
+}
+```
+
+## 2j) Cancel Group Event
+
+### `DELETE /api/groups/{id}/events/{event_id}`
+**Who can use:** owner, moderator, or event creator.
+
+Deletes the event and all related rows.
+
+### Success (200)
+```json
+{
+  "status": "success",
+  "message": "group event cancelled",
+  "data": {
+    "group_id": 12,
+    "event_id": 5
+  }
+}
+```
+
+### Example forbidden (403)
+```json
+{
+  "status": "error",
+  "message": "only group owner, moderators, or event creator can cancel events"
 }
 ```
 
@@ -552,6 +586,10 @@ Behavior:
 
 ## 4) Members + Pending Lists
 
+Note:
+- These pending lists are for **group membership workflow** (`request` / `invite`).
+- They are not related to group event pending participation.
+
 ### `GET /api/groups/{id}/members`
 **Who can use:** any authenticated user.
 
@@ -581,6 +619,15 @@ Returns active members only.
 }
 ```
 
+### Empty list (200)
+```json
+{
+  "status": "success",
+  "message": "group pending requests",
+  "data": []
+}
+```
+
 ### `GET /api/groups/{id}/requests/pending`
 **Who can use:** owner or moderator only.
 
@@ -600,6 +647,15 @@ Returns pending join requests (`request_type=request`, `status=request`).
       "type": "requested"
     }
   ]
+}
+```
+
+### Empty list (200)
+```json
+{
+  "status": "success",
+  "message": "group pending invites",
+  "data": []
 }
 ```
 
@@ -703,17 +759,18 @@ Removes pending request from both `group_members` and `group_join_requests`.
 **Who can use:** owner or moderator.
 
 Current behavior:
+- works for both `public` and `private` groups
+- inviter must be an **active** group member with role `owner` or `moderator`
 - creates a pending invite (`type=invited`) even if group mode is `auto`.
 - no immediate active acceptance on invite send.
 
 ```json
 {
   "status": "success",
-  "message": "group invitation sent",
+  "message": "user invited to group",
   "data": {
     "group_id": 20,
-    "invited_by": 1,
-    "user_id": 3,
+    "invited_user_id": 3,
     "membership_status": "requested"
   }
 }
@@ -725,7 +782,7 @@ Current behavior:
 ```json
 {
   "status": "success",
-  "message": "group invite accepted",
+  "message": "invite accepted",
   "data": {
     "group_id": 26,
     "user_id": 2
@@ -739,7 +796,7 @@ Current behavior:
 ```json
 {
   "status": "success",
-  "message": "group invite rejected",
+  "message": "invite rejected",
   "data": {
     "group_id": 27,
     "user_id": 3

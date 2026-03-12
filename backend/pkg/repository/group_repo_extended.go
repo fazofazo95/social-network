@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 // AcceptGroupJoinRequest approves a pending join request
@@ -156,20 +157,16 @@ func (r *sqliteGroupRepo) InviteUserToGroup(ctx context.Context, inviterID, grou
 	}
 	defer tx.Rollback()
 
-	var visibility, joinMode string
+	var joinMode string
 	if err := tx.QueryRowContext(ctx, `
-		SELECT visibility, join_mode
+		SELECT join_mode
 		FROM groups
 		WHERE id = ?
-	`, groupID).Scan(&visibility, &joinMode); err != nil {
+	`, groupID).Scan(&joinMode); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", ErrGroupNotFound
 		}
 		return "", err
-	}
-
-	if visibility == "private" {
-		return "", ErrPrivateGroup
 	}
 
 	var inviterRole string
@@ -978,6 +975,89 @@ func (r *sqliteGroupRepo) DiscoverGroups(ctx context.Context, userID, limit, off
 	return out, nil
 }
 
+func (r *sqliteGroupRepo) SearchGroups(ctx context.Context, userID int, query string, limit int) ([]models.SearchGroupItem, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 25 {
+		limit = 25
+	}
+
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" {
+		return []models.SearchGroupItem{}, nil
+	}
+
+	prefix := q + "%"
+	contains := "%" + q + "%"
+
+	rows, err := r.db.QueryContext(ctx, `
+		WITH ranked AS (
+			SELECT g.id,
+			       g.name,
+			       COALESCE(g.description, '') AS description,
+			       COALESCE(g.group_picture, '') AS group_picture,
+			       g.group_members,
+			       g.visibility,
+			       g.join_mode,
+			       CASE
+				   WHEN gm_self.status = 'active' THEN 'active'
+				   WHEN gm_self.status = 'requested' THEN 'requested'
+				   WHEN gm_self.status = 'invited' THEN 'invited'
+				   ELSE 'none'
+			       END AS current_status,
+			       (
+				   CASE WHEN lower(g.name) = ? THEN 120 ELSE 0 END +
+				   CASE WHEN lower(g.name) LIKE ? THEN 90 ELSE 0 END +
+				   CASE WHEN lower(g.name) LIKE ? THEN 60 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(g.description, '')) = ? THEN 40 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(g.description, '')) LIKE ? THEN 30 ELSE 0 END +
+				   CASE WHEN lower(COALESCE(g.description, '')) LIKE ? THEN 15 ELSE 0 END
+			   ) AS score
+			FROM groups g
+			LEFT JOIN group_members gm_self ON gm_self.group_id = g.id AND gm_self.user_id = ?
+			WHERE (
+				g.visibility = 'public'
+				OR gm_self.status = 'active'
+				OR (g.visibility = 'private' AND gm_self.status = 'invited')
+			)
+			AND (
+				lower(g.name) LIKE ? OR
+				lower(COALESCE(g.description, '')) LIKE ?
+			)
+		)
+		SELECT id, name, description, group_picture, group_members, visibility, join_mode, current_status
+		FROM ranked
+		ORDER BY score DESC, name ASC, id DESC
+		LIMIT ?
+	`,
+		q, prefix, contains,
+		q, prefix, contains,
+		userID,
+		contains, contains,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.SearchGroupItem, 0)
+	for rows.Next() {
+		var item models.SearchGroupItem
+		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.GroupPicture, &item.GroupMembers, &item.Visibility, &item.JoinMode, &item.CurrentStatus); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 // GetActiveGroupsForUser retrieves active groups for a user
 func (r *sqliteGroupRepo) GetActiveGroupsForUser(ctx context.Context, userID int) ([]models.GroupActiveItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
@@ -1242,15 +1322,21 @@ func (r *sqliteGroupRepo) RemoveOwnPendingGroupRequest(ctx context.Context, user
 
 // CreateGroupEvent creates a new group event
 func (r *sqliteGroupRepo) CreateGroupEvent(ctx context.Context, actorID, groupID int, in models.GroupEventCreateInput) (*models.GroupEvent, error) {
-	if err := r.isGroupModeratorOrOwnerCheck(ctx, groupID, actorID); err != nil {
+	if err := r.isActiveGroupMemberCheck(ctx, groupID, actorID); err != nil {
 		return nil, err
 	}
 
 	var out models.GroupEvent
 
-	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO group_events (group_id, creator_id, title, description, event_day, event_time, going)
-		VALUES (?, ?, ?, ?, ?, ?, 1)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO group_events (group_id, creator_id, title, description, event_day, event_time)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`, groupID, actorID, in.Title, in.Description, in.EventDay, in.EventTime)
 	if err != nil {
 		return nil, err
@@ -1261,14 +1347,30 @@ func (r *sqliteGroupRepo) CreateGroupEvent(ctx context.Context, actorID, groupID
 		return nil, err
 	}
 
-	if _, err := r.db.ExecContext(ctx, `
+	res, err = tx.ExecContext(ctx, `
 		INSERT INTO group_events_reaction (event_id, group_id, creator_id, reactor_id, reaction_type)
-		VALUES (?, ?, ?, ?, 'going')
-	`, newID, groupID, actorID, actorID); err != nil {
+		SELECT ?, ?, ?, gm.user_id, 'invited'
+		FROM group_members gm
+		WHERE gm.group_id = ? AND gm.status = 'active'
+	`, newID, groupID, actorID, groupID)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := r.db.QueryRowContext(ctx, `
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE group_events
+		SET invited = ?
+		WHERE id = ?
+	`, rows, newID); err != nil {
+		return nil, err
+	}
+
+	if err := tx.QueryRowContext(ctx, `
 		SELECT id, group_id, creator_id, title, COALESCE(description, ''),
 		       COALESCE(date(event_day), ''), COALESCE(time(event_time), ''),
 		       COALESCE(datetime(created_at), ''), going, not_going, invited
@@ -1285,12 +1387,35 @@ func (r *sqliteGroupRepo) CreateGroupEvent(ctx context.Context, actorID, groupID
 		&out.CreatedAt,
 		&out.Going,
 		&out.NotGoing,
-		&out.Invited,
+		&out.Pending,
 	); err != nil {
 		return nil, err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return &out, nil
+}
+
+// GetGroupEventsTimeline retrieves upcoming and older events for a group.
+func (r *sqliteGroupRepo) GetGroupEventsTimeline(ctx context.Context, actorID, groupID int) (models.GroupEventsTimeline, error) {
+	if err := r.isActiveGroupMemberCheck(ctx, groupID, actorID); err != nil {
+		return models.GroupEventsTimeline{}, err
+	}
+
+	upcoming, err := r.getGroupEventsByTimeBucket(ctx, actorID, groupID, true)
+	if err != nil {
+		return models.GroupEventsTimeline{}, err
+	}
+
+	older, err := r.getGroupEventsByTimeBucket(ctx, actorID, groupID, false)
+	if err != nil {
+		return models.GroupEventsTimeline{}, err
+	}
+
+	return models.GroupEventsTimeline{Upcoming: upcoming, Older: older}, nil
 }
 
 // GetGroupEventInviteableMembers retrieves members who can be invited to an event
@@ -1492,14 +1617,11 @@ func (r *sqliteGroupRepo) RespondToGroupEventInvite(ctx context.Context, actorID
 		FROM group_events_reaction
 		WHERE event_id = ? AND reactor_id = ?
 	`, eventID, actorID).Scan(&current)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotInvitedToEvent
-		}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
-	if current != "invited" {
+	if err == nil && current != "invited" {
 		return ErrGroupEventAlreadyResponded
 	}
 
@@ -1509,31 +1631,61 @@ func (r *sqliteGroupRepo) RespondToGroupEventInvite(ctx context.Context, actorID
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `
-		UPDATE group_events_reaction
-		SET reaction_type = ?
-		WHERE event_id = ? AND reactor_id = ?
-	`, reactionType, eventID, actorID); err != nil {
-		return err
-	}
-
-	if reactionType == "going" {
+	if errors.Is(err, sql.ErrNoRows) {
+		creatorID, cerr := r.getGroupEventCreatorID(ctx, groupID, eventID)
+		if cerr != nil {
+			return cerr
+		}
 		if _, err := tx.ExecContext(ctx, `
-			UPDATE group_events
-			SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
-			    going = going + 1
-			WHERE id = ?
-		`, eventID); err != nil {
+			INSERT INTO group_events_reaction (event_id, group_id, creator_id, reactor_id, reaction_type)
+			VALUES (?, ?, ?, ?, ?)
+		`, eventID, groupID, creatorID, actorID, reactionType); err != nil {
 			return err
+		}
+		if reactionType == "going" {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE group_events
+				SET going = going + 1
+				WHERE id = ?
+			`, eventID); err != nil {
+				return err
+			}
+		} else {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE group_events
+				SET not_going = not_going + 1
+				WHERE id = ?
+			`, eventID); err != nil {
+				return err
+			}
 		}
 	} else {
 		if _, err := tx.ExecContext(ctx, `
-			UPDATE group_events
-			SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
-			    not_going = not_going + 1
-			WHERE id = ?
-		`, eventID); err != nil {
+			UPDATE group_events_reaction
+			SET reaction_type = ?
+			WHERE event_id = ? AND reactor_id = ?
+		`, reactionType, eventID, actorID); err != nil {
 			return err
+		}
+
+		if reactionType == "going" {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE group_events
+				SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
+				    going = going + 1
+				WHERE id = ?
+			`, eventID); err != nil {
+				return err
+			}
+		} else {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE group_events
+				SET invited = CASE WHEN invited > 0 THEN invited - 1 ELSE 0 END,
+				    not_going = not_going + 1
+				WHERE id = ?
+			`, eventID); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1621,8 +1773,14 @@ func (r *sqliteGroupRepo) ChangeGroupEventResponse(ctx context.Context, actorID,
 
 // DeleteGroupEvent deletes a group event
 func (r *sqliteGroupRepo) DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error {
-	if err := r.isGroupModeratorOrOwnerCheck(ctx, groupID, actorID); err != nil {
+	creatorID, err := r.getGroupEventCreatorID(ctx, groupID, eventID)
+	if err != nil {
 		return err
+	}
+	if creatorID != actorID {
+		if err := r.isGroupModeratorOrOwnerCheck(ctx, groupID, actorID); err != nil {
+			return err
+		}
 	}
 
 	res, err := r.db.ExecContext(ctx, `
@@ -1701,6 +1859,66 @@ func (r *sqliteGroupRepo) isActiveGroupMemberCheck(ctx context.Context, groupID,
 func (r *sqliteGroupRepo) getGroupEventCreatorCheck(ctx context.Context, groupID, eventID int) error {
 	_, err := r.getGroupEventCreatorID(ctx, groupID, eventID)
 	return err
+}
+
+func (r *sqliteGroupRepo) getGroupEventsByTimeBucket(ctx context.Context, actorID, groupID int, upcoming bool) ([]models.GroupEventListItem, error) {
+	op := "<"
+	orderDir := "DESC"
+	if upcoming {
+		op = ">="
+		orderDir = "ASC"
+	}
+
+	query := `
+		SELECT ge.id, ge.group_id, ge.creator_id, ge.title, COALESCE(ge.description, ''),
+		       COALESCE(date(ge.event_day), ''), COALESCE(time(ge.event_time), ''),
+		       COALESCE(datetime(ge.created_at), ''), ge.going, ge.not_going, ge.invited,
+		       COALESCE(CASE ger.reaction_type WHEN 'invited' THEN 'pending' ELSE ger.reaction_type END, '')
+		FROM group_events ge
+		LEFT JOIN group_events_reaction ger
+		  ON ger.event_id = ge.id AND ger.reactor_id = ?
+		WHERE ge.group_id = ?
+		  AND datetime(ge.event_day || ' ' || ge.event_time) ` + op + ` datetime('now')
+		ORDER BY ge.event_day ` + orderDir + `, ge.event_time ` + orderDir + `, ge.id ` + orderDir + `
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, actorID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.GroupEventListItem, 0)
+	for rows.Next() {
+		var item models.GroupEventListItem
+		var myReaction sql.NullString
+		if err := rows.Scan(
+			&item.ID,
+			&item.GroupID,
+			&item.CreatorID,
+			&item.Title,
+			&item.Description,
+			&item.EventDay,
+			&item.EventTime,
+			&item.CreatedAt,
+			&item.Going,
+			&item.NotGoing,
+			&item.Pending,
+			&myReaction,
+		); err != nil {
+			return nil, err
+		}
+		if myReaction.Valid {
+			item.MyReaction = &myReaction.String
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (r *sqliteGroupRepo) getGroupEventCreatorID(ctx context.Context, groupID, eventID int) (int, error) {

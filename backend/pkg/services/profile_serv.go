@@ -15,6 +15,7 @@ type ProfileService interface {
 	GetSocialStatus(ctx context.Context, viewerID, targetID int) (string, error)
 	UpdateUserMedia(ctx context.Context, targetID int, imageURL, coverImageURL string) error
 	DiscoveredUser(ctx context.Context, userID, limit int) ([]*models.DiscoveredUser, error)
+	SearchUsers(ctx context.Context, userID int, query string, limit int) ([]models.SearchUserItem, error)
 	GetUserVisibilitySettings(ctx context.Context, userID int) (*models.VisibilitySettings, error)
 	UpdateVisibility(ctx context.Context, userID int, req models.UpdateVisibilityRequest) (*models.VisibilitySettings, error)
 	GetUserContentSettings(ctx context.Context, userID int) (*models.UserProfileDTO, error)
@@ -183,6 +184,35 @@ func mapRawToDTO(raw *models.RawProfileData, viewerID, targetID int, currentStat
 
 func (s *profileService) DiscoveredUser(ctx context.Context, userID, limit int) ([]*models.DiscoveredUser, error) {
 	return s.repo.DiscoverUsers(ctx, userID, limit)
+}
+
+func (s *profileService) SearchUsers(ctx context.Context, userID int, query string, limit int) ([]models.SearchUserItem, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []models.SearchUserItem{}, nil
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 25 {
+		limit = 25
+	}
+
+	users, err := s.repo.SearchUsers(ctx, userID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Safety guard: never return the requester in search results.
+	filtered := make([]models.SearchUserItem, 0, len(users))
+	for _, u := range users {
+		if u.ID == userID {
+			continue
+		}
+		filtered = append(filtered, u)
+	}
+
+	return filtered, nil
 }
 
 func (s *profileService) GetUserVisibilitySettings(ctx context.Context, userID int) (*models.VisibilitySettings, error) {

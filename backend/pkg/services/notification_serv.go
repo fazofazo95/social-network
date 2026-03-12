@@ -202,7 +202,7 @@ func (s *notificationService) NotifyGroupEventCreated(ctx context.Context, creat
 		return err
 	}
 
-	memberIDs, err := s.repo.GetGroupActiveMemberIDs(ctx, groupID, creatorID)
+	memberIDs, err := s.repo.GetGroupActiveMemberIDs(ctx, groupID, 0)
 	if err != nil {
 		return err
 	}
