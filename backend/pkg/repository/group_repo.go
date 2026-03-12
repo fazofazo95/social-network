@@ -28,8 +28,8 @@ var (
 	ErrNotActiveGroupMember         = errors.New("user is not an active group member")
 	ErrTargetNotActiveMember        = errors.New("target user is not an active group member")
 	ErrCannotInviteSelf             = errors.New("cannot invite yourself")
-	ErrGroupEventAlreadyAnswered    = errors.New("user already invited or responded to event")
-	ErrNotInvitedToEvent            = errors.New("user is not invited or responded to event")
+	ErrGroupEventAlreadyAnswered    = errors.New("user already pending or responded to event")
+	ErrNotInvitedToEvent            = errors.New("user is not pending or responded to event")
 	ErrGroupEventAlreadyResponded   = errors.New("user already responded to event")
 	ErrGroupEventNoResponseToChange = errors.New("no event response to change")
 	ErrGroupEventResponseUnchanged  = errors.New("event response already set")
@@ -69,18 +69,22 @@ type GroupRepository interface {
 	// Group listing
 	GetGroupPageView(ctx context.Context, viewerID, groupID int) (GroupPageView, error)
 	DiscoverGroups(ctx context.Context, userID, limit, offset int) ([]models.GroupDiscoverItem, error)
+	SearchGroups(ctx context.Context, userID int, query string, limit int) ([]models.SearchGroupItem, error)
 	GetActiveGroupsForUser(ctx context.Context, userID int) ([]models.GroupActiveItem, error)
 	GetUserPendingGroupRequests(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
 	GetUserPendingGroupInvites(ctx context.Context, userID int) ([]models.GroupUserPendingItem, error)
 
 	// Events
 	CreateGroupEvent(ctx context.Context, actorID, groupID int, in models.GroupEventCreateInput) (*models.GroupEvent, error)
-	GetGroupEventInviteableMembers(ctx context.Context, actorID, groupID, eventID int) ([]models.GroupMemberListItem, error)
-	InviteGroupEventMember(ctx context.Context, actorID, groupID, eventID, targetUserID int) error
-	InviteAllGroupEventMembers(ctx context.Context, actorID, groupID, eventID int) (int, error)
+	GetGroupEventsTimeline(ctx context.Context, actorID, groupID int) (models.GroupEventsTimeline, error)
 	RespondToGroupEventInvite(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	ChangeGroupEventResponse(ctx context.Context, actorID, groupID, eventID int, reactionType string) error
 	DeleteGroupEvent(ctx context.Context, actorID, groupID, eventID int) error
+
+	// Group Posts
+	CreateGroupPost(ctx context.Context, actorID, groupID int, content, image string) (*models.Post, error)
+	GetGroupPosts(ctx context.Context, viewerID, groupID, limit, offset int) ([]*models.Post, error)
+	DeleteGroupPost(ctx context.Context, actorID, groupID, postID int) error
 }
 
 // Result types

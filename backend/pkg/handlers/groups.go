@@ -32,9 +32,7 @@ func (h *GroupHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /api/groups/discover", middleware.Chain(h.DiscoverGroups, auth))
 	mux.Handle("GET /api/groups/{id}", middleware.Chain(h.GetGroupPage, auth))
 	mux.Handle("POST /api/groups/{id}/events", middleware.Chain(h.CreateGroupEvent, auth))
-	mux.Handle("GET /api/groups/{id}/events/{event_id}/inviteable", middleware.Chain(h.GroupEventInviteableMembers, auth))
-	mux.Handle("POST /api/groups/{id}/events/{event_id}/invites/all", middleware.Chain(h.InviteAllGroupEventMembers, auth))
-	mux.Handle("POST /api/groups/{id}/events/{event_id}/invites/{user_id}", middleware.Chain(h.InviteGroupEventMember, auth))
+	mux.Handle("GET /api/groups/{id}/events", middleware.Chain(h.GetGroupEventsTimeline, auth))
 	mux.Handle("POST /api/groups/{id}/events/{event_id}/respond", middleware.Chain(h.RespondGroupEventInvite, auth))
 	mux.Handle("PATCH /api/groups/{id}/events/{event_id}/respond", middleware.Chain(h.ChangeGroupEventResponse, auth))
 	mux.Handle("DELETE /api/groups/{id}/events/{event_id}", middleware.Chain(h.CancelGroupEvent, auth))
@@ -57,6 +55,11 @@ func (h *GroupHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/accept", middleware.Chain(h.AcceptGroupRequest, auth))
 	mux.Handle("POST /api/groups/{id}/requests/{user_id}/reject", middleware.Chain(h.RejectGroupRequest, auth))
 	mux.Handle("DELETE /api/groups/{id}", middleware.Chain(h.DeleteGroup, auth))
+
+	// Group Posts
+	mux.Handle("POST /api/groups/{id}/posts", middleware.Chain(h.CreateGroupPost, auth))
+	mux.Handle("GET /api/groups/{id}/posts", middleware.Chain(h.GetGroupPosts, auth))
+	mux.Handle("DELETE /api/groups/{id}/posts/{post_id}", middleware.Chain(h.DeleteGroupPost, auth))
 }
 
 // CreateGroup creates a new group
@@ -237,8 +240,8 @@ func (h *GroupHandler) CreateGroupEvent(w http.ResponseWriter, r *http.Request) 
 		switch err.Error() {
 		case "group not found":
 			responses.SendError(w, http.StatusNotFound, "group not found")
-		case "only group owner or moderators can approve requests":
-			responses.SendError(w, http.StatusForbidden, "only group owner or moderators can create events")
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can create events")
 		default:
 			responses.SendError(w, http.StatusInternalServerError, "failed to create group event: "+err.Error())
 		}
@@ -248,8 +251,8 @@ func (h *GroupHandler) CreateGroupEvent(w http.ResponseWriter, r *http.Request) 
 	responses.SendCreated(w, "group event created", created)
 }
 
-// GroupEventInviteableMembers returns members that can be invited to an event
-func (h *GroupHandler) GroupEventInviteableMembers(w http.ResponseWriter, r *http.Request) {
+// GetGroupEventsTimeline returns upcoming and older events for a group
+func (h *GroupHandler) GetGroupEventsTimeline(w http.ResponseWriter, r *http.Request) {
 	actorID, err := middleware.UserIDFromContext(r.Context())
 	if err != nil {
 		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
@@ -262,122 +265,20 @@ func (h *GroupHandler) GroupEventInviteableMembers(w http.ResponseWriter, r *htt
 		return
 	}
 
-	eventID, err := strconv.Atoi(r.PathValue("event_id"))
-	if err != nil || eventID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid event id")
-		return
-	}
-
-	members, err := h.Service.GetGroupEventInviteableMembers(r.Context(), actorID, groupID, eventID)
+	timeline, err := h.Service.GetGroupEventsTimeline(r.Context(), actorID, groupID)
 	if err != nil {
 		switch err.Error() {
+		case "group not found":
+			responses.SendError(w, http.StatusNotFound, "group not found")
 		case "user is not an active group member":
-			responses.SendError(w, http.StatusForbidden, "only active group members can access")
-			return
-		case "user is not invited or responded to event":
-			responses.SendError(w, http.StatusForbidden, "user is not invited to this event")
-			return
-		case "group event not found":
-			responses.SendError(w, http.StatusNotFound, "event not found")
-			return
+			responses.SendError(w, http.StatusForbidden, "only active group members can access events")
 		default:
-			responses.SendError(w, http.StatusInternalServerError, "failed to get inviteable members: "+err.Error())
-			return
-		}
-	}
-
-	responses.SendSuccess(w, "inviteable members", members)
-}
-
-// InviteGroupEventMember invites a member to an event
-func (h *GroupHandler) InviteGroupEventMember(w http.ResponseWriter, r *http.Request) {
-	actorID, err := middleware.UserIDFromContext(r.Context())
-	if err != nil {
-		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	groupID, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil || groupID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid group id")
-		return
-	}
-
-	eventID, err := strconv.Atoi(r.PathValue("event_id"))
-	if err != nil || eventID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid event id")
-		return
-	}
-
-	targetUserID, err := strconv.Atoi(r.PathValue("user_id"))
-	if err != nil || targetUserID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid target user id")
-		return
-	}
-
-	if err := h.Service.InviteGroupEventMember(r.Context(), actorID, groupID, eventID, targetUserID); err != nil {
-		switch err.Error() {
-		case "cannot invite yourself":
-			responses.SendError(w, http.StatusBadRequest, "cannot invite yourself")
-		case "user is not an active group member":
-			responses.SendError(w, http.StatusForbidden, "only active group members can invite")
-		case "user is not invited or responded to event":
-			responses.SendError(w, http.StatusForbidden, "user is not invited to this event")
-		case "target user is not an active group member":
-			responses.SendError(w, http.StatusForbidden, "target user is not an active group member")
-		case "user already invited or responded to event":
-			responses.SendError(w, http.StatusConflict, "user is already invited or responded")
-		default:
-			responses.SendError(w, http.StatusInternalServerError, "failed to invite member: "+err.Error())
+			responses.SendError(w, http.StatusInternalServerError, "failed to fetch group events: "+err.Error())
 		}
 		return
 	}
 
-	responses.SendSuccess(w, "member invited", map[string]interface{}{
-		"group_id":   groupID,
-		"event_id":   eventID,
-		"invited_to": targetUserID,
-	})
-}
-
-// InviteAllGroupEventMembers invites all members to an event
-func (h *GroupHandler) InviteAllGroupEventMembers(w http.ResponseWriter, r *http.Request) {
-	actorID, err := middleware.UserIDFromContext(r.Context())
-	if err != nil {
-		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	groupID, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil || groupID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid group id")
-		return
-	}
-
-	eventID, err := strconv.Atoi(r.PathValue("event_id"))
-	if err != nil || eventID <= 0 {
-		responses.SendError(w, http.StatusBadRequest, "invalid event id")
-		return
-	}
-
-	count, err := h.Service.InviteAllGroupEventMembers(r.Context(), actorID, groupID, eventID)
-	if err != nil {
-		switch err.Error() {
-		case "user is not an active group member":
-			responses.SendError(w, http.StatusForbidden, "only active group members can invite")
-		case "user is not invited or responded to event":
-			responses.SendError(w, http.StatusForbidden, "user is not invited to this event")
-		default:
-			responses.SendError(w, http.StatusInternalServerError, "failed to invite members: "+err.Error())
-		}
-		return
-	}
-
-	responses.SendSuccess(w, "members invited", map[string]interface{}{
-		"group_id":      groupID,
-		"event_id":      eventID,
-		"invited_count": count,
-	})
+	responses.SendSuccess(w, "group events fetched", timeline)
 }
 
 // RespondGroupEventInvite responds to an event invitation
@@ -414,8 +315,8 @@ func (h *GroupHandler) RespondGroupEventInvite(w http.ResponseWriter, r *http.Re
 			responses.SendError(w, http.StatusNotFound, "group not found")
 		case "user is not an active group member":
 			responses.SendError(w, http.StatusForbidden, "only active group members can respond")
-		case "user is not invited or responded to event":
-			responses.SendError(w, http.StatusForbidden, "user is not invited to this event")
+		case "reaction_type must be going or not_going":
+			responses.SendError(w, http.StatusBadRequest, "reaction_type must be going or not_going")
 		case "user already responded to event":
 			responses.SendError(w, http.StatusConflict, "event response already recorded")
 		default:
@@ -465,6 +366,8 @@ func (h *GroupHandler) ChangeGroupEventResponse(w http.ResponseWriter, r *http.R
 			responses.SendError(w, http.StatusNotFound, "group not found")
 		case "user is not an active group member":
 			responses.SendError(w, http.StatusForbidden, "only active group members can respond")
+		case "reaction_type must be going or not_going":
+			responses.SendError(w, http.StatusBadRequest, "reaction_type must be going or not_going")
 		case "no event response to change":
 			responses.SendError(w, http.StatusConflict, "no existing response to change")
 		case "event response already set":
@@ -509,7 +412,7 @@ func (h *GroupHandler) CancelGroupEvent(w http.ResponseWriter, r *http.Request) 
 		case "group not found":
 			responses.SendError(w, http.StatusNotFound, "group not found")
 		case "only group owner or moderators can approve requests":
-			responses.SendError(w, http.StatusForbidden, "only group owner or moderators can cancel events")
+			responses.SendError(w, http.StatusForbidden, "only group owner, moderators, or event creator can cancel events")
 		default:
 			responses.SendError(w, http.StatusInternalServerError, "failed to cancel group event: "+err.Error())
 		}
@@ -678,8 +581,6 @@ func (h *GroupHandler) InviteToGroup(w http.ResponseWriter, r *http.Request) {
 		switch err.Error() {
 		case "group not found":
 			responses.SendError(w, http.StatusNotFound, "group not found")
-		case "cannot join private group from this endpoint":
-			responses.SendError(w, http.StatusForbidden, "cannot invite to private group")
 		case "only group owner or moderators can approve requests":
 			responses.SendError(w, http.StatusForbidden, "only group owner or moderators can invite")
 		case "user is already a group member":
@@ -1214,5 +1115,131 @@ func (h *GroupHandler) GetGroupPage(w http.ResponseWriter, r *http.Request) {
 		"visibility":    view.Visibility,
 		"join_mode":     view.JoinMode,
 		"group_picture": view.GroupPicture,
+	})
+}
+
+// CreateGroupPost creates a post within a group
+func (h *GroupHandler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
+		log.Printf("[ERROR] CreateGroupPost: ParseMultipartForm failed: %v", err)
+		responses.SendError(w, http.StatusBadRequest, "Invalid Form")
+		return
+	}
+
+	content := r.FormValue("content")
+
+	imageURL, err := utils.AttachAvatar(r)
+	if err != nil {
+		log.Printf("[ERROR] CreateGroupPost: File attachment failed: %v", err)
+		responses.SendError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	post, err := h.Service.CreateGroupPost(r.Context(), actorID, groupID, content, imageURL)
+	if err != nil {
+		switch err.Error() {
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can post")
+		case "post content or image is required":
+			responses.SendError(w, http.StatusBadRequest, "post content or image is required")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to create group post: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendCreated(w, "group post created", post)
+}
+
+// GetGroupPosts returns posts for a group
+func (h *GroupHandler) GetGroupPosts(w http.ResponseWriter, r *http.Request) {
+	viewerID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	page := 1
+	if pageStr := strings.TrimSpace(r.URL.Query().Get("page")); pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err != nil || p <= 0 {
+			responses.SendError(w, http.StatusBadRequest, "page must be a positive integer")
+			return
+		}
+		page = p
+	}
+
+	posts, err := h.Service.GetGroupPosts(r.Context(), viewerID, groupID, page)
+	if err != nil {
+		switch err.Error() {
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can view posts")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to get group posts: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendSuccess(w, "group posts", map[string]interface{}{
+		"page":  page,
+		"posts": posts,
+	})
+}
+
+// DeleteGroupPost deletes a post from a group
+func (h *GroupHandler) DeleteGroupPost(w http.ResponseWriter, r *http.Request) {
+	actorID, err := middleware.UserIDFromContext(r.Context())
+	if err != nil {
+		responses.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || groupID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid group id")
+		return
+	}
+
+	postID, err := strconv.Atoi(r.PathValue("post_id"))
+	if err != nil || postID <= 0 {
+		responses.SendError(w, http.StatusBadRequest, "invalid post id")
+		return
+	}
+
+	if err := h.Service.DeleteGroupPost(r.Context(), actorID, groupID, postID); err != nil {
+		switch err.Error() {
+		case "group post not found":
+			responses.SendError(w, http.StatusNotFound, "group post not found")
+		case "user is not an active group member":
+			responses.SendError(w, http.StatusForbidden, "only active group members can manage posts")
+		case "dont have permissions":
+			responses.SendError(w, http.StatusForbidden, "only post author, group owner, or moderators can delete")
+		default:
+			responses.SendError(w, http.StatusInternalServerError, "failed to delete group post: "+err.Error())
+		}
+		return
+	}
+
+	responses.SendSuccess(w, "group post deleted", map[string]int{
+		"group_id": groupID,
+		"post_id":  postID,
 	})
 }

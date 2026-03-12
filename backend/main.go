@@ -10,7 +10,6 @@ func usage() {
 	fmt.Println("  go run main.go           # start server")
 	fmt.Println("  go run main.go server    # start server")
 	fmt.Println("  go run main.go reset     # delete DB (destructive) and restart server")
-	fmt.Println("  go run main.go populate  # fill DB with seed data and exit")
 	fmt.Println()
 }
 

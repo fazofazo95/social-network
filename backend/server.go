@@ -92,6 +92,9 @@ func runServer() {
 	groupHandl := handlers.NewGroupHandler(groupServ)
 	groupHandl.RegisterRoutes(mux)
 
+	searchHandl := handlers.NewSearchHandler(profileServ, groupServ)
+	searchHandl.RegisterRoutes(mux)
+
 	notificationHandl := handlers.NewNotificationHandler(notificationServ, followServ, groupServ, notificationHub)
 	notificationHandl.RegisterRoutes(mux)
 
