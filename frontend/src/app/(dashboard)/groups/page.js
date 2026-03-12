@@ -15,9 +15,11 @@ import {
 } from "src/lib/services/group";
 import { parseProfileImage } from "src/lib/utils/profileImage";
 import Link from "next/link";
+import { useToast } from "src/components/ui/Toast";
 
 const GroupsPage = () => {
     const currentUser = "John Doe";
+    const toast = useToast();
     const [activeSection, setActiveSection] = useState("my-groups");
     const [searchQuery, setSearchQuery] = useState("");
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -116,7 +118,7 @@ const GroupsPage = () => {
             }
         } catch (error) {
             console.error("Failed to join group:", error);
-            alert(error?.message || "Failed to join group");
+            toast.error(error?.message || "Failed to join group");
         }
     };
 
@@ -139,7 +141,7 @@ const GroupsPage = () => {
             }
         } catch (error) {
             console.error("Failed to accept invitation:", error);
-            alert(error?.message || "Failed to accept invitation");
+            toast.error(error?.message || "Failed to accept invitation");
         }
     };
 
@@ -149,7 +151,7 @@ const GroupsPage = () => {
             setInvitations(invitations.filter(inv => inv.id !== groupId));
         } catch (error) {
             console.error("Failed to decline invitation:", error);
-            alert(error?.message || "Failed to decline invitation");
+            toast.error(error?.message || "Failed to decline invitation");
         }
     };
 
@@ -157,10 +159,10 @@ const GroupsPage = () => {
         try {
             await leaveGroup(groupId);
             setGroups(groups.filter(g => g.id !== groupId));
-            alert("You have left the group");
+            toast.success("You have left the group");
         } catch (error) {
             console.error("Failed to leave group:", error);
-            alert(error?.message || "Failed to leave group");
+            toast.error(error?.message || "Failed to leave group");
         }
     };
 
@@ -479,6 +481,7 @@ const EmptyState = ({ message, subMessage }) => (
 
 // Create Group Modal Component
 const CreateGroupModal = ({ onClose, onGroupCreated }) => {
+    const toast = useToast();
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -510,7 +513,7 @@ const CreateGroupModal = ({ onClose, onGroupCreated }) => {
         setIsSubmitting(true);
         try {
             await createGroup(formDataToSend);
-            alert("Group created successfully!");
+            toast.success("Group created successfully!");
             onGroupCreated?.();
             onClose();
         } catch (error) {

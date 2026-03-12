@@ -38,10 +38,12 @@ import { getApiBaseUrl } from "src/lib/apiClient";
 import Ripple_Button from "src/components/ui/Ripple_Button";
 import Echo_Button from "src/components/ui/Echo_Button";
 import EmojiPickerButton from "src/components/ui/EmojiPickerButton";
+import { useToast } from "src/components/ui/Toast";
 
 const GroupDetailPage = () => {
     const params = useParams();
     const groupId = params.id;
+    const toast = useToast();
     const [currentUser, setCurrentUser] = useState(null);
     
     const [activeTab, setActiveTab] = useState("posts");
@@ -220,7 +222,7 @@ const GroupDetailPage = () => {
             setPendingRequests(pendingRequests.filter(r => r.id !== userId));
         } catch (error) {
             console.error("Failed to accept request:", error);
-            alert(error?.message || "Failed to accept request");
+            toast.error(error?.message || "Failed to accept request");
         }
     };
 
@@ -230,7 +232,7 @@ const GroupDetailPage = () => {
             setPendingRequests(pendingRequests.filter(r => r.id !== userId));
         } catch (error) {
             console.error("Failed to reject request:", error);
-            alert(error?.message || "Failed to reject request");
+            toast.error(error?.message || "Failed to reject request");
         }
     };
 
@@ -240,19 +242,20 @@ const GroupDetailPage = () => {
             setPendingInvites(pendingInvites.filter(i => i.id !== userId));
         } catch (error) {
             console.error("Failed to remove invite:", error);
-            alert(error?.message || "Failed to remove invite");
+            toast.error(error?.message || "Failed to remove invite");
         }
     };
 
     const handleKickMember = async (userId) => {
-        if (!confirm("Are you sure you want to kick this member?")) return;
-        try {
-            await kickMember(groupId, userId);
-            setMembers(members.filter(m => m.id !== userId));
-        } catch (error) {
-            console.error("Failed to kick member:", error);
-            alert(error?.message || "Failed to kick member");
-        }
+        toast.confirm("Are you sure you want to kick this member?", async () => {
+            try {
+                await kickMember(groupId, userId);
+                setMembers(members.filter(m => m.id !== userId));
+            } catch (error) {
+                console.error("Failed to kick member:", error);
+                toast.error(error?.message || "Failed to kick member");
+            }
+        });
     };
 
     const handlePromoteMember = async (userId) => {
@@ -263,7 +266,7 @@ const GroupDetailPage = () => {
             ));
         } catch (error) {
             console.error("Failed to promote member:", error);
-            alert(error?.message || "Failed to promote member");
+            toast.error(error?.message || "Failed to promote member");
         }
     };
 
@@ -275,7 +278,7 @@ const GroupDetailPage = () => {
             ));
         } catch (error) {
             console.error("Failed to demote member:", error);
-            alert(error?.message || "Failed to demote member");
+            toast.error(error?.message || "Failed to demote member");
         }
     };
 
@@ -285,7 +288,7 @@ const GroupDetailPage = () => {
             setPosts(prev => prev.filter(p => p.id !== postId));
         } catch (error) {
             console.error("Failed to delete group post:", error);
-            alert(error?.message || "Failed to delete post");
+            toast.error(error?.message || "Failed to delete post");
         }
     };
 
@@ -400,22 +403,23 @@ const GroupDetailPage = () => {
             await loadGroupEvents();
         } catch (err) {
             console.error("Failed to respond to event:", err);
-            alert(err?.message || "Failed to update response");
+            toast.error(err?.message || "Failed to update response");
         } finally {
             setEventActionLoading(prev => ({ ...prev, [eventId]: false }));
         }
     };
 
     const handleDeleteEvent = async (eventId) => {
-        if (!confirm("Are you sure you want to cancel this event?")) return;
-        try {
-            await deleteGroupEvent(groupId, eventId);
-            setUpcomingEvents(prev => prev.filter(e => e.id !== eventId));
-            setOlderEvents(prev => prev.filter(e => e.id !== eventId));
-        } catch (err) {
-            console.error("Failed to delete event:", err);
-            alert(err?.message || "Failed to cancel event");
-        }
+        toast.confirm("Are you sure you want to cancel this event?", async () => {
+            try {
+                await deleteGroupEvent(groupId, eventId);
+                setUpcomingEvents(prev => prev.filter(e => e.id !== eventId));
+                setOlderEvents(prev => prev.filter(e => e.id !== eventId));
+            } catch (err) {
+                console.error("Failed to delete event:", err);
+                toast.error(err?.message || "Failed to cancel event");
+            }
+        });
     };
 
     return (
@@ -513,7 +517,7 @@ const GroupDetailPage = () => {
                                             }
                                         } catch (err) {
                                             console.error("Failed to join group:", err);
-                                            alert(err?.message || "Failed to join group");
+                                            toast.error(err?.message || "Failed to join group");
                                         }
                                     }}
                                     className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
@@ -1155,6 +1159,7 @@ const EmptyState = ({ message, subMessage }) => (
 
 // Invite Modal Component
 const InviteModal = ({ onClose, members = [], groupId }) => {
+    const toast = useToast();
     const [searchQuery, setSearchQuery] = useState("");
     const [invitedUsers, setInvitedUsers] = useState({});
     const [availableUsers, setAvailableUsers] = useState([]);
@@ -1205,7 +1210,7 @@ const InviteModal = ({ onClose, members = [], groupId }) => {
     const handleSendInvites = async () => {
         const selectedUserIds = Object.keys(invitedUsers).filter(id => invitedUsers[id]);
         if (selectedUserIds.length === 0) {
-            alert("Please select at least one user to invite");
+            toast.warning("Please select at least one user to invite");
             return;
         }
 
@@ -1215,11 +1220,11 @@ const InviteModal = ({ onClose, members = [], groupId }) => {
             await Promise.all(
                 selectedUserIds.map(userId => inviteToGroup(groupId, userId))
             );
-            alert(`Invitations sent to ${selectedUserIds.length} user(s)!`);
+            toast.success(`Invitations sent to ${selectedUserIds.length} user(s)!`);
             onClose();
         } catch (err) {
             console.error("Failed to send invites:", err);
-            alert(err?.message || "Failed to send invites");
+            toast.error(err?.message || "Failed to send invites");
         } finally {
             setSendingInvites(false);
         }
@@ -1594,6 +1599,7 @@ const CreateEventModal = ({ groupId, onClose, onCreated }) => {
 
 // Group Settings Modal Component (Owner only)
 const GroupSettingsModal = ({ groupId, currentSettings, onClose, onSaved }) => {
+    const toast = useToast();
     const [visibility, setVisibility] = useState(currentSettings?.visibility || "public");
     const [joinMode, setJoinMode] = useState(currentSettings?.join_mode || "auto");
     const [saving, setSaving] = useState(false);
@@ -1627,7 +1633,7 @@ const GroupSettingsModal = ({ groupId, currentSettings, onClose, onSaved }) => {
             onSaved(result || { visibility, join_mode: joinMode });
         } catch (err) {
             console.error("Failed to update group settings:", err);
-            alert(err?.message || "Failed to save settings");
+            toast.error(err?.message || "Failed to save settings");
         } finally {
             setSaving(false);
         }

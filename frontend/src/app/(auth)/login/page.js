@@ -8,9 +8,11 @@ import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import { useRouter } from "next/navigation";
 import { loginUser } from "src/lib/services/auth";
+import { useToast } from "src/components/ui/Toast";
 
 const LoginPage = () => {
   const router = useRouter();
+  const toast = useToast();
   
   const handleLogin = async () => {
   const email = document.getElementById("email").value;
@@ -23,11 +25,11 @@ const LoginPage = () => {
   
   try {
     await loginUser(userData);
-    alert("Login successful!");
+    toast.success("Login successful!");
     router.push("/");
   } catch (error) {
     console.error("Login failed:", error);
-    alert(error?.message || "Login failed");
+    toast.error(error?.message || "Login failed");
   }
 }
   return (

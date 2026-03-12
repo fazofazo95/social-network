@@ -4,6 +4,7 @@ import NavBar from "../../components/ui/NavBar";
 import SideBar from "../../components/ui/SideBar";
 import SuggestedFriends from "../../components/ui/Suggested_Friends";
 import AuthGate from "../../components/auth/AuthGate";
+import { ToastProvider } from "../../components/ui/Toast";
 
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
@@ -21,6 +22,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${ebGaramond.className} bg-(--color-customPurple) font-medium text-white`}>
+        <ToastProvider>
         <AuthGate requireAuth>
           <div className="sticky top-0 z-50">
             <NavBar />
@@ -36,6 +38,7 @@ export default function RootLayout({ children }) {
             </div>
           </div>
         </AuthGate>
+        </ToastProvider>
       </body>
     </html>
   );

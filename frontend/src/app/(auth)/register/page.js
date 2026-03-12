@@ -6,8 +6,11 @@ import Logo from "../../../components/ui/Logo";
 import Input from "../../../components/ui/Input";
 import Image from "next/image";
 import { signupUser } from "src/lib/services/auth";
+import { useToast } from "src/components/ui/Toast";
 
 const RegisterPage = () => {
+  const toast = useToast();
+
   const handleRegister = async (e) => {
     e.preventDefault();
 
@@ -24,12 +27,12 @@ const RegisterPage = () => {
     !formData.get("lastname") ||
     !formData.get("date_of_birth")
   ) {
-    alert("Please fill in all required fields");
+    toast.warning("Please fill in all required fields");
     return;
   }
 
   if (password !== confirmPassword) {
-    alert("Passwords do not match!");
+    toast.warning("Passwords do not match!");
     return;
   }
 
@@ -44,7 +47,7 @@ const RegisterPage = () => {
       window.location.href = "/login";
     } catch (error) {
       console.error("Registration failed:", error);
-      alert(error?.message || "Registration failed");
+      toast.error(error?.message || "Registration failed");
     }
   };
   return (

@@ -1,6 +1,7 @@
 import { EB_Garamond } from "next/font/google";
 import "../globals.css";
 import AuthGate from "../../components/auth/AuthGate";
+import { ToastProvider } from "../../components/ui/Toast";
 
 
 
@@ -20,7 +21,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${ebGaramond.className} bg-(--color-customPurple) font-medium text-white`}>
+        <ToastProvider>
         <AuthGate requireAuth={false}>{children}</AuthGate>
+        </ToastProvider>
       </body>
     </html>
   );
