@@ -17,6 +17,7 @@ import {
     demoteMember,
     deleteGroup,
     inviteToGroup,
+    requestToJoinGroup,
     getGroupSettings,
     updateGroupSettings,
     createGroupPost,
@@ -488,6 +489,47 @@ const GroupDetailPage = () => {
                                     <Image src="/settings_icon.svg" alt="Settings" width={16} height={16} />
                                 </button>
                             )}
+                            {!userRole && group.can_request && (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await requestToJoinGroup(groupId);
+                                            if (group.join_mode === "auto") {
+                                                // Auto-join: reload the page data
+                                                const groupData = await getGroupPage(groupId);
+                                                if (groupData) {
+                                                    setGroup(groupData);
+                                                    setUserRole(groupData.role || null);
+                                                }
+                                                if (groupData?.role) {
+                                                    const membersData = await getGroupMembers(groupId);
+                                                    setMembers(membersData);
+                                                    await loadGroupPosts(1);
+                                                    await loadGroupEvents();
+                                                }
+                                            } else {
+                                                setGroup(prev => ({ ...prev, pending_type: "requested", can_request: false }));
+                                            }
+                                        } catch (err) {
+                                            console.error("Failed to join group:", err);
+                                            alert(err?.message || "Failed to join group");
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                >
+                                    {group.join_mode === "auto" ? "Join Group" : "Request to Join"}
+                                </button>
+                            )}
+                            {!userRole && group.pending_type === "requested" && (
+                                <span className="px-4 py-2 bg-purple-900/30 text-purple-400 border border-purple-500/30 rounded-md text-sm cursor-default">
+                                    Request Pending
+                                </span>
+                            )}
+                            {!userRole && group.pending_type === "invited" && (
+                                <span className="px-4 py-2 bg-blue-900/30 text-blue-300 border border-blue-500/30 rounded-md text-sm cursor-default">
+                                    Invited
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -495,7 +537,8 @@ const GroupDetailPage = () => {
                 </div>
             </header>
 
-            {/* Tabs */}
+            {/* Tabs - only show for members */}
+            {userRole && (
             <div className="flex flex-row gap-3 w-full flex-wrap">
                 <button 
                     onClick={() => setActiveTab("posts")} 
@@ -562,9 +605,28 @@ const GroupDetailPage = () => {
                     </>
                 )}
             </div>
+            )}
+
+            {/* Non-member info */}
+            {!userRole && !loading && group && (
+                <div className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-8 text-center">
+                    <Image src="/groups_icon.svg" alt="Groups" width={48} height={48} className="mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold text-purple-200 mb-2">
+                        {group.pending_type === "requested" ? "Your request is pending" : "You are not a member"}
+                    </h3>
+                    <p className="text-purple-400 text-sm">
+                        {group.pending_type === "requested" 
+                            ? "A moderator will review your request soon." 
+                            : group.can_request
+                                ? `${group.join_mode === "auto" ? "Join this group" : "Request to join this group"} to see posts, events, and members.`
+                                : "This group is not accepting new members right now."
+                        }
+                    </p>
+                </div>
+            )}
 
             {/* Posts Section */}
-            {activeTab === "posts" && (
+            {userRole && activeTab === "posts" && (
                 <section className="flex flex-col gap-4">
                     {/* Create Post */}
                     <div className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4">
@@ -840,7 +902,7 @@ const GroupDetailPage = () => {
             )}
 
             {/* Members Section */}
-            {activeTab === "members" && (
+            {userRole && activeTab === "members" && (
                 <section className="flex flex-col gap-4">
                     {members.map(member => (
                         <article key={member.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 p-4 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
@@ -892,7 +954,7 @@ const GroupDetailPage = () => {
             )}
 
             {/* Events Section */}
-            {activeTab === "events" && (
+            {userRole && activeTab === "events" && (
                 <section className="flex flex-col gap-4">
                     {/* Create Event - any active member can create */}
                     <button 

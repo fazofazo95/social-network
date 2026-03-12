@@ -420,13 +420,12 @@ const GroupsPage = () => {
                                 </div>
                                 
                                 <div className="flex gap-2 shrink-0">
-                                    {group.hasJoined ? (
-                                        <Link href={`/groups/${group.id}`}>
-                                            <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]">
-                                                View group
-                                            </button>
-                                        </Link>
-                                    ) : group.hasPendingRequest ? (
+                                    <Link href={`/groups/${group.id}`}>
+                                        <button className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-md transition cursor-pointer text-sm shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+                                            View
+                                        </button>
+                                    </Link>
+                                    {group.hasJoined ? null : group.hasPendingRequest ? (
                                         <button
                                             disabled
                                             className="px-3 py-1.5 bg-purple-900/30 text-purple-400 border border-purple-500/30 rounded-md cursor-not-allowed text-sm"
