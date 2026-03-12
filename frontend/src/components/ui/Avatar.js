@@ -5,7 +5,7 @@ function getInitials(name, type) {
   if (!name || typeof name !== "string") return type === "group" ? "G" : "?";
   const parts = name.trim().split(/\s+/);
   if (type === "group") return parts[0]?.[0]?.toUpperCase() || "G";
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length >= 2) return (parts[0][0] + " " + parts[parts.length - 1][0]).toUpperCase();
   return parts[0]?.[0]?.toUpperCase() || "?";
 }
 
