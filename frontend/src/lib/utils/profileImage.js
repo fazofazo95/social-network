@@ -1,5 +1,3 @@
-import { getApiBaseUrl } from "src/lib/apiClient";
-
 export function parseProfileImage(profilePicture) {
   if (!profilePicture || typeof profilePicture !== "string") {
     return null;
@@ -10,12 +8,16 @@ export function parseProfileImage(profilePicture) {
     return null;
   }
 
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:")
+  ) {
     return trimmed;
   }
 
   if (trimmed.startsWith("/uploads/")) {
-    return `${getApiBaseUrl()}${trimmed}`;
+    return trimmed;
   }
 
   return null;

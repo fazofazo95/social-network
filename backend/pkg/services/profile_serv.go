@@ -306,10 +306,6 @@ func (s *profileService) GetUserContentSettings(ctx context.Context, userID int)
 }
 
 func (s *profileService) UpdateUserContent(ctx context.Context, userID int, req models.UserProfileRequest) (*models.UserProfileDTO, error) {
-	if req.Level == "" {
-		req.Level = "user"
-	}
-
 	var birthdayStr *string
 	if req.Birthday != nil {
 		s := req.Birthday.Format("2006-01-02")

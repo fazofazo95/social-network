@@ -16,7 +16,6 @@ type UserProfile struct {
 	PhoneNumber        sql.NullString
 	ProfilePicture     sql.NullString
 	Pictures           sql.NullString
-	Level              string
 }
 
 // UserProfileRequest represents user profile data for creation or update
@@ -29,7 +28,6 @@ type UserProfileRequest struct {
 	PhoneNumber        *string    `json:"phone_number,omitempty"`
 	ProfilePicture     *string    `json:"profile_picture,omitempty"`
 	Pictures           *string    `json:"pictures,omitempty"`
-	Level              string     `json:"level"`
 }
 
 // UserProfileResponse represents user profile data returned to clients
@@ -43,11 +41,10 @@ type UserProfileResponse struct {
 	PhoneNumber        *string    `json:"phone_number,omitempty"`
 	ProfilePicture     *string    `json:"profile_picture,omitempty"`
 	Pictures           *string    `json:"pictures,omitempty"`
-	Level              string     `json:"level"`
 }
 
 // UserProfileInput is used to create or update a user's profile in the database
-// Required fields: ID, FirstName, LastName, Level
+// Required fields: ID, FirstName, LastName
 // Other fields are optional and may be nil to leave NULL in the DB
 type UserProfileInput struct {
 	ID                 int
@@ -59,7 +56,6 @@ type UserProfileInput struct {
 	PhoneNumber        *string
 	ProfilePicture     *string
 	Pictures           *string
-	Level              string
 }
 
 type SignupFields struct {

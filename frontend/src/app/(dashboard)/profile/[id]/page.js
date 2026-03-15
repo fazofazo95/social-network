@@ -7,10 +7,14 @@ import { useParams } from "next/navigation";
 import Follow_Bottom from "src/components/ui/Follow_Button";
 import { fetchUserData } from "src/lib/services/user";
 import { getUserPosts } from "src/lib/services/post";
-import { blockUser, getFollowersByUser, getFollowingByUser, unblockUser } from "src/lib/services/follow";
+import {
+  blockUser,
+  getFollowersByUser,
+  getFollowingByUser,
+  unblockUser,
+} from "src/lib/services/follow";
 import Avatar from "src/components/ui/Avatar";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
-import { getApiBaseUrl } from "src/lib/apiClient";
 
 const UserProfilePage = () => {
   const params = useParams();
@@ -29,22 +33,30 @@ const UserProfilePage = () => {
 
   function toUploadUrl(path) {
     if (!path) return "";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    if (
+      path.startsWith("http://") ||
+      path.startsWith("https://") ||
+      path.startsWith("data:")
+    ) {
       return path;
     }
     if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
+      return path;
     }
     return "";
   }
 
   function toCoverUrl(path) {
     if (!path) return "/example_cover.png";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    if (
+      path.startsWith("http://") ||
+      path.startsWith("https://") ||
+      path.startsWith("data:")
+    ) {
       return path;
     }
     if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
+      return path;
     }
     return "/example_cover.png";
   }
@@ -60,18 +72,23 @@ const UserProfilePage = () => {
     setError("");
 
     try {
-      const [profile, postsData, followersData, followingData] = await Promise.all([
-        fetchUserData(targetUserId),
-        getUserPosts(targetUserId, 1, 10),
-        getFollowersByUser(targetUserId),
-        getFollowingByUser(targetUserId),
-      ]);
+      const [profile, postsData, followersData, followingData] =
+        await Promise.all([
+          fetchUserData(targetUserId),
+          getUserPosts(targetUserId, 1, 10),
+          getFollowersByUser(targetUserId),
+          getFollowingByUser(targetUserId),
+        ]);
 
       setProfileData(profile || {});
       setUserPosts(Array.isArray(postsData) ? postsData : []);
       setFollowers(Array.isArray(followersData) ? followersData : []);
       setFollowersCount(
-        typeof profile?.followers === "number" ? profile.followers : (Array.isArray(followersData) ? followersData.length : 0)
+        typeof profile?.followers === "number"
+          ? profile.followers
+          : Array.isArray(followersData)
+            ? followersData.length
+            : 0,
       );
       setFollowing(Array.isArray(followingData) ? followingData : []);
     } catch (loadError) {
@@ -91,7 +108,9 @@ const UserProfilePage = () => {
     loadProfilePageData();
   }, [targetUserId]);
 
-  const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
+  const fullName =
+    `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() ||
+    "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
   const relationshipText = profileData.relationship_status || "";
   const locationText = profileData.location || "";
@@ -100,8 +119,12 @@ const UserProfilePage = () => {
   const emailText = profileData.email || "";
   const aboutText = profileData.about_me || "";
   const birthdayText = profileData.birthday_date || "";
-  const privacyText = String(profileData.profile_type || "public").toLowerCase() === "private" ? "Private" : "Public";
-  const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
+  const privacyText =
+    String(profileData.profile_type || "public").toLowerCase() === "private"
+      ? "Private"
+      : "Public";
+  const canShowFollowLists =
+    profileData.own_profile || profileData.follow_vis !== "hidden";
   const currentStatus = String(profileData.current_status || "");
   const isBlockedByMe = currentStatus === "Blocked";
   const isBlockedByTarget = currentStatus === "You_Are_Blocked";
@@ -122,7 +145,9 @@ const UserProfilePage = () => {
       await loadProfilePageData();
     } catch (actionError) {
       console.error("Failed to change block status:", actionError);
-      setBlockActionError(actionError?.message || "Failed to update block status.");
+      setBlockActionError(
+        actionError?.message || "Failed to update block status.",
+      );
     } finally {
       setIsBlockActionLoading(false);
     }
@@ -158,7 +183,8 @@ const UserProfilePage = () => {
           <span className="text-5xl">👤</span>
           <h2 className="text-2xl font-bold text-purple-200">User Not Found</h2>
           <p className="text-purple-400 text-center max-w-sm">
-            {error || "The profile you're looking for doesn't exist or may have been removed."}
+            {error ||
+              "The profile you're looking for doesn't exist or may have been removed."}
           </p>
           <Link
             href="/"
@@ -195,7 +221,9 @@ const UserProfilePage = () => {
               />
 
               <div className="mb-4">
-                <h1 className="text-3xl font-black text-purple-100">{fullName}</h1>
+                <h1 className="text-3xl font-black text-purple-100">
+                  {fullName}
+                </h1>
                 <span className="text-purple-400 text-sm">{usernameText}</span>
               </div>
             </div>
@@ -221,7 +249,10 @@ const UserProfilePage = () => {
               </span>
             </div>
             {profileData.own_profile ? (
-              <Link href="/settings" className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer">
+              <Link
+                href="/settings"
+                className="flex items-center gap-2 border rounded-lg px-2 text-sm bg-blue-500 text-white cursor-pointer"
+              >
                 <span className="text-sm">✏️</span>
                 Edit Profile
               </Link>
@@ -230,7 +261,11 @@ const UserProfilePage = () => {
             ) : (
               <div className="flex items-center gap-2 ml-auto">
                 {!isBlockedByMe ? (
-                  <Follow_Bottom status={profileData.current_status} targetUserId={profileData.id} onStatusChange={handleFollowStatusChange} />
+                  <Follow_Bottom
+                    status={profileData.current_status}
+                    targetUserId={profileData.id}
+                    onStatusChange={handleFollowStatusChange}
+                  />
                 ) : null}
                 <button
                   type="button"
@@ -238,12 +273,20 @@ const UserProfilePage = () => {
                   onClick={handleToggleBlock}
                   disabled={isBlockActionLoading}
                 >
-                  {isBlockActionLoading ? "Working..." : isBlockedByMe ? "Unblock" : "Block"}
+                  {isBlockActionLoading
+                    ? "Working..."
+                    : isBlockedByMe
+                      ? "Unblock"
+                      : "Block"}
                 </button>
               </div>
             )}
           </div>
-          {blockActionError ? <p className="text-red-400 text-sm mx-10 mt-2">{blockActionError}</p> : null}
+          {blockActionError ? (
+            <p className="text-red-400 text-sm mx-10 mt-2">
+              {blockActionError}
+            </p>
+          ) : null}
         </section>
 
         <section className="flex justify-start gap-8 ml-5">
@@ -266,18 +309,34 @@ const UserProfilePage = () => {
         </section>
 
         <section className="text-purple-400 flex justify-around border-t border-purple-500/20 mt-4 pt-2 pb-2">
-          <button type="button" onClick={() => setActiveTab("posts")} className={`cursor-pointer transition ${activeTab === "posts" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("posts")}
+            className={`cursor-pointer transition ${activeTab === "posts" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}
+          >
             Posts({userPosts.length})
           </button>
-          <button type="button" onClick={() => setActiveTab("about")} className={`cursor-pointer transition ${activeTab === "about" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("about")}
+            className={`cursor-pointer transition ${activeTab === "about" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}
+          >
             About
           </button>
           {canShowFollowLists ? (
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className={`cursor-pointer transition ${activeTab === "followers" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("followers")}
+                className={`cursor-pointer transition ${activeTab === "followers" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}
+              >
                 Followers({followersCount})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className={`cursor-pointer transition ${activeTab === "following" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("following")}
+                className={`cursor-pointer transition ${activeTab === "following" ? "text-purple-200 font-semibold" : "text-purple-400 hover:text-purple-300"}`}
+              >
                 Following({following.length})
               </button>
             </>
@@ -292,23 +351,40 @@ const UserProfilePage = () => {
           </article>
         ) : (
           userPosts.map((post) => {
-            const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
+            const postDateLabel = formatFriendlyDateTime(
+              post.created_at_time || post.created_at,
+            );
             return (
-              <article key={post.id} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition">
+              <article
+                key={post.id}
+                className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition"
+              >
                 <div className="flex items-center gap-2">
                   <Avatar
-                    src={post.author_profile_picture || profileData.profile_picture}
+                    src={
+                      post.author_profile_picture || profileData.profile_picture
+                    }
                     name={fullName}
                     size={30}
                   />
                   <Link
-                    href={post.user_id ? `/profile/${post.user_id}` : (targetUserId ? `/profile/${targetUserId}` : "/profile")}
+                    href={
+                      post.user_id
+                        ? `/profile/${post.user_id}`
+                        : targetUserId
+                          ? `/profile/${targetUserId}`
+                          : "/profile"
+                    }
                     className="font-bold text-lg text-purple-200 hover:text-purple-100"
                   >
                     {fullName}
                   </Link>
                 </div>
-                {postDateLabel ? <span className="text-sm text-purple-400 ml-4 mb-2">{postDateLabel}</span> : null}
+                {postDateLabel ? (
+                  <span className="text-sm text-purple-400 ml-4 mb-2">
+                    {postDateLabel}
+                  </span>
+                ) : null}
                 <p>{post.content}</p>
                 {post.image ? (
                   <div className="mt-3">
@@ -329,8 +405,12 @@ const UserProfilePage = () => {
 
       {!isLoading && !error && activeTab === "about" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl mb-1 text-purple-100">User Information</h1>
-          <h2 className="font-semibold text-sm text-purple-300 mb-2">Contact Information</h2>
+          <h1 className="font-bold text-2xl mb-1 text-purple-100">
+            User Information
+          </h1>
+          <h2 className="font-semibold text-sm text-purple-300 mb-2">
+            Contact Information
+          </h2>
           <ul className="text-sm">
             <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Email:</span>
@@ -367,20 +447,30 @@ const UserProfilePage = () => {
           </ul>
           <div className="mt-4">
             <h3 className="font-semibold text-sm mb-1">About me</h3>
-            <p className="text-sm text-purple-200">{aboutText || "No about info yet."}</p>
+            <p className="text-sm text-purple-200">
+              {aboutText || "No about info yet."}
+            </p>
           </div>
         </article>
       ) : null}
 
-      {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
+      {!isLoading &&
+      !error &&
+      canShowFollowLists &&
+      activeTab === "followers" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Followers ({followers.length})</h1>
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Followers ({followers.length})
+          </h1>
           {followers.length === 0 ? (
             <p className="text-sm text-purple-300">No followers yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
-                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
+                <li
+                  key={follower.id}
+                  className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition"
+                >
                   <Avatar
                     src={follower.profile_picture}
                     name={`${follower.first_name || ""} ${follower.last_name || ""}`.trim()}
@@ -388,9 +478,14 @@ const UserProfilePage = () => {
                     className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-purple-200">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-200">
+                      {`${follower.first_name || ""} ${follower.last_name || ""}`.trim() ||
+                        "Unknown User"}
+                    </span>
                     {follower.username ? (
-                      <span className="block truncate text-[11px] text-purple-400">@{follower.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">
+                        @{follower.username}
+                      </span>
                     ) : null}
                   </span>
                   <Link
@@ -399,7 +494,9 @@ const UserProfilePage = () => {
                   >
                     View profile
                   </Link>
-                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">Follower</span>
+                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">
+                    Follower
+                  </span>
                 </li>
               ))}
             </ul>
@@ -407,15 +504,23 @@ const UserProfilePage = () => {
         </article>
       ) : null}
 
-      {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
+      {!isLoading &&
+      !error &&
+      canShowFollowLists &&
+      activeTab === "following" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Following ({following.length})</h1>
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Following ({following.length})
+          </h1>
           {following.length === 0 ? (
             <p className="text-sm text-purple-300">Not following anyone yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition">
+                <li
+                  key={followedUser.id}
+                  className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2 hover:bg-purple-900/20 transition"
+                >
                   <Avatar
                     src={followedUser.profile_picture}
                     name={`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim()}
@@ -423,9 +528,14 @@ const UserProfilePage = () => {
                     className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-purple-200">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-200">
+                      {`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() ||
+                        "Unknown User"}
+                    </span>
                     {followedUser.username ? (
-                      <span className="block truncate text-[11px] text-purple-400">@{followedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">
+                        @{followedUser.username}
+                      </span>
                     ) : null}
                   </span>
                   <Link
@@ -434,7 +544,9 @@ const UserProfilePage = () => {
                   >
                     View profile
                   </Link>
-                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">Following</span>
+                  <span className="text-xs bg-purple-900/30 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1">
+                    Following
+                  </span>
                 </li>
               ))}
             </ul>

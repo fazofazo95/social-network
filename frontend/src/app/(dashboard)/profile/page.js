@@ -5,8 +5,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Echo_Button from "src/components/ui/Echo_Button";
 import Ripple_Button from "src/components/ui/Ripple_Button";
-import { fetchUserData, fetchVisibilitySettings, updateUserCover } from "src/lib/services/user";
-import { deletePost, getPostById, getUserPosts, updatePost, restorePost } from "src/lib/services/post";
+import {
+  fetchUserData,
+  fetchVisibilitySettings,
+  updateUserCover,
+} from "src/lib/services/user";
+import {
+  deletePost,
+  getPostById,
+  getUserPosts,
+  updatePost,
+  restorePost,
+} from "src/lib/services/post";
 import {
   acceptFollowRequest,
   getBlockedUsers,
@@ -18,10 +28,15 @@ import {
   unblockUser,
   unfollowUser,
 } from "src/lib/services/follow";
-import { createComment, deleteComment, getPostComments, updateComment, restoreComment } from "src/lib/services/comment";
+import {
+  createComment,
+  deleteComment,
+  getPostComments,
+  updateComment,
+  restoreComment,
+} from "src/lib/services/comment";
 import { formatFriendlyDateTime } from "src/lib/utils/dateTime";
 import Avatar from "src/components/ui/Avatar";
-import { getApiBaseUrl } from "src/lib/apiClient";
 import { useToast } from "src/components/ui/Toast";
 
 const Profile = () => {
@@ -41,7 +56,8 @@ const Profile = () => {
   const [commentSubmittingByPost, setCommentSubmittingByPost] = useState({});
   const [commentErrorByPost, setCommentErrorByPost] = useState({});
   const [editingCommentIdByPost, setEditingCommentIdByPost] = useState({});
-  const [editingCommentContentByPost, setEditingCommentContentByPost] = useState({});
+  const [editingCommentContentByPost, setEditingCommentContentByPost] =
+    useState({});
   const [commentActionLoadingById, setCommentActionLoadingById] = useState({});
   const [visibilitySettings, setVisibilitySettings] = useState(null);
   const [isSavingCover, setIsSavingCover] = useState(false);
@@ -64,22 +80,30 @@ const Profile = () => {
 
   function toUploadUrl(path) {
     if (!path) return "";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    if (
+      path.startsWith("http://") ||
+      path.startsWith("https://") ||
+      path.startsWith("data:")
+    ) {
       return path;
     }
     if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
+      return path;
     }
     return "";
   }
 
   function toCoverUrl(path) {
     if (!path) return "/example_cover.png";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    if (
+      path.startsWith("http://") ||
+      path.startsWith("https://") ||
+      path.startsWith("data:")
+    ) {
       return path;
     }
     if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
+      return path;
     }
     return "/example_cover.png";
   }
@@ -94,12 +118,13 @@ const Profile = () => {
       ]);
       const userId = profile?.id;
 
-      const [postsData, followersData, followingData, blockedData] = await Promise.all([
-        userId ? getUserPosts(userId, 1, 10) : Promise.resolve([]),
-        getFollowers(),
-        getFollowing(),
-        getBlockedUsers(),
-      ]);
+      const [postsData, followersData, followingData, blockedData] =
+        await Promise.all([
+          userId ? getUserPosts(userId, 1, 10) : Promise.resolve([]),
+          getFollowers(),
+          getFollowing(),
+          getBlockedUsers(),
+        ]);
 
       const pendingData = await getPendingRequests().catch(() => []);
 
@@ -109,10 +134,10 @@ const Profile = () => {
       setUserPosts(Array.isArray(postsData) ? postsData : []);
       // Initialize ripple state for posts
       const rippleInit = {};
-      (Array.isArray(postsData) ? postsData : []).forEach(post => {
+      (Array.isArray(postsData) ? postsData : []).forEach((post) => {
         rippleInit[post.id] = {
           count: post.likes_count || 0,
-          rippled: !!post.has_current_user_liked
+          rippled: !!post.has_current_user_liked,
         };
       });
       setRippleStateByPost(rippleInit);
@@ -131,7 +156,7 @@ const Profile = () => {
           } catch {
             return [post.id, []];
           }
-        })
+        }),
       );
       setCommentsByPost(Object.fromEntries(commentsEntries));
     } catch (loadError) {
@@ -201,7 +226,10 @@ const Profile = () => {
     const image = commentImageByPost[postId] || null;
 
     if (!content) {
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: "Comment content is required.",
+      }));
       return;
     }
 
@@ -259,7 +287,9 @@ const Profile = () => {
     setPostActionLoadingById((prev) => ({ ...prev, [postId]: true }));
     try {
       await updatePost(postId, content);
-      setUserPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, content } : post)));
+      setUserPosts((prev) =>
+        prev.map((post) => (post.id === postId ? { ...post, content } : post)),
+      );
       setEditingPostId(null);
       setEditingPostContent("");
     } catch (saveError) {
@@ -341,7 +371,10 @@ const Profile = () => {
   async function handleSaveCommentEdit(postId, commentId) {
     const content = (editingCommentContentByPost[postId] || "").trim();
     if (!content) {
-      setCommentErrorByPost((prev) => ({ ...prev, [postId]: "Comment content is required." }));
+      setCommentErrorByPost((prev) => ({
+        ...prev,
+        [postId]: "Comment content is required.",
+      }));
       return;
     }
 
@@ -371,7 +404,9 @@ const Profile = () => {
 
     try {
       await acceptFollowRequest(requestUserId);
-      setPendingRequests((prev) => prev.filter((req) => req.id !== requestUserId));
+      setPendingRequests((prev) =>
+        prev.filter((req) => req.id !== requestUserId),
+      );
       const refreshedFollowers = await getFollowers();
       setFollowers(Array.isArray(refreshedFollowers) ? refreshedFollowers : []);
     } catch (acceptError) {
@@ -393,7 +428,9 @@ const Profile = () => {
       setFollowing((prev) => prev.filter((user) => user.id !== followedUserId));
     } catch (removeError) {
       console.error("Failed to unfollow user:", removeError);
-      setFollowListActionError(removeError?.message || "Failed to unfollow user.");
+      setFollowListActionError(
+        removeError?.message || "Failed to unfollow user.",
+      );
     } finally {
       setIsRemovingByUserId((prev) => ({ ...prev, [followedUserId]: false }));
     }
@@ -410,7 +447,9 @@ const Profile = () => {
       setFollowers((prev) => prev.filter((user) => user.id !== followerUserId));
     } catch (removeError) {
       console.error("Failed to remove follower:", removeError);
-      setFollowListActionError(removeError?.message || "Failed to remove follower.");
+      setFollowListActionError(
+        removeError?.message || "Failed to remove follower.",
+      );
     } finally {
       setIsRemovingByUserId((prev) => ({ ...prev, [followerUserId]: false }));
     }
@@ -424,7 +463,9 @@ const Profile = () => {
 
     try {
       await rejectFollowRequest(requestUserId);
-      setPendingRequests((prev) => prev.filter((req) => req.id !== requestUserId));
+      setPendingRequests((prev) =>
+        prev.filter((req) => req.id !== requestUserId),
+      );
     } catch (rejectError) {
       console.error("Failed to reject follow request:", rejectError);
       setPendingError(rejectError?.message || "Failed to reject request.");
@@ -441,10 +482,14 @@ const Profile = () => {
 
     try {
       await unblockUser(targetUserId);
-      setBlockedUsers((prev) => prev.filter((user) => user.id !== targetUserId));
+      setBlockedUsers((prev) =>
+        prev.filter((user) => user.id !== targetUserId),
+      );
     } catch (unblockError) {
       console.error("Failed to unblock user:", unblockError);
-      setFollowListActionError(unblockError?.message || "Failed to unblock user.");
+      setFollowListActionError(
+        unblockError?.message || "Failed to unblock user.",
+      );
     } finally {
       setIsUnblockingByUserId((prev) => ({ ...prev, [targetUserId]: false }));
     }
@@ -454,7 +499,9 @@ const Profile = () => {
     loadProfilePageData();
   }, []);
 
-  const fullName = `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || "Unknown User";
+  const fullName =
+    `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() ||
+    "Unknown User";
   const usernameText = profileData.nickname ? `@${profileData.nickname}` : "";
   const relationshipText = profileData.relationship_status || "";
   const locationText = profileData.location || "";
@@ -463,9 +510,12 @@ const Profile = () => {
   const emailText = profileData.email || "";
   const aboutText = profileData.about_me || "";
   const birthdayText = profileData.birthday_date || "";
-  const privacySource = visibilitySettings?.profile_type || profileData.profile_type || "public";
-  const privacyText = String(privacySource).toLowerCase() === "private" ? "Private" : "Public";
-  const canShowFollowLists = profileData.own_profile || profileData.follow_vis !== "hidden";
+  const privacySource =
+    visibilitySettings?.profile_type || profileData.profile_type || "public";
+  const privacyText =
+    String(privacySource).toLowerCase() === "private" ? "Private" : "Public";
+  const canShowFollowLists =
+    profileData.own_profile || profileData.follow_vis !== "hidden";
 
   return (
     <div className="w-full max-w-2xl flex flex-col gap-6 pb-8">
@@ -495,7 +545,9 @@ const Profile = () => {
             />
           </label>
         </div>
-        {coverStatus ? <p className="text-xs text-purple-400 px-3">{coverStatus}</p> : null}
+        {coverStatus ? (
+          <p className="text-xs text-purple-400 px-3">{coverStatus}</p>
+        ) : null}
 
         <section className="border-b border-purple-500/20 pb-4 mb-2">
           <div className="flex items-center gap-2 justify-start">
@@ -508,7 +560,9 @@ const Profile = () => {
               />
 
               <div className="mb-4">
-                <h1 className="text-3xl font-black text-purple-100">{fullName}</h1>
+                <h1 className="text-3xl font-black text-purple-100">
+                  {fullName}
+                </h1>
                 <span className="text-purple-400 text-sm">{usernameText}</span>
               </div>
             </div>
@@ -533,7 +587,10 @@ const Profile = () => {
                 {privacyText}
               </span>
             </div>
-            <Link href="/settings" className="flex items-center gap-2 rounded-lg px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white cursor-pointer transition font-semibold">
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 rounded-lg px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white cursor-pointer transition font-semibold"
+            >
               <span className="text-sm">✏️</span>
               Edit Profile
             </Link>
@@ -560,26 +617,50 @@ const Profile = () => {
         </section>
 
         <section className="text-purple-400 flex justify-around border-t border-purple-500/20 mt-4 pt-2 pb-2">
-          <button type="button" onClick={() => setActiveTab("posts")} className={`cursor-pointer transition ${activeTab === 'posts' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("posts")}
+            className={`cursor-pointer transition ${activeTab === "posts" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+          >
             Posts({userPosts.length})
           </button>
-          <button type="button" onClick={() => setActiveTab("about")} className={`cursor-pointer transition ${activeTab === 'about' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("about")}
+            className={`cursor-pointer transition ${activeTab === "about" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+          >
             About
           </button>
           {canShowFollowLists ? (
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className={`cursor-pointer transition ${activeTab === 'followers' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("followers")}
+                className={`cursor-pointer transition ${activeTab === "followers" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+              >
                 Followers({followers.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className={`cursor-pointer transition ${activeTab === 'following' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("following")}
+                className={`cursor-pointer transition ${activeTab === "following" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+              >
                 Following({following.length})
               </button>
-              <button type="button" onClick={() => setActiveTab("blocked")} className={`cursor-pointer transition ${activeTab === 'blocked' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("blocked")}
+                className={`cursor-pointer transition ${activeTab === "blocked" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+              >
                 Blocked({blockedUsers.length})
               </button>
             </>
           ) : null}
-          <button type="button" onClick={() => setActiveTab("requests")} className={`cursor-pointer transition ${activeTab === 'requests' ? 'text-purple-200' : 'text-purple-400/60 hover:text-purple-300'}`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab("requests")}
+            className={`cursor-pointer transition ${activeTab === "requests" ? "text-purple-200" : "text-purple-400/60 hover:text-purple-300"}`}
+          >
             Follow Requests({pendingRequests.length})
           </button>
         </section>
@@ -611,18 +692,26 @@ const Profile = () => {
             const commentError = commentErrorByPost[post.id] || "";
             const isPostActionLoading = !!postActionLoadingById[post.id];
             const isEditingPost = editingPostId === post.id;
-            const postDateLabel = formatFriendlyDateTime(post.created_at_time || post.created_at);
+            const postDateLabel = formatFriendlyDateTime(
+              post.created_at_time || post.created_at,
+            );
             // Get ripple state for this post
-            const rippleCount = rippleStateByPost[post.id]?.count ?? post.likes_count ?? 0;
-            const rippled = rippleStateByPost[post.id]?.rippled ?? !!post.has_current_user_liked;
+            const rippleCount =
+              rippleStateByPost[post.id]?.count ?? post.likes_count ?? 0;
+            const rippled =
+              rippleStateByPost[post.id]?.rippled ??
+              !!post.has_current_user_liked;
             const handleRippleChange = (newCount, newRippled) => {
-              setRippleStateByPost(prev => ({
+              setRippleStateByPost((prev) => ({
                 ...prev,
-                [post.id]: { count: newCount, rippled: newRippled }
+                [post.id]: { count: newCount, rippled: newRippled },
               }));
             };
             return (
-              <article key={post.id} className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
+              <article
+                key={post.id}
+                className="bg-[#1a1a2e] rounded-lg border border-purple-500/30 w-full p-5 hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all"
+              >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-start gap-3">
                     <Avatar
@@ -632,8 +721,17 @@ const Profile = () => {
                       className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
                     />
                     <div className="flex flex-col">
-                      <Link href="/profile" className="font-semibold text-purple-100 hover:underline">{fullName}</Link>
-                      {postDateLabel ? <span className="text-sm text-purple-400/60">{postDateLabel}</span> : null}
+                      <Link
+                        href="/profile"
+                        className="font-semibold text-purple-100 hover:underline"
+                      >
+                        {fullName}
+                      </Link>
+                      {postDateLabel ? (
+                        <span className="text-sm text-purple-400/60">
+                          {postDateLabel}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -661,7 +759,9 @@ const Profile = () => {
                       type="text"
                       className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-2 py-1 text-sm text-purple-100 flex-1 focus:outline-none focus:border-purple-500/50"
                       value={editingPostContent}
-                      onChange={(event) => setEditingPostContent(event.target.value)}
+                      onChange={(event) =>
+                        setEditingPostContent(event.target.value)
+                      }
                     />
                     <button
                       type="button"
@@ -685,7 +785,9 @@ const Profile = () => {
                 ) : (
                   <p className="text-purple-200">{post.content}</p>
                 )}
-                {postActionError ? <p className="text-red-400 text-sm mb-1">{postActionError}</p> : null}
+                {postActionError ? (
+                  <p className="text-red-400 text-sm mb-1">{postActionError}</p>
+                ) : null}
                 {post.image ? (
                   <div className="mt-3">
                     <Image
@@ -698,11 +800,15 @@ const Profile = () => {
                   </div>
                 ) : null}
                 <div className="flex justify-end gap-4 mt-2 border-b border-purple-500/20 pb-1">
-                  <span className="text-purple-400/60 text-sm mr-auto">{rippleCount} Ripples</span>
-                  <span className="text-purple-400/60 text-sm">{comments.length} Echoes</span>
+                  <span className="text-purple-400/60 text-sm mr-auto">
+                    {rippleCount} Ripples
+                  </span>
+                  <span className="text-purple-400/60 text-sm">
+                    {comments.length} Echoes
+                  </span>
                 </div>
                 <div className="flex justify-between gap-8 mt-2 mx-8">
-                  <Ripple_Button 
+                  <Ripple_Button
                     postId={post.id}
                     initialRippled={rippled}
                     initialCount={rippleCount}
@@ -721,7 +827,10 @@ const Profile = () => {
                   id={echoSectionId}
                   className="border-t border-purple-500/20 rounded mt-2 pt-2 gap-2 hidden flex-col"
                 >
-                  <form onSubmit={(event) => handleCommentSubmit(event, post.id)} className="flex items-center gap-2 w-full">
+                  <form
+                    onSubmit={(event) => handleCommentSubmit(event, post.id)}
+                    className="flex items-center gap-2 w-full"
+                  >
                     <Avatar
                       src={profileData.profile_picture}
                       name={fullName}
@@ -735,7 +844,10 @@ const Profile = () => {
                         className="focus:outline-none w-full pl-2 bg-transparent placeholder-purple-400/50"
                         value={commentValue}
                         onChange={(event) =>
-                          setCommentInputByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                          setCommentInputByPost((prev) => ({
+                            ...prev,
+                            [post.id]: event.target.value,
+                          }))
                         }
                         disabled={isCommentSubmitting}
                       />
@@ -751,7 +863,10 @@ const Profile = () => {
                           className="font-medium cursor-pointer text-black hidden"
                           accept="image/*"
                           onChange={(event) =>
-                            setCommentImageByPost((prev) => ({ ...prev, [post.id]: event.target.files?.[0] || null }))
+                            setCommentImageByPost((prev) => ({
+                              ...prev,
+                              [post.id]: event.target.files?.[0] || null,
+                            }))
                           }
                           disabled={isCommentSubmitting}
                         />
@@ -766,16 +881,25 @@ const Profile = () => {
                     </button>
                   </form>
 
-                  {commentError ? <p className="text-red-400 text-sm">{commentError}</p> : null}
+                  {commentError ? (
+                    <p className="text-red-400 text-sm">{commentError}</p>
+                  ) : null}
 
                   <div className="flex flex-col gap-2">
                     {isCommentsLoading ? (
-                      <p className="text-sm text-purple-400/60">Loading echoes...</p>
+                      <p className="text-sm text-purple-400/60">
+                        Loading echoes...
+                      </p>
                     ) : comments.length === 0 ? (
-                      <p className="text-sm text-purple-400/60">No echoes yet.</p>
+                      <p className="text-sm text-purple-400/60">
+                        No echoes yet.
+                      </p>
                     ) : (
                       comments.map((comment) => (
-                        <div key={comment.id} className="bg-[#0d0d1a] rounded-md border border-purple-500/20 p-3">
+                        <div
+                          key={comment.id}
+                          className="bg-[#0d0d1a] rounded-md border border-purple-500/20 p-3"
+                        >
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <div className="flex items-start gap-2">
                               <div className="pt-0.5">
@@ -788,19 +912,30 @@ const Profile = () => {
                               <div className="flex flex-col leading-tight">
                                 {comment.user_id ? (
                                   <Link
-                                    href={comment.user_id === profileData.id ? "/profile" : `/profile/${comment.user_id}`}
+                                    href={
+                                      comment.user_id === profileData.id
+                                        ? "/profile"
+                                        : `/profile/${comment.user_id}`
+                                    }
                                     className="text-sm font-medium text-purple-200 hover:underline"
                                   >
-                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() ||
+                                      "Unknown User"}
                                   </Link>
                                 ) : (
                                   <span className="text-sm font-medium text-purple-200">
-                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() || "Unknown User"}
+                                    {`${comment.author_first_name || ""} ${comment.author_last_name || ""}`.trim() ||
+                                      "Unknown User"}
                                   </span>
                                 )}
-                                {formatFriendlyDateTime(comment.created_at_time || comment.created_at) ? (
+                                {formatFriendlyDateTime(
+                                  comment.created_at_time || comment.created_at,
+                                ) ? (
                                   <span className="text-xs text-purple-400/60 mt-0.5">
-                                    {formatFriendlyDateTime(comment.created_at_time || comment.created_at)}
+                                    {formatFriendlyDateTime(
+                                      comment.created_at_time ||
+                                        comment.created_at,
+                                    )}
                                   </span>
                                 ) : null}
                               </div>
@@ -811,18 +946,30 @@ const Profile = () => {
                                   type="button"
                                   className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
                                   onClick={() => {
-                                    setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: comment.id }));
-                                    setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: comment.content || "" }));
+                                    setEditingCommentIdByPost((prev) => ({
+                                      ...prev,
+                                      [post.id]: comment.id,
+                                    }));
+                                    setEditingCommentContentByPost((prev) => ({
+                                      ...prev,
+                                      [post.id]: comment.content || "",
+                                    }));
                                   }}
-                                  disabled={!!commentActionLoadingById[comment.id]}
+                                  disabled={
+                                    !!commentActionLoadingById[comment.id]
+                                  }
                                 >
                                   Edit
                                 </button>
                                 <button
                                   type="button"
                                   className="text-xs bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-500/30 rounded-md px-3 py-1 transition cursor-pointer disabled:opacity-50"
-                                  onClick={() => handleDeleteComment(post.id, comment.id)}
-                                  disabled={!!commentActionLoadingById[comment.id]}
+                                  onClick={() =>
+                                    handleDeleteComment(post.id, comment.id)
+                                  }
+                                  disabled={
+                                    !!commentActionLoadingById[comment.id]
+                                  }
                                 >
                                   Delete
                                 </button>
@@ -834,16 +981,25 @@ const Profile = () => {
                               <input
                                 type="text"
                                 className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-2 py-1 text-sm text-purple-100 flex-1 focus:outline-none focus:border-purple-500/50"
-                                value={editingCommentContentByPost[post.id] || ""}
+                                value={
+                                  editingCommentContentByPost[post.id] || ""
+                                }
                                 onChange={(event) =>
-                                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: event.target.value }))
+                                  setEditingCommentContentByPost((prev) => ({
+                                    ...prev,
+                                    [post.id]: event.target.value,
+                                  }))
                                 }
                               />
                               <button
                                 type="button"
                                 className="text-xs px-2 py-1 rounded-md bg-purple-600 text-white disabled:opacity-50"
-                                onClick={() => handleSaveCommentEdit(post.id, comment.id)}
-                                disabled={!!commentActionLoadingById[comment.id]}
+                                onClick={() =>
+                                  handleSaveCommentEdit(post.id, comment.id)
+                                }
+                                disabled={
+                                  !!commentActionLoadingById[comment.id]
+                                }
                               >
                                 Save
                               </button>
@@ -851,15 +1007,23 @@ const Profile = () => {
                                 type="button"
                                 className="text-xs px-2 py-1 rounded-md bg-purple-900/30 text-purple-300 border border-purple-500/30"
                                 onClick={() => {
-                                  setEditingCommentIdByPost((prev) => ({ ...prev, [post.id]: null }));
-                                  setEditingCommentContentByPost((prev) => ({ ...prev, [post.id]: "" }));
+                                  setEditingCommentIdByPost((prev) => ({
+                                    ...prev,
+                                    [post.id]: null,
+                                  }));
+                                  setEditingCommentContentByPost((prev) => ({
+                                    ...prev,
+                                    [post.id]: "",
+                                  }));
                                 }}
                               >
                                 Cancel
                               </button>
                             </div>
                           ) : (
-                            <p className="text-sm text-purple-200">{comment.content}</p>
+                            <p className="text-sm text-purple-200">
+                              {comment.content}
+                            </p>
                           )}
                           {comment.image ? (
                             <div className="mt-2">
@@ -886,7 +1050,9 @@ const Profile = () => {
       {!isLoading && !error && activeTab === "about" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
           <h1 className="font-bold text-2xl mb-1">User Information</h1>
-          <h2 className="font-semibold text-sm text-purple-300 mb-2">Contact Information</h2>
+          <h2 className="font-semibold text-sm text-purple-300 mb-2">
+            Contact Information
+          </h2>
           <ul className="text-sm">
             <li className="flex justify-between gap-4 py-1 border-b border-purple-500/20">
               <span className="font-semibold">Email:</span>
@@ -923,21 +1089,33 @@ const Profile = () => {
           </ul>
           <div className="mt-4">
             <h3 className="font-semibold text-sm mb-1">About me</h3>
-            <p className="text-sm text-purple-200">{aboutText || "No about info yet."}</p>
+            <p className="text-sm text-purple-200">
+              {aboutText || "No about info yet."}
+            </p>
           </div>
         </article>
       ) : null}
 
-      {!isLoading && !error && canShowFollowLists && activeTab === "followers" ? (
+      {!isLoading &&
+      !error &&
+      canShowFollowLists &&
+      activeTab === "followers" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Followers ({followers.length})</h1>
-          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Followers ({followers.length})
+          </h1>
+          {followListActionError ? (
+            <p className="text-red-400 text-sm mb-3">{followListActionError}</p>
+          ) : null}
           {followers.length === 0 ? (
             <p className="text-sm text-purple-300">No followers yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {followers.map((follower) => (
-                <li key={follower.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
+                <li
+                  key={follower.id}
+                  className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2"
+                >
                   <Avatar
                     src={follower.profile_picture}
                     name={`${follower.first_name || ""} ${follower.last_name || ""}`.trim()}
@@ -945,9 +1123,14 @@ const Profile = () => {
                     className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-purple-100">{`${follower.first_name || ""} ${follower.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">
+                      {`${follower.first_name || ""} ${follower.last_name || ""}`.trim() ||
+                        "Unknown User"}
+                    </span>
                     {follower.username ? (
-                      <span className="block truncate text-[11px] text-purple-400">@{follower.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">
+                        @{follower.username}
+                      </span>
                     ) : null}
                   </span>
                   <Link
@@ -962,7 +1145,9 @@ const Profile = () => {
                     onClick={() => handleRemoveFollower(follower.id)}
                     disabled={!!isRemovingByUserId[follower.id]}
                   >
-                    {!!isRemovingByUserId[follower.id] ? "Removing..." : "Remove"}
+                    {!!isRemovingByUserId[follower.id]
+                      ? "Removing..."
+                      : "Remove"}
                   </button>
                 </li>
               ))}
@@ -971,16 +1156,26 @@ const Profile = () => {
         </article>
       ) : null}
 
-      {!isLoading && !error && canShowFollowLists && activeTab === "following" ? (
+      {!isLoading &&
+      !error &&
+      canShowFollowLists &&
+      activeTab === "following" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Following ({following.length})</h1>
-          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Following ({following.length})
+          </h1>
+          {followListActionError ? (
+            <p className="text-red-400 text-sm mb-3">{followListActionError}</p>
+          ) : null}
           {following.length === 0 ? (
             <p className="text-sm text-purple-300">Not following anyone yet.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
+                <li
+                  key={followedUser.id}
+                  className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2"
+                >
                   <Avatar
                     src={followedUser.profile_picture}
                     name={`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim()}
@@ -988,9 +1183,14 @@ const Profile = () => {
                     className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-purple-100">{`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">
+                      {`${followedUser.first_name || ""} ${followedUser.last_name || ""}`.trim() ||
+                        "Unknown User"}
+                    </span>
                     {followedUser.username ? (
-                      <span className="block truncate text-[11px] text-purple-400">@{followedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">
+                        @{followedUser.username}
+                      </span>
                     ) : null}
                   </span>
                   <Link
@@ -1005,7 +1205,9 @@ const Profile = () => {
                     onClick={() => handleUnfollow(followedUser.id)}
                     disabled={!!isRemovingByUserId[followedUser.id]}
                   >
-                    {!!isRemovingByUserId[followedUser.id] ? "Removing..." : "Unfollow"}
+                    {!!isRemovingByUserId[followedUser.id]
+                      ? "Removing..."
+                      : "Unfollow"}
                   </button>
                 </li>
               ))}
@@ -1016,14 +1218,21 @@ const Profile = () => {
 
       {!isLoading && !error && canShowFollowLists && activeTab === "blocked" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Blocked ({blockedUsers.length})</h1>
-          {followListActionError ? <p className="text-red-400 text-sm mb-3">{followListActionError}</p> : null}
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Blocked ({blockedUsers.length})
+          </h1>
+          {followListActionError ? (
+            <p className="text-red-400 text-sm mb-3">{followListActionError}</p>
+          ) : null}
           {blockedUsers.length === 0 ? (
             <p className="text-sm text-purple-300">No blocked users.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {blockedUsers.map((blockedUser) => (
-                <li key={blockedUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
+                <li
+                  key={blockedUser.id}
+                  className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2"
+                >
                   <Avatar
                     src={blockedUser.profile_picture}
                     name={`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim()}
@@ -1031,9 +1240,14 @@ const Profile = () => {
                     className="h-6 w-6"
                   />
                   <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-purple-100">{`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                    <span className="block truncate text-sm font-semibold text-purple-100">
+                      {`${blockedUser.first_name || ""} ${blockedUser.last_name || ""}`.trim() ||
+                        "Unknown User"}
+                    </span>
                     {blockedUser.username ? (
-                      <span className="block truncate text-[11px] text-purple-400">@{blockedUser.username}</span>
+                      <span className="block truncate text-[11px] text-purple-400">
+                        @{blockedUser.username}
+                      </span>
                     ) : null}
                   </span>
                   <Link
@@ -1048,7 +1262,9 @@ const Profile = () => {
                     onClick={() => handleUnblockUser(blockedUser.id)}
                     disabled={!!isUnblockingByUserId[blockedUser.id]}
                   >
-                    {!!isUnblockingByUserId[blockedUser.id] ? "Unblocking..." : "Unblock"}
+                    {!!isUnblockingByUserId[blockedUser.id]
+                      ? "Unblocking..."
+                      : "Unblock"}
                   </button>
                 </li>
               ))}
@@ -1059,8 +1275,12 @@ const Profile = () => {
 
       {!isLoading && !error && activeTab === "requests" ? (
         <article className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-white w-full p-5">
-          <h1 className="font-bold text-2xl text-purple-200 mb-3">Pending Requests ({pendingRequests.length})</h1>
-          {pendingError ? <p className="text-red-400 text-sm mb-3">{pendingError}</p> : null}
+          <h1 className="font-bold text-2xl text-purple-200 mb-3">
+            Pending Requests ({pendingRequests.length})
+          </h1>
+          {pendingError ? (
+            <p className="text-red-400 text-sm mb-3">{pendingError}</p>
+          ) : null}
           {pendingRequests.length === 0 ? (
             <p className="text-sm text-purple-300">No pending requests.</p>
           ) : (
@@ -1069,7 +1289,10 @@ const Profile = () => {
                 const isAccepting = !!acceptingByUserId[requestUser.id];
                 const isRejecting = !!rejectingByUserId[requestUser.id];
                 return (
-                  <li key={requestUser.id} className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2">
+                  <li
+                    key={requestUser.id}
+                    className="flex items-center gap-3 rounded-md border border-purple-500/20 bg-[#0d0d1a] px-3 py-2"
+                  >
                     <Avatar
                       src={requestUser.profile_picture}
                       name={`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim()}
@@ -1077,9 +1300,14 @@ const Profile = () => {
                       className="h-6 w-6"
                     />
                     <span className="flex-1 min-w-0">
-                      <span className="block truncate text-sm font-semibold text-purple-100">{`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() || "Unknown User"}</span>
+                      <span className="block truncate text-sm font-semibold text-purple-100">
+                        {`${requestUser.first_name || ""} ${requestUser.last_name || ""}`.trim() ||
+                          "Unknown User"}
+                      </span>
                       {requestUser.username ? (
-                        <span className="block truncate text-[11px] text-purple-400">@{requestUser.username}</span>
+                        <span className="block truncate text-[11px] text-purple-400">
+                          @{requestUser.username}
+                        </span>
                       ) : null}
                     </span>
                     <Link

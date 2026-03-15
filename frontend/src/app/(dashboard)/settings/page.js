@@ -12,7 +12,6 @@ import {
   updateVisibilitySettings,
 } from "src/lib/services/user";
 import Avatar from "src/components/ui/Avatar";
-import { getApiBaseUrl } from "src/lib/apiClient";
 
 const visibilityKeys = [
   "email_vis",
@@ -83,11 +82,15 @@ export default function SettingsPage() {
 
   function toCoverUrl(path) {
     if (!path) return "/example_cover.png";
-    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    if (
+      path.startsWith("http://") ||
+      path.startsWith("https://") ||
+      path.startsWith("data:")
+    ) {
       return path;
     }
     if (path.startsWith("/uploads/")) {
-      return `${getApiBaseUrl()}${path}`;
+      return path;
     }
     return "/example_cover.png";
   }
@@ -114,18 +117,41 @@ export default function SettingsPage() {
 
       const safeVisibility = visibilityData || {};
       const nextVisibility = {
-        profile_type: normalizeProfileType(safeVisibility.profile_type || visibilityDefaults.profile_type),
-        email_vis: normalizeVisibility(safeVisibility.email_vis, visibilityDefaults.email_vis),
-        birthday_date_vis: normalizeVisibility(safeVisibility.birthday_date_vis, visibilityDefaults.birthday_date_vis),
+        profile_type: normalizeProfileType(
+          safeVisibility.profile_type || visibilityDefaults.profile_type,
+        ),
+        email_vis: normalizeVisibility(
+          safeVisibility.email_vis,
+          visibilityDefaults.email_vis,
+        ),
+        birthday_date_vis: normalizeVisibility(
+          safeVisibility.birthday_date_vis,
+          visibilityDefaults.birthday_date_vis,
+        ),
         relationship_status_vis: normalizeVisibility(
           safeVisibility.relationship_status_vis,
-          visibilityDefaults.relationship_status_vis
+          visibilityDefaults.relationship_status_vis,
         ),
-        employed_at_vis: normalizeVisibility(safeVisibility.employed_at_vis, visibilityDefaults.employed_at_vis),
-        phone_number_vis: normalizeVisibility(safeVisibility.phone_number_vis, visibilityDefaults.phone_number_vis),
-        about_me_vis: normalizeVisibility(safeVisibility.about_me_vis, visibilityDefaults.about_me_vis),
-        nickname_vis: normalizeVisibility(safeVisibility.nickname_vis, visibilityDefaults.nickname_vis),
-        follow_vis: normalizeVisibility(safeVisibility.follow_vis, visibilityDefaults.follow_vis),
+        employed_at_vis: normalizeVisibility(
+          safeVisibility.employed_at_vis,
+          visibilityDefaults.employed_at_vis,
+        ),
+        phone_number_vis: normalizeVisibility(
+          safeVisibility.phone_number_vis,
+          visibilityDefaults.phone_number_vis,
+        ),
+        about_me_vis: normalizeVisibility(
+          safeVisibility.about_me_vis,
+          visibilityDefaults.about_me_vis,
+        ),
+        nickname_vis: normalizeVisibility(
+          safeVisibility.nickname_vis,
+          visibilityDefaults.nickname_vis,
+        ),
+        follow_vis: normalizeVisibility(
+          safeVisibility.follow_vis,
+          visibilityDefaults.follow_vis,
+        ),
       };
 
       setVisibilityForm(nextVisibility);
@@ -221,7 +247,10 @@ export default function SettingsPage() {
     setContentStatus("");
 
     const payload = Object.fromEntries(
-      Object.entries(contentForm).map(([key, value]) => [key, typeof value === "string" ? value.trim() : value])
+      Object.entries(contentForm).map(([key, value]) => [
+        key,
+        typeof value === "string" ? value.trim() : value,
+      ]),
     );
 
     try {
@@ -246,7 +275,10 @@ export default function SettingsPage() {
     };
 
     visibilityKeys.forEach((key) => {
-      payload[key] = normalizeVisibility(visibilityForm[key], visibilityDefaults[key]);
+      payload[key] = normalizeVisibility(
+        visibilityForm[key],
+        visibilityDefaults[key],
+      );
     });
 
     try {
@@ -259,7 +291,9 @@ export default function SettingsPage() {
       setVisibilityStatus("Visibility settings saved.");
     } catch (error) {
       console.error("Failed to save visibility settings:", error);
-      setVisibilityStatus(error?.message || "Failed to save visibility settings.");
+      setVisibilityStatus(
+        error?.message || "Failed to save visibility settings.",
+      );
     } finally {
       setIsSavingVisibility(false);
     }
@@ -269,7 +303,9 @@ export default function SettingsPage() {
     <div className="w-full max-w-2xl flex flex-col gap-6">
       <section className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-purple-400">Manage profile content and privacy visibility.</p>
+        <p className="text-purple-400">
+          Manage profile content and privacy visibility.
+        </p>
       </section>
 
       {isLoading ? (
@@ -285,7 +321,10 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveCover} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
+        <form
+          onSubmit={handleSaveCover}
+          className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4"
+        >
           <h2 className="text-xl font-bold">Cover Image</h2>
 
           <div className="flex flex-col gap-3">
@@ -296,7 +335,12 @@ export default function SettingsPage() {
               height={180}
               className="rounded-lg w-full h-36 object-cover"
             />
-            <input type="file" accept="image/*" onChange={handleCoverFileChange} className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleCoverFileChange}
+              className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer"
+            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -313,7 +357,10 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveAvatar} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
+        <form
+          onSubmit={handleSaveAvatar}
+          className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4"
+        >
           <h2 className="text-xl font-bold">Profile Image</h2>
 
           <div className="flex items-center gap-4">
@@ -323,7 +370,12 @@ export default function SettingsPage() {
               size={64}
               className="shadow-[0_0_10px_rgba(168,85,247,0.3)]"
             />
-            <input type="file" accept="image/*" onChange={handleAvatarFileChange} className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarFileChange}
+              className="text-sm text-purple-300 file:bg-purple-900/30 file:text-purple-300 file:border file:border-purple-500/30 file:rounded-md file:px-3 file:py-1 file:mr-3 file:cursor-pointer"
+            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -340,7 +392,10 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveContent} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
+        <form
+          onSubmit={handleSaveContent}
+          className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4"
+        >
           <h2 className="text-xl font-bold">Profile Content</h2>
 
           <div className="grid grid-cols-2 gap-4">
@@ -442,7 +497,10 @@ export default function SettingsPage() {
       ) : null}
 
       {!isLoading && !loadingError ? (
-        <form onSubmit={handleSaveVisibility} className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4">
+        <form
+          onSubmit={handleSaveVisibility}
+          className="border border-purple-500/30 rounded-lg bg-[#1a1a2e] text-purple-100 w-full p-5 flex flex-col gap-4"
+        >
           <h2 className="text-xl font-bold">Visibility & Privacy</h2>
 
           <div className="grid grid-cols-2 gap-4">
@@ -454,72 +512,148 @@ export default function SettingsPage() {
                 value={visibilityForm.profile_type}
                 onChange={handleVisibilityChange}
               >
-                <option value="public" className="bg-[#1a1a2e]">Public</option>
-                <option value="private" className="bg-[#1a1a2e]">Private</option>
+                <option value="public" className="bg-[#1a1a2e]">
+                  Public
+                </option>
+                <option value="private" className="bg-[#1a1a2e]">
+                  Private
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Email
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="email_vis" value={visibilityForm.email_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="email_vis"
+                value={visibilityForm.email_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Birthday Date
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="birthday_date_vis" value={visibilityForm.birthday_date_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="birthday_date_vis"
+                value={visibilityForm.birthday_date_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Relationship Status
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="relationship_status_vis" value={visibilityForm.relationship_status_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="relationship_status_vis"
+                value={visibilityForm.relationship_status_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Employed At
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="employed_at_vis" value={visibilityForm.employed_at_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="employed_at_vis"
+                value={visibilityForm.employed_at_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Phone Number
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="phone_number_vis" value={visibilityForm.phone_number_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="phone_number_vis"
+                value={visibilityForm.phone_number_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               About Me
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="about_me_vis" value={visibilityForm.about_me_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="about_me_vis"
+                value={visibilityForm.about_me_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Nickname
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="nickname_vis" value={visibilityForm.nickname_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="nickname_vis"
+                value={visibilityForm.nickname_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
 
             <label className="flex flex-col text-sm gap-1 text-purple-300">
               Follow List
-              <select className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer" name="follow_vis" value={visibilityForm.follow_vis} onChange={handleVisibilityChange}>
-                <option value="visible" className="bg-[#1a1a2e]">Visible</option>
-                <option value="hidden" className="bg-[#1a1a2e]">Hidden</option>
+              <select
+                className="bg-[#0d0d1a] border border-purple-500/30 rounded-md px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                name="follow_vis"
+                value={visibilityForm.follow_vis}
+                onChange={handleVisibilityChange}
+              >
+                <option value="visible" className="bg-[#1a1a2e]">
+                  Visible
+                </option>
+                <option value="hidden" className="bg-[#1a1a2e]">
+                  Hidden
+                </option>
               </select>
             </label>
           </div>

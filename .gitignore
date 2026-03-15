@@ -7,3 +7,6 @@ pkg/db/*.db
 
 # Node modules
 frontend/node_modules/
+
+# Go module cache (accidentally created)
+frontend/pkg/

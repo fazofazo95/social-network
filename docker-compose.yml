@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: social-network-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - backend-data:/app/pkg/db
+      - backend-uploads:/app/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+        INTERNAL_API_URL: http://backend:8080
+    container_name: social-network-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - INTERNAL_API_URL=http://backend:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+  backend-uploads:
