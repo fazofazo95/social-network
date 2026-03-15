@@ -391,8 +391,7 @@ func (r *sqliteProfileRepo) UpdateProfileContent(ctx context.Context, userID int
             birthday_date       = COALESCE(?, birthday_date),
             relationship_status = COALESCE(?, relationship_status),
             employed_at         = COALESCE(?, employed_at),
-            phone_number        = COALESCE(?, phone_number),
-            profile_picture     = COALESCE(?, profile_picture)
+            phone_number        = COALESCE(?, phone_number)
         WHERE id = ?`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -402,7 +401,6 @@ func (r *sqliteProfileRepo) UpdateProfileContent(ctx context.Context, userID int
 		req.RelationshipStatus,
 		req.EmployedAt,
 		req.PhoneNumber,
-		req.ProfilePicture,
 		userID,
 	)
 	return err
