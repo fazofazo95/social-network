@@ -364,7 +364,7 @@ export default function App() {
     }
 
     if (postPrivacy === "custom" && selectiveUserIds.length === 0) {
-      setSubmitError("Select at least one user for selective post privacy.");
+      setSubmitError("Select at least one user for private post visibility.");
       return;
     }
 
@@ -475,10 +475,10 @@ export default function App() {
                 Public
               </option>
               <option value="followers" className="bg-[#1a1a2e]">
-                Followers
+                Almost Private
               </option>
               <option value="custom" className="bg-[#1a1a2e]">
-                Selective
+                Private
               </option>
             </select>
           </li>

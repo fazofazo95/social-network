@@ -29,7 +29,7 @@ import {
   changeGroupEventResponse,
   deleteGroupEvent,
 } from "src/lib/services/group";
-import { getDiscoveredUsers } from "src/lib/services/discover";
+import { getFollowers, getFollowing } from "src/lib/services/follow";
 import { fetchUserData } from "src/lib/services/user";
 import { restorePost } from "src/lib/services/post";
 import {
@@ -180,7 +180,11 @@ const GroupDetailPage = () => {
 
         // If user is member, fetch members and moderator content
         if (groupData?.role) {
-          const membersData = await getGroupMembers(groupId);
+          const membersRaw = await getGroupMembers(groupId);
+          const membersData = membersRaw.map((m) => ({
+            ...m,
+            role: m.role || m.group_status,
+          }));
           setMembers(membersData);
 
           // Load group posts and events
@@ -1457,17 +1461,28 @@ const InviteModal = ({ onClose, members = [], groupId }) => {
   const [error, setError] = useState(null);
   const [sendingInvites, setSendingInvites] = useState(false);
 
-  // Fetch available users on mount
+  // Fetch followers + following on mount
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
         setError(null);
-        const users = await getDiscoveredUsers();
+        const [followers, following] = await Promise.all([
+          getFollowers().catch(() => []),
+          getFollowing().catch(() => []),
+        ]);
+
+        // Deduplicate by id
+        const seen = new Set();
+        const combined = [...followers, ...following].filter((u) => {
+          if (!u?.id || seen.has(u.id)) return false;
+          seen.add(u.id);
+          return true;
+        });
 
         // Filter out members already in the group
         const memberIds = new Set(members.map((m) => m.id));
-        const filtered = users.filter((user) => !memberIds.has(user.id));
+        const filtered = combined.filter((user) => !memberIds.has(user.id));
 
         setAvailableUsers(filtered);
       } catch (err) {
