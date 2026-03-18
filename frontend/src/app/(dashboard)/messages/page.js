@@ -137,6 +137,7 @@ const MessagesPage = () => {
   const [timeTick, setTimeTick] = useState(Date.now());
   const socketRef = useRef(null);
   const selectedChatIdRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   const emitUnreadRefresh = () => {
     if (typeof window !== "undefined") {
@@ -426,6 +427,10 @@ const MessagesPage = () => {
   }, [selectedChatId]);
 
   useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setTimeTick(Date.now());
     }, 60 * 1000);
@@ -503,10 +508,26 @@ const MessagesPage = () => {
             return;
           }
 
-          const refreshedChats = await listChats().catch(() => null);
-          if (Array.isArray(refreshedChats)) {
-            setChats(refreshedChats);
-          }
+          // Update the sidebar preview inline without a full re-fetch
+          setChats((prev) => {
+            const exists = prev.some((c) => c.chat_id === incomingChatId);
+            if (!exists) {
+              // New chat not yet in the list — fetch lazily
+              listChats().then((refreshed) => {
+                if (Array.isArray(refreshed)) setChats(refreshed);
+              }).catch(() => null);
+              return prev;
+            }
+            return prev.map((c) => {
+              if (c.chat_id !== incomingChatId) return c;
+              return {
+                ...c,
+                last_message_preview: incoming.body || c.last_message_preview,
+                last_message_at: incoming.created_at || c.last_message_at,
+                seen: Number(selectedChatIdRef.current) === incomingChatId,
+              };
+            });
+          });
 
           if (Number(selectedChatIdRef.current) === incomingChatId) {
             setMessages((prev) => {
@@ -627,26 +648,42 @@ const MessagesPage = () => {
     setError("");
     setAccessNotice("");
 
+    let result = null;
     try {
       if (selectedChat?.type === "direct" && selectedChat.other_user_id) {
-        await sendDirectMessage(selectedChat.other_user_id, trimmedText);
+        result = await sendDirectMessage(selectedChat.other_user_id, trimmedText);
       } else if (selectedChat?.type === "group" && selectedChat.group_id) {
-        await sendGroupMessage(selectedChat.group_id, trimmedText);
+        result = await sendGroupMessage(selectedChat.group_id, trimmedText);
       } else if (newChatTarget?.id) {
-        await sendDirectMessage(newChatTarget.id, trimmedText);
+        result = await sendDirectMessage(newChatTarget.id, trimmedText);
       } else {
         throw new Error("Unsupported chat type.");
       }
 
       setDraftMessage("");
-      const refreshedChats = await listChats();
-      const safeRefreshedChats = Array.isArray(refreshedChats) ? refreshedChats : [];
-      setChats(safeRefreshedChats);
 
       if (selectedChat?.chat_id) {
-        setSelectedChatId(selectedChat.chat_id);
-        await loadMessages(selectedChat.chat_id);
+        // Append the sent message from the API response — no full re-fetch needed
+        const sentMessage = result?.data;
+        if (sentMessage?.id) {
+          setMessages((prev) => {
+            if (prev.some((m) => Number(m.id) === Number(sentMessage.id))) return prev;
+            return [...prev, sentMessage];
+          });
+          setChats((prev) => prev.map((c) => {
+            if (c.chat_id !== selectedChat.chat_id) return c;
+            return {
+              ...c,
+              last_message_preview: trimmedText,
+              last_message_at: sentMessage.created_at || new Date().toISOString(),
+              seen: true,
+            };
+          }));
+        }
       } else if (newChatTarget?.id) {
+        const refreshedChats = await listChats();
+        const safeRefreshedChats = Array.isArray(refreshedChats) ? refreshedChats : [];
+        setChats(safeRefreshedChats);
         const newDirectChat = safeRefreshedChats.find(
           (chatItem) => chatItem?.type === "direct" && Number(chatItem.other_user_id) === Number(newChatTarget.id)
         );
@@ -668,10 +705,10 @@ const MessagesPage = () => {
 
   return (
     <div className="w-full max-w-5xl pb-8">
-      <div className="border border-purple-500/30 bg-[#1a1a2e] rounded-xl overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.15)] min-h-[70vh]">
-        <div className="grid grid-cols-[300px_1fr] min-h-[70vh]">
-          <aside className="border-r border-purple-500/20 bg-[#1a1a2e]">
-            <div className="p-3 border-b border-purple-500/20">
+      <div className="border border-purple-500/30 bg-[#1a1a2e] rounded-xl overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.15)] h-[70vh]">
+        <div className="grid grid-cols-[300px_1fr] h-full">
+          <aside className="border-r border-purple-500/20 bg-[#1a1a2e] flex flex-col overflow-hidden">
+            <div className="p-3 border-b border-purple-500/20 shrink-0">
               <div className="flex items-center rounded-full bg-[#0d0d1a] border border-purple-500/30 px-3 py-2">
                 <span className="text-purple-300 text-sm mr-2">⌕</span>
                 <input
@@ -718,7 +755,7 @@ const MessagesPage = () => {
               </div>
             </div>
 
-            <div className="max-h-[calc(70vh-64px)] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {isLoading ? (
                 <p className="px-4 py-3 text-sm text-purple-300">Loading chats...</p>
               ) : filteredChats.length === 0 ? (
@@ -778,8 +815,8 @@ const MessagesPage = () => {
             </div>
           </aside>
 
-          <section className="flex flex-col bg-[#0d0d1a]">
-            <header className="h-14 border-b border-purple-500/20 px-4 flex items-center justify-between">
+          <section className="flex flex-col bg-[#0d0d1a] min-h-0">
+            <header className="h-14 shrink-0 border-b border-purple-500/20 px-4 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <Avatar
                   src={selectedChat?.type === "group" ? selectedChat?.group_picture : (selectedChat?.other_user_picture || newChatTarget?.profile_picture)}
@@ -828,7 +865,7 @@ const MessagesPage = () => {
               ) : null}
             </header>
 
-            <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
               {isMessagesLoading ? (
                 <p className="text-sm text-purple-300">Loading messages...</p>
               ) : !selectedChat && !newChatTarget ? (
@@ -857,9 +894,10 @@ const MessagesPage = () => {
               {selectedChat?.type === "direct" && !canSendInCurrentContext ? (
                 <p className="text-xs text-red-300 mt-2">{DIRECT_SEND_RULE_MESSAGE}</p>
               ) : null}
+              <div ref={messagesEndRef} />
             </div>
 
-            <footer className="h-14 border-t border-purple-500/20 px-3 flex items-center gap-2">
+            <footer className="h-14 shrink-0 border-t border-purple-500/20 px-3 flex items-center gap-2">
               <form onSubmit={handleSendMessage} className="w-full flex items-center gap-2">
                 <input
                   value={draftMessage}
